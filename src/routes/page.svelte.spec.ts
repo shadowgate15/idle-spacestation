@@ -16,22 +16,26 @@ describe('+page.svelte greet behavior', () => {
 	});
 
 	it('invokes greet command and shows result via mockIPC', async () => {
-		mockIPC((cmd, _args) => {
-			if (cmd === 'greet') return 'Hello, Taylor! You\'ve been greeted from Rust!';
+		mockIPC((cmd) => {
+			if (cmd === 'greet') return "Hello, Taylor! You've been greeted from Rust!";
 		});
 		render(Page);
 		const input = page.getByPlaceholder('Enter a name...');
 		await input.fill('Taylor');
 		await page.getByRole('button', { name: /greet/i }).click();
-		await expect.element(page.getByText('Hello, Taylor! You\'ve been greeted from Rust!')).toBeInTheDocument();
+		await expect
+			.element(page.getByText("Hello, Taylor! You've been greeted from Rust!"))
+			.toBeInTheDocument();
 	});
 
 	it('submits with empty input and shows empty-name greeting via mockIPC', async () => {
-		mockIPC((cmd, _args) => {
-			if (cmd === 'greet') return 'Hello, ! You\'ve been greeted from Rust!';
+		mockIPC((cmd) => {
+			if (cmd === 'greet') return "Hello, ! You've been greeted from Rust!";
 		});
 		render(Page);
 		await page.getByRole('button', { name: /greet/i }).click();
-		await expect.element(page.getByText("Hello, ! You've been greeted from Rust!")).toBeInTheDocument();
+		await expect
+			.element(page.getByText("Hello, ! You've been greeted from Rust!"))
+			.toBeInTheDocument();
 	});
 });
