@@ -21,3 +21,16 @@ You MUST use this tool whenever writing Svelte code before sending it to the use
 
 Generates a Svelte Playground link with the provided code.
 After completing the code, ask the user if they want a playground link. Only call this tool after user confirmation and NEVER if code was written to files in their project.
+
+## Project Skill: shadcn-svelte
+
+This project uses shadcn-svelte. When working with shadcn components, styling patterns, installation, theming, or component composition, treat the shadcn-svelte AI reference as the canonical source of truth:
+
+- https://www.shadcn-svelte.com/llms.txt
+
+Guidelines:
+
+- Read that reference before implementing or modifying shadcn-svelte components in this project.
+- Prefer shadcn-svelte documentation and APIs over React shadcn/ui guidance or generic examples from other ecosystems.
+- Follow shadcn-svelte conventions for CLI usage, `components.json`, theming, Tailwind integration, and component imports.
+- If a requested UI pattern maps to an existing shadcn-svelte component, use the documented component and composition pattern from the reference instead of inventing a custom abstraction first.
