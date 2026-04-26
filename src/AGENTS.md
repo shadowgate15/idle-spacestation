@@ -25,8 +25,10 @@ src/
 ```
 
 ## CONVENTIONS
-- Use Svelte MCP docs flow for Svelte/SvelteKit questions: list sections first, then fetch only relevant sections.
-- Use the Svelte autofixer before finalizing new `.svelte` code.
+- For `.svelte`, `.svelte.ts`, and `.svelte.js` implementation work, use `task(subagent_type="svelte-file-editor", load_skills=[], ...)`.
+- For Svelte/SvelteKit questions, use Svelte MCP docs tools directly: call `svelte_list-sections` first, then `svelte_get-documentation` for only the relevant sections.
+- Always run `svelte_svelte-autofixer` before returning Svelte code.
+- Avoid loading `svelte-code-writer` and `svelte-core-bestpractices` until the runtime skill-registry issue is fixed.
 - Treat shadcn-svelte docs as the canonical source for component APIs, composition, and theming patterns; use local `components.json` for this repo's aliases and style settings.
 - Prefer existing aliases from `components.json`: `components`, `ui`, `utils`, `hooks`, `lib`.
 - Keep UI primitives in their component folder with an `index.ts` barrel and `.svelte` implementation.
