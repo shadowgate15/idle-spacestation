@@ -24,7 +24,7 @@ Repo is still close to template scale; keep the hierarchy minimal and ignore gen
 ├── storybook-static/    # Generated Storybook output
 ├── .svelte-kit/         # Generated SvelteKit output
 ├── .sisyphus/           # Agent notes/evidence; not app code
-└── .opencode/           # Tooling metadata; not product code
+└── .opencode/           # Tooling metadata and repo-local OpenCode skills
 ```
 
 ## WHERE TO LOOK
@@ -43,6 +43,11 @@ Repo is still close to template scale; keep the hierarchy minimal and ignore gen
 - Tests are colocated with source: `*.spec.ts` for Vitest, `*.e2e.ts` for Playwright.
 - UI primitives live under `src/lib/components/ui/<component>/` with a `.svelte` implementation and `index.ts` re-export.
 - Storybook exists for component isolation, but app code does not depend on `src/stories/`.
+- Repo-local OpenCode skills live under `.opencode/skills/` and should be preferred when a reusable repo workflow exists.
+
+## WORKFLOW
+- For implementation work, start from a dedicated worktree under `.worktree/<task-slug>` on a separate branch instead of editing the primary checkout.
+- Use the repo-local OpenCode skill `idle-spacestation-worktree-pr` for the expected workflow: create or reuse the worktree, do the work there, and deliver the result as a GitHub PR.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - Do not edit generated output: `.svelte-kit/`, `build/`, `storybook-static/`, `src-tauri/target/`, `src-tauri/gen/schemas/`.
