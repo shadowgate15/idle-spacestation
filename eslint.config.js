@@ -53,4 +53,10 @@ export default defineConfig(
       'svelte/no-navigation-without-resolve': 'off',
     },
   },
+  {
+    files: ['src/routes/**/*.svelte'],
+    rules: {
+      'svelte/no-navigation-without-resolve': ['error', { ignoreLinks: true }],
+    },
+  },
 );
