@@ -1,62 +1,94 @@
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
   import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-
-  let name = $state('');
-  let greetMsg = $state('');
-
-  async function greet(event: Event) {
-    event.preventDefault();
-    greetMsg = await invoke('greet', { name });
-  }
 </script>
 
-<main class="flex min-h-screen flex-col items-center justify-center gap-8 p-8 text-center">
-  <h1 class="text-3xl font-bold tracking-tight">Welcome to Tauri + Svelte</h1>
+<section data-testid="home-hero" class="mb-8">
+  <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">Station Command</h2>
+  <p class="mb-4 text-muted-foreground">
+    Balance oxygen, power, and crew confidence while the station grows one measured upgrade at a
+    time.
+  </p>
+  <Button
+    data-testid="primary-action"
+    class="bg-primary text-primary-foreground hover:bg-primary/80"
+  >
+    Review Station Status
+  </Button>
+</section>
 
-  <div class="flex items-center gap-4">
-    <a href="https://vite.dev" target="_blank">
-      <img
-        src="/vite.svg"
-        class="logo vite h-20 p-5 transition-all duration-700 will-change-[filter]"
-        alt="Vite Logo"
-      />
-    </a>
-    <a href="https://tauri.app" target="_blank">
-      <img
-        src="/tauri.svg"
-        class="logo tauri h-20 p-5 transition-all duration-700 will-change-[filter]"
-        alt="Tauri Logo"
-      />
-    </a>
-    <a href="https://svelte.dev" target="_blank">
-      <img
-        src="/svelte.svg"
-        class="logo svelte-kit h-20 p-5 transition-all duration-700 will-change-[filter]"
-        alt="SvelteKit Logo"
-      />
-    </a>
+<section
+  data-testid="resource-strip"
+  class="mb-8 flex gap-6 rounded-lg border border-border bg-card p-4"
+>
+  <dl class="flex gap-6">
+    <div class="flex flex-col">
+      <dt class="text-xs tracking-wide text-muted-foreground uppercase">Power Reserve</dt>
+      <dd class="text-lg font-bold text-foreground">82%</dd>
+    </div>
+    <div class="flex flex-col">
+      <dt class="text-xs tracking-wide text-muted-foreground uppercase">Oxygen Uptime</dt>
+      <dd class="text-lg font-bold text-foreground">99.2%</dd>
+    </div>
+    <div class="flex flex-col">
+      <dt class="text-xs tracking-wide text-muted-foreground uppercase">Crew Morale</dt>
+      <dd class="text-lg font-bold text-foreground">Stable</dd>
+    </div>
+  </dl>
+</section>
+
+<div class="grid gap-6 lg:grid-cols-2">
+  <div class="flex flex-col gap-6">
+    <section
+      id="overview-panel"
+      data-testid="overview-panel"
+      class="rounded-lg border border-border bg-card p-4"
+    >
+      <h2 class="mb-3 text-base font-semibold text-foreground">Operational Snapshot</h2>
+      <ul class="space-y-2 text-sm text-muted-foreground">
+        <li>Solar lattice holding steady across the sunline.</li>
+        <li>Hydroponics cycle recovered after the last coolant swap.</li>
+        <li>Freighter berth clear for the next supply approach.</li>
+      </ul>
+    </section>
+
+    <section
+      id="alerts-panel"
+      data-testid="alerts-panel"
+      class="rounded-lg border border-border bg-card p-4"
+    >
+      <h2 class="mb-3 text-base font-semibold text-foreground">Command Alerts</h2>
+      <ul class="space-y-2 text-sm text-muted-foreground">
+        <li>Cooling loop efficiency dipped 3% overnight.</li>
+        <li>Cargo drone maintenance window opens in 02:15.</li>
+      </ul>
+    </section>
   </div>
 
-  <p class="text-muted-foreground">Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
-
-  <form class="flex items-center gap-2" onsubmit={greet}>
-    <Input bind:value={name} placeholder="Enter a name..." class="w-48" />
-    <Button type="submit">Greet</Button>
-  </form>
-
-  <p class="text-sm">{greetMsg}</p>
-</main>
-
-<style>
-  .logo.vite:hover {
-    filter: drop-shadow(0 0 2em #747bff);
-  }
-  .logo.tauri:hover {
-    filter: drop-shadow(0 0 2em #24c8db);
-  }
-  .logo.svelte-kit:hover {
-    filter: drop-shadow(0 0 2em #ff3e00);
-  }
-</style>
+  <section
+    id="systems-panel"
+    data-testid="systems-panel"
+    class="rounded-lg border border-border bg-card p-4"
+  >
+    <h2 class="mb-3 text-base font-semibold text-foreground">Priority Systems</h2>
+    <div class="space-y-4">
+      <article class="flex flex-col gap-1">
+        <h3 class="text-sm font-medium text-foreground">Reactor</h3>
+        <p class="text-sm text-muted-foreground">
+          Output locked at 4.8 GW with no variance outside tolerance.
+        </p>
+      </article>
+      <article class="flex flex-col gap-1">
+        <h3 class="text-sm font-medium text-foreground">Life Support</h3>
+        <p class="text-sm text-muted-foreground">
+          Scrubbers cycling cleanly across all habitation rings.
+        </p>
+      </article>
+      <article class="flex flex-col gap-1">
+        <h3 class="text-sm font-medium text-foreground">Docking Grid</h3>
+        <p class="text-sm text-muted-foreground">
+          Approach beacons aligned and berth traffic remains orderly.
+        </p>
+      </article>
+    </div>
+  </section>
+</div>
