@@ -4,20 +4,20 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
     "build": "vite build",
-    "preview": "vite preview",
+    "build-storybook": "storybook build",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "tauri": "tauri",
-    "lint": "prettier --check . && eslint .",
+    "dev": "vite dev",
     "format": "prettier --write .",
-    "test:unit": "vitest",
-    "test": "npm run test:unit -- --run && npm run test:e2e",
+    "lint": "prettier --check . && eslint .",
     "prepare": "playwright install",
-    "test:e2e": "playwright test",
+    "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "tauri": "tauri",
+    "test": "pnpm run test:unit -- --run && pnpm run test:e2e",
+    "test:e2e": "playwright test",
+    "test:unit": "vitest"
   },
   "license": "MIT",
   "dependencies": {
