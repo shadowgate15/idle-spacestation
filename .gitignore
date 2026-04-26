@@ -13,3 +13,6 @@ test-results
 
 *storybook.log
 storybook-static
+
+# oh-my-openagent
+.sisyphus
