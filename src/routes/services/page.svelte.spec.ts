@@ -66,7 +66,7 @@ describe('Services route', () => {
     expect(maintenanceBay?.family).toBe('support');
 
     const commandRelay = snapshot.routes.services.services.find((s) => s.id === 'command-relay');
-    expect(commandRelay?.family).toBe('command');
+    expect(commandRelay?.family).toBe('support');
 
     const fabricationLoop = snapshot.routes.services.services.find(
       (s) => s.id === 'fabrication-loop',

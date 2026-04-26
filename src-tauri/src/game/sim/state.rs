@@ -34,6 +34,8 @@ pub struct RunState {
     pub resources: ResourceState,
     pub services: Vec<ServiceState>,
     pub systems: Vec<SystemState>,
+    pub consecutive_stable_power_ticks: u32,
+    pub lifetime_data_produced: u64,
     pub autosave_due: bool,
     pub autosave_count: u32,
     pub last_autosave_tick: Option<u64>,
@@ -117,6 +119,8 @@ impl RunState {
                 SystemState::new(LOGISTICS_SPINE_ID, 1),
                 SystemState::new(SURVEY_ARRAY_ID, 1),
             ],
+            consecutive_stable_power_ticks: 0,
+            lifetime_data_produced: 0,
             autosave_due: false,
             autosave_count: 0,
             last_autosave_tick: None,
@@ -181,6 +185,8 @@ impl RunState {
         self.autosave_count.hash(&mut hasher);
         self.last_autosave_tick.hash(&mut hasher);
         self.prestige_eligible.hash(&mut hasher);
+        self.consecutive_stable_power_ticks.hash(&mut hasher);
+        self.lifetime_data_produced.hash(&mut hasher);
 
         self.station.active_planet_id.hash(&mut hasher);
         sorted_clone(&self.station.discovered_planet_ids).hash(&mut hasher);

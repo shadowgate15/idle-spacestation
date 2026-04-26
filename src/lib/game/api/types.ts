@@ -20,7 +20,7 @@ export type DoctrineId =
   | 'hardened-relays'
   | 'frontier-charters';
 
-export type ServiceFamily = 'production' | 'support' | 'command' | 'conversion';
+export type ServiceFamily = 'production' | 'support' | 'conversion';
 
 export type PlanetModifierTarget =
   | 'crew-efficiency'

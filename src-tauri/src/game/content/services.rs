@@ -9,7 +9,6 @@ pub const FABRICATION_LOOP_ID: &str = "fabrication-loop";
 pub enum ServiceCategory {
     Production,
     Support,
-    Command,
     Conversion,
 }
 
@@ -99,7 +98,7 @@ pub const SERVICES: &[ServiceDefinition] = &[
     ServiceDefinition {
         id: COMMAND_RELAY_ID,
         label: "Command Relay",
-        category: ServiceCategory::Command,
+        category: ServiceCategory::Support,
         crew_required: 1,
         power_upkeep: 1.0,
         power_output: 0.0,
@@ -240,7 +239,7 @@ mod tests {
             &ServiceDefinition {
                 id: COMMAND_RELAY_ID,
                 label: "Command Relay",
-                category: ServiceCategory::Command,
+                category: ServiceCategory::Support,
                 crew_required: 1,
                 power_upkeep: 1.0,
                 power_output: 0.0,

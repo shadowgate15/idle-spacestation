@@ -142,7 +142,7 @@ pub fn execute_prestige(
     next_profile.lifetime_prestiges = next_profile.lifetime_prestiges.saturating_add(1);
     next_profile.lifetime_data_produced = next_profile
         .lifetime_data_produced
-        .saturating_add(run_state.resources.data.max(0.0).floor() as u64);
+        .saturating_add(run_state.lifetime_data_produced);
     next_profile.fastest_prestige_ticks = match next_profile.fastest_prestige_ticks {
         Some(existing) => Some(existing.min(run_state.tick_count)),
         None => Some(run_state.tick_count),
@@ -221,6 +221,8 @@ fn reset_run_state(profile: &PrestigeProfile) -> RunState {
             SystemState::new(LOGISTICS_SPINE_ID, 1),
             SystemState::new(SURVEY_ARRAY_ID, 1),
         ],
+        consecutive_stable_power_ticks: 0,
+        lifetime_data_produced: 0,
         autosave_due: false,
         autosave_count: 0,
         last_autosave_tick: None,
@@ -264,6 +266,7 @@ mod tests {
         let mut run_state = RunState::starter_fixture();
         run_state.tick_count = 1_440;
         run_state.resources.data = 3_200.0;
+        run_state.lifetime_data_produced = 3_200;
         run_state.resources.materials = 275.0;
         run_state.resources.crew_assigned = 5;
         run_state.resources.crew_available = 1;

@@ -199,6 +199,14 @@ fn surveys_unlocks_phase(
         + pending.iter().map(|service| service.materials_delta).sum::<f32>())
         .clamp(0.0, allocation.materials_capacity);
     state.resources.data += pending.iter().map(|service| service.data_delta).sum::<f32>();
+
+    let data_delta: f32 = pending.iter().map(|service| service.data_delta).sum();
+    if data_delta > 0.0 {
+        state.lifetime_data_produced = state
+            .lifetime_data_produced
+            .saturating_add(data_delta.floor() as u64);
+    }
+
     state.station.survey_progress += pending.iter().map(|service| service.survey_delta).sum::<f32>();
 
     unlock_planet_if_ready(state, CINDER_FORGE_ID, CINDER_FORGE_SURVEY_THRESHOLD);
@@ -213,7 +221,18 @@ fn autosave_prestige_check_phase(state: &mut RunState) {
         state.last_autosave_tick = Some(state.tick_count);
     }
 
-    state.prestige_eligible = false;
+    let net_power = state.resources.power_available - state.resources.power_reserved;
+    state.consecutive_stable_power_ticks =
+        crate::game::progression::prestige::update_stable_power_ticks(
+            state.consecutive_stable_power_ticks,
+            net_power,
+        );
+
+    let eligibility = crate::game::progression::prestige::evaluate_prestige_eligibility(
+        state,
+        state.consecutive_stable_power_ticks,
+    );
+    state.prestige_eligible = eligibility.eligible;
 }
 
 fn unlock_planet_if_ready(state: &mut RunState, planet_id: &str, threshold: f32) {

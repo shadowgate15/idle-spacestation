@@ -32,6 +32,16 @@ import { maybeCreatePreviewFixtureTransport } from './testing/transport';
 
 const tauriTransport: GameTransport = {
   invoke(command, payload) {
+    if (command === 'game_set_service_activation') {
+      return tauriInvoke('game_toggle_service', payload as InvokeArgs | undefined) as Promise<
+        GameCommandResponses[typeof command]
+      >;
+    }
+
+    if (command === 'game_confirm_prestige') {
+      return tauriInvoke('game_execute_prestige') as Promise<GameCommandResponses[typeof command]>;
+    }
+
     return tauriInvoke(command, payload as InvokeArgs | undefined) as Promise<
       GameCommandResponses[typeof command]
     >;

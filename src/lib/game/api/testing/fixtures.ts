@@ -217,7 +217,7 @@ const serviceDefinitions: Record<RawServiceStateSnapshot['id'], ServiceDefinitio
     id: 'command-relay',
     name: 'Command Relay',
     description: 'Stabilizes priority handling and increases survey speed.',
-    family: 'command',
+    family: 'support',
     requiredCrew: 1,
     powerUpkeep: 1,
     powerOutput: 0,
