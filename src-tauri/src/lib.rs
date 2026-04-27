@@ -12,11 +12,6 @@ use crate::game::progression::PrestigeProfile;
 use crate::game::snapshot::{build_snapshot, ActionResponse, RawGameSnapshot, SaveLoadResponse};
 use crate::game::sim::RunState;
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
 
 struct GameState(Mutex<(RunState, PrestigeProfile, u32)>);
 
@@ -523,7 +518,6 @@ pub fn run() {
             0u32,
         ))))
         .invoke_handler(tauri::generate_handler![
-            greet,
             game_get_snapshot,
             game_toggle_service,
             game_upgrade_system,
