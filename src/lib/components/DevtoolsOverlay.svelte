@@ -2,6 +2,8 @@
   import { createGameGateway } from '$lib/game/api';
   import CrewPanel from '$lib/components/devtools/CrewPanel.svelte';
   import ResourcesPanel from '$lib/components/devtools/ResourcesPanel.svelte';
+  import ServicesPanel from '$lib/components/devtools/ServicesPanel.svelte';
+  import SystemsPanel from '$lib/components/devtools/SystemsPanel.svelte';
   import type { GameSnapshot } from '$lib/game/api/types';
 
   let {
@@ -47,10 +49,12 @@
 
   <section data-testid="devtools-systems-section">
     <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Systems</h3>
+    <SystemsPanel {snapshot} {gateway} />
   </section>
 
   <section data-testid="devtools-services-section">
     <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Services</h3>
+    <ServicesPanel {snapshot} {gateway} />
   </section>
 
   <section data-testid="devtools-progression-section">
