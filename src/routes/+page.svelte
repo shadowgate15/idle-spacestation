@@ -14,18 +14,55 @@
   let overview = $state<OverviewViewModel | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
+  let isPolling = $state(false);
+  let destroyed = $state(false);
+  let pollInterval = $state<ReturnType<typeof setInterval> | null>(null);
 
   const hasDeficitWarnings = $derived(overview?.deficitWarnings ?? []);
 
-  onMount(async () => {
+  async function loadOverview() {
+    if (isPolling) return;
+
+    isPolling = true;
     try {
       const snapshot = await gameGateway.getSnapshot();
+      if (destroyed) return;
       overview = snapshot.routes.overview;
+      error = null;
     } catch (e) {
+      if (destroyed) return;
       error = e instanceof Error ? e.message : 'Failed to load station data';
     } finally {
-      loading = false;
+      isPolling = false;
     }
+  }
+
+  onMount(() => {
+    destroyed = false;
+
+    const initialize = async () => {
+      try {
+        await loadOverview();
+      } finally {
+        if (destroyed) return;
+        loading = false;
+      }
+
+      if (destroyed) return;
+      pollInterval = setInterval(async () => {
+        await loadOverview();
+      }, 1000);
+    };
+
+    void initialize();
+
+    return () => {
+      destroyed = true;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
   });
 
   function formatDelta(delta: ResourceDeltaSnapshot): string {

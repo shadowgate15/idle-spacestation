@@ -1,8 +1,11 @@
 mod game;
 
+use std::thread;
+use std::time::Duration;
 use std::sync::Mutex;
 
 use serde::Deserialize;
+use tauri::Manager;
 use crate::game::content::doctrines::doctrine_by_id;
 use crate::game::content::planets::{AURORA_PIER_ID, CINDER_FORGE_ID};
 use crate::game::content::services::service_by_id;
@@ -10,7 +13,7 @@ use crate::game::content::systems::{system_by_id, SystemProgression, HABITAT_RIN
 use crate::game::progression::{execute_prestige, DoctrinePurchaseError, PrestigeExecutionError};
 use crate::game::progression::PrestigeProfile;
 use crate::game::snapshot::{build_snapshot, ActionResponse, RawGameSnapshot, SaveLoadResponse};
-use crate::game::sim::RunState;
+use crate::game::sim::{tick, RunState};
 
 
 struct GameState(Mutex<(RunState, PrestigeProfile, u32)>);
@@ -502,6 +505,43 @@ fn effective_service_power_upkeep(run_state: &RunState, service_id: &str) -> f32
     (definition.power_upkeep * (1.0 + planet_modifier + service_modifier)).max(0.0)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn toggle_service_input_accepts_camel_case_payload() {
+        let input: ToggleServiceInput = serde_json::from_str(
+            r#"{"serviceId":"solar-harvester","active":true}"#,
+        )
+        .expect("camelCase payload should deserialize");
+
+        assert_eq!(input.service_id, "solar-harvester");
+        assert!(input.active);
+    }
+
+    #[test]
+    fn upgrade_system_input_accepts_camel_case_payload() {
+        let input: UpgradeSystemInput =
+            serde_json::from_str(r#"{"systemId":"reactor-core"}"#)
+                .expect("camelCase payload should deserialize");
+
+        assert_eq!(input.system_id, "reactor-core");
+    }
+
+    #[test]
+    fn background_tick_target_advances_run_state() {
+        let mut run_state = RunState::starter_fixture();
+        let initial_tick_count = run_state.tick_count;
+        let initial_materials = run_state.resources.materials;
+
+        tick(&mut run_state);
+
+        assert_eq!(run_state.tick_count, initial_tick_count + 1);
+        assert!(run_state.resources.materials >= initial_materials);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
@@ -512,11 +552,24 @@ pub fn run() {
     }
 
     builder
-        .manage(GameState(Mutex::new((
-            RunState::starter_fixture(),
-            PrestigeProfile::default(),
-            0u32,
-        ))))
+        .setup(|app| {
+            app.manage(GameState(Mutex::new((
+                RunState::starter_fixture(),
+                PrestigeProfile::default(),
+                0u32,
+            ))));
+
+            let app_handle = app.handle().clone();
+            thread::spawn(move || loop {
+                thread::sleep(Duration::from_millis(250));
+
+                let state = app_handle.state::<GameState>();
+                let mut guard = state.0.lock().expect("game state mutex poisoned");
+                tick(&mut guard.0);
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             game_get_snapshot,
             game_toggle_service,

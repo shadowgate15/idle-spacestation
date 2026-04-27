@@ -12,17 +12,54 @@
   let systems = $state<SystemsViewModel | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
+  let isPolling = $state(false);
+  let destroyed = $state(false);
   let upgrading = $state<Set<string>>(new Set());
+  let pollInterval = $state<ReturnType<typeof setInterval> | null>(null);
 
-  onMount(async () => {
+  async function loadSystems() {
+    if (isPolling) return;
+
+    isPolling = true;
     try {
       const snapshot = await gameGateway.getSnapshot();
+      if (destroyed) return;
       systems = snapshot.routes.systems;
+      error = null;
     } catch (e) {
+      if (destroyed) return;
       error = e instanceof Error ? e.message : 'Failed to load systems data';
     } finally {
-      loading = false;
+      isPolling = false;
     }
+  }
+
+  onMount(() => {
+    destroyed = false;
+
+    const initialize = async () => {
+      try {
+        await loadSystems();
+      } finally {
+        if (destroyed) return;
+        loading = false;
+      }
+
+      if (destroyed) return;
+      pollInterval = setInterval(async () => {
+        await loadSystems();
+      }, 1000);
+    };
+
+    void initialize();
+
+    return () => {
+      destroyed = true;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
   });
 
   async function handleUpgrade(systemId: SystemId) {

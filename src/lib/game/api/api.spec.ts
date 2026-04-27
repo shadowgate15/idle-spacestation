@@ -6,6 +6,10 @@ import {
   createGameGateway,
   previewFixtureNames,
   type GameSnapshot,
+  type GameCommandName,
+  type GameCommandPayloads,
+  type GameCommandResponses,
+  type GameTransport,
 } from './index';
 import {
   buildSnapshotFromFixtureState,
@@ -15,6 +19,68 @@ import {
 } from './testing';
 
 describe('game api fixtures and adapters', () => {
+  it('sends camelCase payloads for service activation commands', async () => {
+    const calls: Array<{ command: string; payload: unknown }> = [];
+    const transport: GameTransport = {
+      invoke: async <TCommand extends GameCommandName>(
+        command: TCommand,
+        payload: GameCommandPayloads[TCommand],
+      ): Promise<GameCommandResponses[TCommand]> => {
+        calls.push({ command, payload });
+
+        if (command === 'game_set_service_activation') {
+          return {
+            ok: true,
+            snapshot: buildSnapshotFromFixtureState(createFixtureState('starter'), 'starter'),
+          } as GameCommandResponses[TCommand];
+        }
+
+        throw new Error(`Unexpected command: ${command}`);
+      },
+    };
+    const gateway = createGameGateway(transport);
+
+    await gateway.setServiceActivation({ serviceId: 'solar-harvester', active: true });
+
+    expect(calls).toEqual([
+      {
+        command: 'game_set_service_activation',
+        payload: { serviceId: 'solar-harvester', active: true },
+      },
+    ]);
+  });
+
+  it('sends camelCase payloads for system upgrade commands', async () => {
+    const calls: Array<{ command: string; payload: unknown }> = [];
+    const transport: GameTransport = {
+      invoke: async <TCommand extends GameCommandName>(
+        command: TCommand,
+        payload: GameCommandPayloads[TCommand],
+      ): Promise<GameCommandResponses[TCommand]> => {
+        calls.push({ command, payload });
+
+        if (command === 'game_upgrade_system') {
+          return {
+            ok: true,
+            snapshot: buildSnapshotFromFixtureState(createFixtureState('starter'), 'starter'),
+          } as GameCommandResponses[TCommand];
+        }
+
+        throw new Error(`Unexpected command: ${command}`);
+      },
+    };
+    const gateway = createGameGateway(transport);
+
+    await gateway.upgradeSystem({ systemId: 'reactor-core' });
+
+    expect(calls).toEqual([
+      {
+        command: 'game_upgrade_system',
+        payload: { systemId: 'reactor-core' },
+      },
+    ]);
+  });
+
   it.each(previewFixtureNames)(
     'returns complete route-facing view models for %s',
     async (fixtureName) => {

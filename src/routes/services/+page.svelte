@@ -13,6 +13,9 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let acting = $state<Set<string>>(new Set());
+  let isPolling = $state(false);
+  let destroyed = $state(false);
+  let pollInterval = $state<ReturnType<typeof setInterval> | null>(null);
 
   const disabledReasonLabels: Record<string, string> = {
     capacity: 'No service slots available',
@@ -34,15 +37,49 @@
     disabled: 'text-muted-foreground',
   };
 
-  onMount(async () => {
+  async function loadServices() {
+    if (isPolling) return;
+
+    isPolling = true;
     try {
       const snapshot = await gameGateway.getSnapshot();
+      if (destroyed) return;
       services = snapshot.routes.services;
+      error = null;
     } catch (e) {
+      if (destroyed) return;
       error = e instanceof Error ? e.message : 'Failed to load services data';
     } finally {
-      loading = false;
+      isPolling = false;
     }
+  }
+
+  onMount(() => {
+    destroyed = false;
+
+    const initialize = async () => {
+      try {
+        await loadServices();
+      } finally {
+        if (destroyed) return;
+        loading = false;
+      }
+
+      if (destroyed) return;
+      pollInterval = setInterval(async () => {
+        await loadServices();
+      }, 1000);
+    };
+
+    void initialize();
+
+    return () => {
+      destroyed = true;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
   });
 
   async function handleActivation(serviceId: ServiceId, active: boolean) {
