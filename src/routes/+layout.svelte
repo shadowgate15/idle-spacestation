@@ -7,6 +7,7 @@
 
   const IS_DEBUG = import.meta.env.DEV;
   const DEVTOOLS_STORAGE_KEY = 'idle-spacestation.devtools-open';
+  const E2E_FIXTURE_STORAGE_KEY = 'idle-spacestation.e2e-fixture';
 
   let { children }: { children: Snippet } = $props();
   let devtoolsVisible = $state(false);
@@ -85,7 +86,9 @@
   onMount(() => {
     devtoolsDestroyed = false;
 
-    if (!IS_DEBUG) {
+    const isFixtureMode = window.localStorage.getItem(E2E_FIXTURE_STORAGE_KEY) !== null;
+
+    if (!IS_DEBUG && !isFixtureMode) {
       return () => {
         devtoolsDestroyed = true;
         stopDevtoolsPolling();
