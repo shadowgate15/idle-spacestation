@@ -1,7 +1,18 @@
 <script lang="ts">
+  import { createGameGateway } from '$lib/game/api';
+  import CrewPanel from '$lib/components/devtools/CrewPanel.svelte';
+  import ResourcesPanel from '$lib/components/devtools/ResourcesPanel.svelte';
   import type { GameSnapshot } from '$lib/game/api/types';
 
-  let { snapshot, onClose }: { snapshot: GameSnapshot | null; onClose: () => void } = $props();
+  let {
+    snapshot,
+    gateway,
+    onClose,
+  }: {
+    snapshot: GameSnapshot | null;
+    gateway: ReturnType<typeof createGameGateway>;
+    onClose: () => void;
+  } = $props();
 </script>
 
 <div
@@ -28,6 +39,10 @@
 
   <section data-testid="devtools-resources-section">
     <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Resources & Crew</h3>
+    <div class="grid gap-3">
+      <ResourcesPanel {snapshot} {gateway} />
+      <CrewPanel {snapshot} {gateway} />
+    </div>
   </section>
 
   <section data-testid="devtools-systems-section">

@@ -193,6 +193,6 @@
   </main>
 
   {#if devtoolsVisible}
-    <DevtoolsOverlay snapshot={devtoolsSnapshot} onClose={handleDevtoolsClose} />
+    <DevtoolsOverlay snapshot={devtoolsSnapshot} gateway={gameGateway} onClose={handleDevtoolsClose} />
   {/if}
 </div>
