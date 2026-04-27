@@ -1,57 +1,98 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { page } from 'vitest/browser';
-import { clearMocks } from '@tauri-apps/api/mocks';
 import { render } from 'vitest-browser-svelte';
+import { createFixtureTransport } from '$lib/game/api/testing/transport';
+import { createGameGateway } from '$lib/game/api/gateway';
+import type { PreviewFixtureName } from '$lib/game/api/types';
+import type { Component } from 'svelte';
 import Page from './+page.svelte';
 
-afterEach(() => {
-  clearMocks();
-});
+const FIXTURE_STORAGE_KEY = 'idle-spacestation.e2e-fixture';
 
-describe('+page.svelte tactical shell', () => {
-  it('renders tactical shell heading and header status', async () => {
-    // In unit tests the layout shell is not rendered, but the page content is
-    // Test that the page section headings and hero are present
-    render(Page);
-    await expect
-      .element(page.getByRole('heading', { level: 2, name: /Station Command/i }))
-      .toBeInTheDocument();
+function setupFixtureTransport(fixtureName: PreviewFixtureName) {
+  const transport = createFixtureTransport(fixtureName);
+  localStorage.setItem(FIXTURE_STORAGE_KEY, fixtureName);
+  return transport;
+}
+
+function clearFixture() {
+  localStorage.removeItem(FIXTURE_STORAGE_KEY);
+}
+
+describe('Overview page', () => {
+  beforeEach(() => {
+    clearFixture();
+    vi.restoreAllMocks();
   });
 
-  it('renders hero callouts and resource strip', async () => {
-    render(Page);
-    await expect.element(page.getByTestId('home-hero')).toBeInTheDocument();
-    await expect.element(page.getByTestId('resource-strip')).toBeInTheDocument();
-    await expect.element(page.getByTestId('primary-action')).toBeInTheDocument();
-    await expect.element(page.getByText('Review Station Status')).toBeInTheDocument();
-    await expect.element(page.getByText('Power Reserve')).toBeInTheDocument();
-    await expect.element(page.getByText('82%')).toBeInTheDocument();
-    await expect.element(page.getByText('Oxygen Uptime')).toBeInTheDocument();
-    await expect.element(page.getByText('99.2%')).toBeInTheDocument();
-    await expect.element(page.getByText('Crew Morale')).toBeInTheDocument();
-    await expect.element(page.getByText('Stable')).toBeInTheDocument();
+  it('renders loading state initially', async () => {
+    render(Page as Component);
+    await expect.element(page.getByText(/Loading station data/i)).toBeInTheDocument();
   });
 
-  it('renders overview, systems, and alerts panels', async () => {
-    render(Page);
-    await expect.element(page.getByTestId('overview-panel')).toBeInTheDocument();
-    await expect.element(page.getByTestId('systems-panel')).toBeInTheDocument();
-    await expect.element(page.getByTestId('alerts-panel')).toBeInTheDocument();
-    await expect.element(page.getByText('Operational Snapshot')).toBeInTheDocument();
-    await expect.element(page.getByText('Priority Systems')).toBeInTheDocument();
-    await expect.element(page.getByText('Command Alerts')).toBeInTheDocument();
-    await expect
-      .element(page.getByText('Solar lattice holding steady across the sunline.'))
-      .toBeInTheDocument();
-    await expect.element(page.getByText('Reactor')).toBeInTheDocument();
-    await expect
-      .element(page.getByText('Cooling loop efficiency dipped 3% overnight.'))
-      .toBeInTheDocument();
+  it('renders starter fixture data correctly', async () => {
+    const transport = setupFixtureTransport('starter');
+    const gateway = createGameGateway(transport);
+    const snapshot = await gateway.getSnapshot();
+
+    expect(snapshot.routes.overview.activePlanet.name).toBe('Solstice Anchor');
+    expect(snapshot.routes.overview.stationTier.current).toBe(1);
+    expect(snapshot.routes.overview.serviceUtilization.capacity).toBe(2);
+    expect(snapshot.routes.overview.surveyProgress.current).toBe(0);
   });
 
-  it('does not render template greet controls or logos', async () => {
-    render(Page);
-    await expect.element(page.getByRole('button', { name: /greet/i })).not.toBeInTheDocument();
-    await expect.element(page.getByPlaceholder(/Enter a name\.{3}/)).not.toBeInTheDocument();
+  it('renders deficit fixture with deficit warnings', async () => {
+    const transport = setupFixtureTransport('deficit');
+    const gateway = createGameGateway(transport);
+    const snapshot = await gateway.getSnapshot();
+
+    const hasDeficitWarnings = snapshot.routes.overview.deficitWarnings;
+    expect(hasDeficitWarnings.length).toBeGreaterThan(0);
+    expect(hasDeficitWarnings.some((w) => w.code === 'power-deficit')).toBe(true);
+  });
+
+  it('renders prestige-ready fixture data correctly', async () => {
+    const transport = setupFixtureTransport('prestige-ready');
+    const gateway = createGameGateway(transport);
+    const snapshot = await gateway.getSnapshot();
+
+    expect(snapshot.routes.overview.activePlanet.name).toBe('Aurora Pier');
+    expect(snapshot.routes.overview.stationTier.current).toBe(4);
+    expect(snapshot.routes.overview.surveyProgress.current).toBe(1550);
+  });
+
+  it('displays resource deltas with correct format', async () => {
+    const transport = setupFixtureTransport('starter');
+    const gateway = createGameGateway(transport);
+    const snapshot = await gateway.getSnapshot();
+
+    const resourceDeltas = snapshot.routes.overview.resourceDeltas;
+    expect(resourceDeltas.length).toBe(4);
+
+    const powerDelta = resourceDeltas.find((r) => r.id === 'power');
+    expect(powerDelta).toBeDefined();
+    expect(powerDelta!.deltaPerSecond).toBeGreaterThan(0);
+  });
+
+  it('displays service utilization summary', async () => {
+    const transport = setupFixtureTransport('starter');
+    const gateway = createGameGateway(transport);
+    const snapshot = await gateway.getSnapshot();
+
+    const utilization = snapshot.routes.overview.serviceUtilization;
+    expect(utilization.active).toBe(1);
+    expect(utilization.capacity).toBe(2);
+    expect(utilization.available).toBe(1);
+  });
+
+  it('displays planet modifiers', async () => {
+    const transport = setupFixtureTransport('starter');
+    const gateway = createGameGateway(transport);
+    const snapshot = await gateway.getSnapshot();
+
+    const modifiers = snapshot.routes.overview.activePlanet.modifiers;
+    expect(modifiers.length).toBe(2);
+    expect(modifiers.some((m) => m.target === 'crew-efficiency')).toBe(true);
+    expect(modifiers.some((m) => m.target === 'data-output')).toBe(true);
   });
 });

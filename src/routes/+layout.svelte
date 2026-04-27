@@ -27,17 +27,24 @@
       >
     </div>
     <nav class="flex gap-4">
-      <a
-        href="#overview-panel"
-        class="text-sm text-muted-foreground transition-colors hover:text-foreground">Overview</a
+      <a href="/" class="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >Overview</a
       >
       <a
-        href="#systems-panel"
+        href="/systems"
         class="text-sm text-muted-foreground transition-colors hover:text-foreground">Systems</a
       >
       <a
-        href="#alerts-panel"
-        class="text-sm text-muted-foreground transition-colors hover:text-foreground">Alerts</a
+        href="/services"
+        class="text-sm text-muted-foreground transition-colors hover:text-foreground">Services</a
+      >
+      <a
+        href="/planets"
+        class="text-sm text-muted-foreground transition-colors hover:text-foreground">Planets</a
+      >
+      <a
+        href="/prestige"
+        class="text-sm text-muted-foreground transition-colors hover:text-foreground">Prestige</a
       >
     </nav>
   </header>
