@@ -15,7 +15,7 @@ use tauri::Manager;
 use crate::game::content::doctrines::doctrine_by_id;
 use crate::game::content::planets::{AURORA_PIER_ID, CINDER_FORGE_ID};
 use crate::game::content::services::service_by_id;
-use crate::game::content::systems::{system_by_id, SystemProgression, HABITAT_RING_ID, REACTOR_CORE_ID};
+use crate::game::content::systems::{system_by_id, SystemProgression, HABITAT_RING_ID, REACTOR_CORE_ID, SYSTEMS};
 use crate::game::progression::{execute_prestige, DoctrinePurchaseError, PrestigeExecutionError};
 use crate::game::progression::PrestigeProfile;
 use crate::game::snapshot::{build_snapshot, ActionResponse, RawGameSnapshot, SaveLoadResponse};
@@ -47,6 +47,36 @@ struct DevtoolsStateResponse {
 }
 
 #[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsApplyResourcesInput {
+    materials: f32,
+    data: f32,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsApplyCrewInput {
+    crew_total: u8,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsApplySystemEntry {
+    id: String,
+    level: u8,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsApplySystemsInput {
+    systems: Vec<DevtoolsApplySystemEntry>,
+}
+
+#[cfg(debug_assertions)]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 struct DevtoolsVisibilityChangedEvent {
     visible: bool,
@@ -71,6 +101,60 @@ fn game_devtools_set_visibility(
 }
 
 #[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_apply_resources(
+    input: DevtoolsApplyResourcesInput,
+    game_state: tauri::State<'_, GameState>,
+    _devtools_state: tauri::State<'_, DevtoolsState>,
+) -> Result<serde_json::Value, String> {
+    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+
+    match apply_devtools_resources(&mut guard.0, input.materials, input.data) {
+        Ok(()) => {
+            refresh_runtime_state(&mut guard.0);
+            Ok(devtools_action_success(&guard.0, &guard.1))
+        }
+        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+    }
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_apply_crew(
+    input: DevtoolsApplyCrewInput,
+    game_state: tauri::State<'_, GameState>,
+    _devtools_state: tauri::State<'_, DevtoolsState>,
+) -> Result<serde_json::Value, String> {
+    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+
+    match apply_devtools_crew_total(&mut guard.0, input.crew_total) {
+        Ok(()) => {
+            refresh_runtime_state(&mut guard.0);
+            Ok(devtools_action_success(&guard.0, &guard.1))
+        }
+        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+    }
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_apply_systems(
+    input: DevtoolsApplySystemsInput,
+    game_state: tauri::State<'_, GameState>,
+    _devtools_state: tauri::State<'_, DevtoolsState>,
+) -> Result<serde_json::Value, String> {
+    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+
+    match apply_devtools_system_levels(&mut guard.0, &input.systems) {
+        Ok(()) => {
+            refresh_runtime_state(&mut guard.0);
+            Ok(devtools_action_success(&guard.0, &guard.1))
+        }
+        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+    }
+}
+
+#[cfg(debug_assertions)]
 fn read_devtools_visibility(devtools_state: &DevtoolsState) -> bool {
     *devtools_state
         .0
@@ -89,6 +173,7 @@ fn set_devtools_visibility_state(devtools_state: &DevtoolsState, visible: bool) 
 }
 
 #[cfg(debug_assertions)]
+#[cfg_attr(not(test), allow(dead_code))]
 fn toggle_devtools_visibility_state(devtools_state: &DevtoolsState) -> bool {
     let mut guard = devtools_state
         .0
@@ -179,6 +264,7 @@ fn install_debug_menu<R: tauri::Runtime>(app: &mut tauri::App<R>) -> tauri::Resu
 }
 
 #[cfg(debug_assertions)]
+#[cfg_attr(not(test), allow(dead_code))]
 fn devtools_enabled() -> bool {
     true
 }
@@ -554,6 +640,100 @@ fn action_response(
     }
 }
 
+#[cfg(debug_assertions)]
+fn devtools_action_success(run_state: &RunState, profile: &PrestigeProfile) -> serde_json::Value {
+    serde_json::json!({
+        "ok": true,
+        "snapshot": build_snapshot(run_state, profile),
+    })
+}
+
+#[cfg(debug_assertions)]
+fn devtools_action_failure(
+    run_state: &RunState,
+    profile: &PrestigeProfile,
+    reason_code: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "ok": false,
+        "reasonCode": reason_code,
+        "snapshot": build_snapshot(run_state, profile),
+    })
+}
+
+#[cfg(any(debug_assertions, test))]
+fn apply_devtools_resources(
+    run_state: &mut RunState,
+    materials: f32,
+    data: f32,
+) -> Result<(), &'static str> {
+    if !(materials >= 0.0 && data >= 0.0) {
+        return Err("invalid_range");
+    }
+
+    run_state.resources.materials = materials;
+    run_state.resources.data = data;
+    Ok(())
+}
+
+#[cfg(any(debug_assertions, test))]
+fn apply_devtools_crew_total(run_state: &mut RunState, crew_total: u8) -> Result<(), &'static str> {
+    if crew_total < 1 || crew_total < run_state.resources.crew_assigned {
+        return Err("invalid_range");
+    }
+
+    if crew_total > habitat_crew_capacity(run_state) {
+        return Err("constraint_violation");
+    }
+
+    run_state.resources.crew_total = crew_total;
+    Ok(())
+}
+
+#[cfg(any(debug_assertions, test))]
+fn system_max_level(system_id: &str) -> Option<u8> {
+    SYSTEMS
+        .iter()
+        .find(|system| system.id == system_id)
+        .map(|system| match system.progression {
+            SystemProgression::ReactorCore(levels) => levels.len() as u8,
+            SystemProgression::HabitatRing(levels) => levels.len() as u8,
+            SystemProgression::LogisticsSpine(levels) => levels.len() as u8,
+            SystemProgression::SurveyArray(levels) => levels.len() as u8,
+        })
+}
+
+#[cfg(any(debug_assertions, test))]
+fn apply_devtools_system_levels(
+    run_state: &mut RunState,
+    systems: &[DevtoolsApplySystemEntry],
+) -> Result<(), &'static str> {
+    for entry in systems {
+        let Some(max_level) = system_max_level(&entry.id) else {
+            return Err("unknown_id");
+        };
+
+        if entry.level < 1 || entry.level > max_level {
+            return Err("invalid_range");
+        }
+
+        if !run_state.systems.iter().any(|system| system.system_id == entry.id) {
+            return Err("unknown_id");
+        }
+    }
+
+    for entry in systems {
+        let system = run_state
+            .systems
+            .iter_mut()
+            .find(|system| system.system_id == entry.id)
+            .expect("validated system id must exist in run state");
+        system.level = entry.level;
+    }
+
+    Ok(())
+}
+
 fn refresh_runtime_state(run_state: &mut RunState) {
     let crew_capacity = habitat_crew_capacity(run_state);
     run_state.resources.crew_total = run_state.resources.crew_total.min(crew_capacity);
@@ -742,6 +922,100 @@ mod tests {
     fn devtools_enabled_helper_matches_build_gating() {
         assert_eq!(devtools_enabled(), cfg!(debug_assertions));
     }
+
+    #[test]
+    fn apply_resources_success() {
+        let mut run_state = RunState::starter_fixture();
+
+        apply_devtools_resources(&mut run_state, 250.0, 15.5).expect("resources should apply");
+
+        assert_eq!(run_state.resources.materials, 250.0);
+        assert_eq!(run_state.resources.data, 15.5);
+    }
+
+    #[test]
+    fn apply_resources_rejects_negative() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_resources(&mut run_state, -1.0, 0.0)
+            .expect_err("negative resources should be rejected");
+
+        assert_eq!(error, "invalid_range");
+        assert_eq!(run_state.resources.materials, 120.0);
+    }
+
+    #[test]
+    fn apply_crew_success() {
+        let mut run_state = RunState::starter_fixture();
+        run_state.services[0].assigned_crew = 2;
+
+        apply_devtools_crew_total(&mut run_state, 4).expect("crew total should apply");
+        refresh_runtime_state(&mut run_state);
+
+        assert_eq!(run_state.resources.crew_total, 4);
+        assert_eq!(run_state.resources.crew_available, 2);
+    }
+
+    #[test]
+    fn apply_crew_rejects_below_assigned() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_crew_total(&mut run_state, 1)
+            .expect_err("crew below assigned should be rejected");
+
+        assert_eq!(error, "invalid_range");
+        assert_eq!(run_state.resources.crew_total, 6);
+    }
+
+    #[test]
+    fn apply_systems_sets_reactor_level() {
+        let mut run_state = RunState::starter_fixture();
+
+        apply_devtools_system_levels(
+            &mut run_state,
+            &[DevtoolsApplySystemEntry {
+                id: REACTOR_CORE_ID.to_string(),
+                level: 2,
+            }],
+        )
+        .expect("system levels should apply");
+        refresh_runtime_state(&mut run_state);
+
+        assert_eq!(run_state.system_level(REACTOR_CORE_ID), Some(2));
+        assert_eq!(run_state.resources.power_generated, 12.0);
+    }
+
+    #[test]
+    fn apply_systems_rejects_unknown_id() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_system_levels(
+            &mut run_state,
+            &[DevtoolsApplySystemEntry {
+                id: "unknown-system".to_string(),
+                level: 1,
+            }],
+        )
+        .expect_err("unknown system should be rejected");
+
+        assert_eq!(error, "unknown_id");
+    }
+
+    #[test]
+    fn apply_systems_rejects_out_of_range_level() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_system_levels(
+            &mut run_state,
+            &[DevtoolsApplySystemEntry {
+                id: HABITAT_RING_ID.to_string(),
+                level: 5,
+            }],
+        )
+        .expect_err("out of range level should be rejected");
+
+        assert_eq!(error, "invalid_range");
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -792,6 +1066,9 @@ pub fn run() {
         game_request_load,
         game_devtools_get_state,
         game_devtools_set_visibility,
+        game_devtools_apply_resources,
+        game_devtools_apply_crew,
+        game_devtools_apply_systems,
     ]);
 
     #[cfg(not(debug_assertions))]
