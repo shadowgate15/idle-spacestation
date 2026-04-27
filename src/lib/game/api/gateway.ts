@@ -15,14 +15,12 @@ import type {
   PurchaseDoctrineInput,
   RawGameSnapshot,
   ReprioritizeServiceInput,
-  SelectPlanetInput,
   SetServiceActivationInput,
   SystemUpgradeRejectionCode,
   UpgradeSystemInput,
   ServiceActivationRejectionCode,
   ServiceCrewAssignmentRejectionCode,
   ServicePriorityRejectionCode,
-  PlanetSelectionRejectionCode,
   SurveyStartRejectionCode,
   DoctrinePurchaseRejectionCode,
   PrestigeRejectionCode,
@@ -75,12 +73,6 @@ export function createGameGateway(transport: GameTransport = resolveDefaultTrans
     reprioritizeService: (input: ReprioritizeServiceInput) =>
       invokeAction<'game_reprioritize_service', ServicePriorityRejectionCode>(
         'game_reprioritize_service',
-        input,
-        transport,
-      ),
-    selectPlanet: (input: SelectPlanetInput) =>
-      invokeAction<'game_select_planet', PlanetSelectionRejectionCode>(
-        'game_select_planet',
         input,
         transport,
       ),

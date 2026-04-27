@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use serde::Deserialize;
 use crate::game::content::doctrines::doctrine_by_id;
-use crate::game::content::planets::{planet_by_id, AURORA_PIER_ID, CINDER_FORGE_ID};
+use crate::game::content::planets::{AURORA_PIER_ID, CINDER_FORGE_ID};
 use crate::game::content::services::service_by_id;
 use crate::game::content::systems::{system_by_id, SystemProgression, HABITAT_RING_ID, REACTOR_CORE_ID};
 use crate::game::progression::{execute_prestige, DoctrinePurchaseError, PrestigeExecutionError};
@@ -31,12 +31,6 @@ struct ToggleServiceInput {
 #[serde(rename_all = "camelCase")]
 struct UpgradeSystemInput {
     system_id: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SelectPlanetInput {
-    planet_id: String,
 }
 
 #[derive(Deserialize)]
@@ -200,31 +194,6 @@ fn game_upgrade_system(input: UpgradeSystemInput, state: tauri::State<GameState>
 
     guard.0.resources.materials -= upgrade_cost as f32;
     guard.0.systems[system_index].level = guard.0.systems[system_index].level.saturating_add(1);
-    refresh_runtime_state(&mut guard.0);
-    action_response(&guard.0, &guard.1, true, None)
-}
-
-#[tauri::command]
-fn game_select_planet(input: SelectPlanetInput, state: tauri::State<GameState>) -> ActionResponse {
-    let mut guard = state.0.lock().expect("game state mutex poisoned");
-
-    if planet_by_id(&input.planet_id).is_none() {
-        return action_response(&guard.0, &guard.1, false, Some("unknown-planet"));
-    }
-    if !guard
-        .0
-        .station
-        .discovered_planet_ids
-        .iter()
-        .any(|planet_id| planet_id == &input.planet_id)
-    {
-        return action_response(&guard.0, &guard.1, false, Some("planet-undiscovered"));
-    }
-    if guard.0.station.active_planet_id == input.planet_id {
-        return action_response(&guard.0, &guard.1, false, Some("planet-not-selectable"));
-    }
-
-    guard.0.station.active_planet_id = input.planet_id;
     refresh_runtime_state(&mut guard.0);
     action_response(&guard.0, &guard.1, true, None)
 }
@@ -560,7 +529,6 @@ pub fn run() {
             game_upgrade_system,
             game_assign_service_crew,
             game_reprioritize_service,
-            game_select_planet,
             game_start_survey,
             game_purchase_doctrine,
             game_execute_prestige,

@@ -36,7 +36,9 @@
 {:else if planets}
   <section data-testid="planets-hero" class="mb-8">
     <h2 class="mb-2 text-2xl font-bold tracking-tight text-foreground">Planetary Operations</h2>
-    <p class="mb-4 text-muted-foreground">Manage planet selection and track discovery progress.</p>
+    <p class="mb-4 text-muted-foreground">
+      Track discovery progress and review which planets will be available for future runs.
+    </p>
   </section>
 
   <section data-testid="survey-progress" class="mb-8 rounded-lg border border-border bg-card p-4">

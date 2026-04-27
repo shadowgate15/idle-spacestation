@@ -67,11 +67,6 @@ export type ServiceCrewAssignmentRejectionCode =
 
 export type ServicePriorityRejectionCode = 'unknown-service' | 'priority-limit';
 
-export type PlanetSelectionRejectionCode =
-  | 'unknown-planet'
-  | 'planet-undiscovered'
-  | 'planet-not-selectable';
-
 export type SurveyStartRejectionCode = 'all-planets-discovered';
 
 export type DoctrinePurchaseRejectionCode =
@@ -354,10 +349,6 @@ export interface ReprioritizeServiceInput {
   direction: 'up' | 'down';
 }
 
-export interface SelectPlanetInput {
-  planetId: PlanetId;
-}
-
 export interface PurchaseDoctrineInput {
   doctrineId: DoctrineId;
 }
@@ -426,7 +417,6 @@ export interface GameCommandPayloads {
   game_set_service_activation: SetServiceActivationInput;
   game_assign_service_crew: AssignServiceCrewInput;
   game_reprioritize_service: ReprioritizeServiceInput;
-  game_select_planet: SelectPlanetInput;
   game_start_survey: undefined;
   game_purchase_doctrine: PurchaseDoctrineInput;
   game_confirm_prestige: ConfirmPrestigeInput;
@@ -440,7 +430,6 @@ export interface GameCommandResponses {
   game_set_service_activation: GameActionResponse<ServiceActivationRejectionCode>;
   game_assign_service_crew: GameActionResponse<ServiceCrewAssignmentRejectionCode>;
   game_reprioritize_service: GameActionResponse<ServicePriorityRejectionCode>;
-  game_select_planet: GameActionResponse<PlanetSelectionRejectionCode>;
   game_start_survey: GameActionResponse<SurveyStartRejectionCode>;
   game_purchase_doctrine: GameActionResponse<DoctrinePurchaseRejectionCode>;
   game_confirm_prestige: GameActionResponse<PrestigeRejectionCode>;

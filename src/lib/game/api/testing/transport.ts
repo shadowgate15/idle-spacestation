@@ -6,7 +6,6 @@ import type {
   GameCommandPayloads,
   GameCommandResponses,
   GameTransport,
-  PlanetSelectionRejectionCode,
   PreviewFixtureName,
   PreviewFixtureState,
   PurchaseDoctrineInput,
@@ -97,12 +96,6 @@ export function createFixtureTransport(fixtureName: PreviewFixtureName): Preview
             fixtureName,
             (payload as GameCommandPayloads['game_reprioritize_service']).serviceId,
             (payload as GameCommandPayloads['game_reprioritize_service']).direction,
-          ) as GameCommandResponses[TCommand];
-        case 'game_select_planet':
-          return selectPlanet(
-            state,
-            fixtureName,
-            (payload as GameCommandPayloads['game_select_planet']).planetId,
           ) as GameCommandResponses[TCommand];
         case 'game_start_survey':
           return startSurvey(state, fixtureName) as GameCommandResponses[TCommand];
@@ -302,29 +295,6 @@ function reprioritizeService(
   target.priority = currentPriority;
 
   state.services = [...ordered].sort((left, right) => left.priority - right.priority);
-  return success(fixtureName, state);
-}
-
-function selectPlanet(
-  state: PreviewFixtureState,
-  fixtureName: PreviewFixtureName,
-  planetId: PreviewFixtureState['activePlanetId'],
-): GameActionResponse<PlanetSelectionRejectionCode> {
-  if (
-    !isPreviewFixtureName(fixtureName) &&
-    !['solstice-anchor', 'cinder-forge', 'aurora-pier'].includes(planetId)
-  ) {
-    return failure(fixtureName, state, 'unknown-planet');
-  }
-  if (!state.discoveredPlanetIds.includes(planetId)) {
-    return failure(fixtureName, state, 'planet-undiscovered');
-  }
-  if (state.activePlanetId === planetId) {
-    return failure(fixtureName, state, 'planet-not-selectable');
-  }
-
-  state.activePlanetId = planetId;
-  recalcPowerAvailable(state);
   return success(fixtureName, state);
 }
 
