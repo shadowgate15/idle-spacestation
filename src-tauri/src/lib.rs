@@ -5,6 +5,12 @@ use std::time::Duration;
 use std::sync::Mutex;
 
 use serde::Deserialize;
+#[cfg(debug_assertions)]
+use serde::Serialize;
+#[cfg(debug_assertions)]
+use tauri::Emitter;
+#[cfg(debug_assertions)]
+use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder};
 use tauri::Manager;
 use crate::game::content::doctrines::doctrine_by_id;
 use crate::game::content::planets::{AURORA_PIER_ID, CINDER_FORGE_ID};
@@ -17,6 +23,170 @@ use crate::game::sim::{tick, RunState};
 
 
 struct GameState(Mutex<(RunState, PrestigeProfile, u32)>);
+
+#[cfg(debug_assertions)]
+struct DevtoolsState(Mutex<bool>);
+
+#[cfg(debug_assertions)]
+const DEVTOOLS_TOGGLE_OVERLAY_MENU_ID: &str = "devtools-toggle-overlay";
+#[cfg(debug_assertions)]
+const DEVTOOLS_VISIBILITY_CHANGED_EVENT: &str = "devtools:visibility-changed";
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsVisibilityInput {
+    visible: bool,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Serialize)]
+struct DevtoolsStateResponse {
+    visible: bool,
+    snapshot: RawGameSnapshot,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
+struct DevtoolsVisibilityChangedEvent {
+    visible: bool,
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_get_state(
+    game_state: tauri::State<GameState>,
+    devtools_state: tauri::State<DevtoolsState>,
+) -> Result<DevtoolsStateResponse, String> {
+    Ok(current_devtools_state_response(&game_state, &devtools_state))
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_set_visibility(
+    input: DevtoolsVisibilityInput,
+    app: tauri::AppHandle,
+) -> Result<DevtoolsStateResponse, String> {
+    update_devtools_visibility(&app, input.visible)
+}
+
+#[cfg(debug_assertions)]
+fn read_devtools_visibility(devtools_state: &DevtoolsState) -> bool {
+    *devtools_state
+        .0
+        .lock()
+        .expect("devtools state mutex poisoned")
+}
+
+#[cfg(debug_assertions)]
+fn set_devtools_visibility_state(devtools_state: &DevtoolsState, visible: bool) -> bool {
+    let mut guard = devtools_state
+        .0
+        .lock()
+        .expect("devtools state mutex poisoned");
+    *guard = visible;
+    *guard
+}
+
+#[cfg(debug_assertions)]
+fn toggle_devtools_visibility_state(devtools_state: &DevtoolsState) -> bool {
+    let mut guard = devtools_state
+        .0
+        .lock()
+        .expect("devtools state mutex poisoned");
+    *guard = !*guard;
+    *guard
+}
+
+#[cfg(debug_assertions)]
+fn devtools_visibility_payload(visible: bool) -> DevtoolsVisibilityChangedEvent {
+    DevtoolsVisibilityChangedEvent { visible }
+}
+
+#[cfg(debug_assertions)]
+fn build_devtools_state_response(game_state: &GameState, visible: bool) -> DevtoolsStateResponse {
+    let guard = game_state.0.lock().expect("game state mutex poisoned");
+    DevtoolsStateResponse {
+        visible,
+        snapshot: build_snapshot(&guard.0, &guard.1),
+    }
+}
+
+#[cfg(debug_assertions)]
+fn current_devtools_state_response(
+    game_state: &GameState,
+    devtools_state: &DevtoolsState,
+) -> DevtoolsStateResponse {
+    build_devtools_state_response(game_state, read_devtools_visibility(devtools_state))
+}
+
+#[cfg(debug_assertions)]
+fn emit_devtools_visibility_changed<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    visible: bool,
+) -> Result<(), String> {
+    app.emit(
+        DEVTOOLS_VISIBILITY_CHANGED_EVENT,
+        devtools_visibility_payload(visible),
+    )
+    .map_err(|error| error.to_string())
+}
+
+#[cfg(debug_assertions)]
+fn update_devtools_visibility<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    visible: bool,
+) -> Result<DevtoolsStateResponse, String> {
+    let devtools_state = app.state::<DevtoolsState>();
+    let visible = set_devtools_visibility_state(&devtools_state, visible);
+    let game_state = app.state::<GameState>();
+    let response = build_devtools_state_response(&game_state, visible);
+    emit_devtools_visibility_changed(app, visible)?;
+    Ok(response)
+}
+
+#[cfg(debug_assertions)]
+fn toggle_devtools_visibility<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<DevtoolsStateResponse, String> {
+    let devtools_state = app.state::<DevtoolsState>();
+    let visible = !read_devtools_visibility(&devtools_state);
+    update_devtools_visibility(app, visible)
+}
+
+#[cfg(debug_assertions)]
+fn install_debug_menu<R: tauri::Runtime>(app: &mut tauri::App<R>) -> tauri::Result<()> {
+    let toggle_overlay = MenuItem::with_id(
+        app,
+        DEVTOOLS_TOGGLE_OVERLAY_MENU_ID,
+        "Toggle Game State Overlay",
+        true,
+        None::<&str>,
+    )?;
+    let debug_menu = SubmenuBuilder::new(app, "Debug")
+        .item(&toggle_overlay)
+        .build()?;
+    let menu = MenuBuilder::new(app).items(&[&debug_menu]).build()?;
+
+    app.set_menu(menu)?;
+    app.on_menu_event(|app_handle, event| {
+        if event.id().0.as_str() == DEVTOOLS_TOGGLE_OVERLAY_MENU_ID {
+            let _ = toggle_devtools_visibility(app_handle);
+        }
+    });
+
+    Ok(())
+}
+
+#[cfg(debug_assertions)]
+fn devtools_enabled() -> bool {
+    true
+}
+
+#[cfg(not(debug_assertions))]
+fn devtools_enabled() -> bool {
+    false
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -540,6 +710,38 @@ mod tests {
         assert_eq!(run_state.tick_count, initial_tick_count + 1);
         assert!(run_state.resources.materials >= initial_materials);
     }
+
+    #[test]
+    fn devtools_visibility_toggle_flips_separate_mutex_state() {
+        #[cfg(debug_assertions)]
+        {
+            let devtools_state = DevtoolsState(Mutex::new(false));
+
+            assert!(!read_devtools_visibility(&devtools_state));
+            assert!(toggle_devtools_visibility_state(&devtools_state));
+            assert!(read_devtools_visibility(&devtools_state));
+            assert!(!toggle_devtools_visibility_state(&devtools_state));
+            assert!(!read_devtools_visibility(&devtools_state));
+            assert!(set_devtools_visibility_state(&devtools_state, true));
+            assert!(read_devtools_visibility(&devtools_state));
+        }
+    }
+
+    #[test]
+    fn devtools_visibility_event_payload_matches_frontend_contract() {
+        #[cfg(debug_assertions)]
+        {
+            let payload = serde_json::to_value(devtools_visibility_payload(true))
+                .expect("event payload should serialize");
+
+            assert_eq!(payload, serde_json::json!({ "visible": true }));
+        }
+    }
+
+    #[test]
+    fn devtools_enabled_helper_matches_build_gating() {
+        assert_eq!(devtools_enabled(), cfg!(debug_assertions));
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -551,37 +753,62 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_mcp_bridge::init());
     }
 
+    let builder = builder.setup(|app| {
+        app.manage(GameState(Mutex::new((
+            RunState::starter_fixture(),
+            PrestigeProfile::default(),
+            0u32,
+        ))));
+
+        #[cfg(debug_assertions)]
+        {
+            app.manage(DevtoolsState(Mutex::new(false)));
+            install_debug_menu(app)?;
+        }
+
+        let app_handle = app.handle().clone();
+        thread::spawn(move || loop {
+            thread::sleep(Duration::from_millis(250));
+
+            let state = app_handle.state::<GameState>();
+            let mut guard = state.0.lock().expect("game state mutex poisoned");
+            tick(&mut guard.0);
+        });
+
+        Ok(())
+    });
+
+    #[cfg(debug_assertions)]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        game_get_snapshot,
+        game_toggle_service,
+        game_upgrade_system,
+        game_assign_service_crew,
+        game_reprioritize_service,
+        game_start_survey,
+        game_purchase_doctrine,
+        game_execute_prestige,
+        game_request_save,
+        game_request_load,
+        game_devtools_get_state,
+        game_devtools_set_visibility,
+    ]);
+
+    #[cfg(not(debug_assertions))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        game_get_snapshot,
+        game_toggle_service,
+        game_upgrade_system,
+        game_assign_service_crew,
+        game_reprioritize_service,
+        game_start_survey,
+        game_purchase_doctrine,
+        game_execute_prestige,
+        game_request_save,
+        game_request_load,
+    ]);
+
     builder
-        .setup(|app| {
-            app.manage(GameState(Mutex::new((
-                RunState::starter_fixture(),
-                PrestigeProfile::default(),
-                0u32,
-            ))));
-
-            let app_handle = app.handle().clone();
-            thread::spawn(move || loop {
-                thread::sleep(Duration::from_millis(250));
-
-                let state = app_handle.state::<GameState>();
-                let mut guard = state.0.lock().expect("game state mutex poisoned");
-                tick(&mut guard.0);
-            });
-
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
-            game_get_snapshot,
-            game_toggle_service,
-            game_upgrade_system,
-            game_assign_service_crew,
-            game_reprioritize_service,
-            game_start_survey,
-            game_purchase_doctrine,
-            game_execute_prestige,
-            game_request_save,
-            game_request_load,
-        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
