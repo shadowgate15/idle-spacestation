@@ -67,7 +67,9 @@
   async function handleDevtoolsClose() {
     devtoolsVisible = false;
     devtoolsSnapshot = null;
-    setDevtoolsLocalOverride(false);
+    if (isFixtureModeEnabled()) {
+      setDevtoolsLocalOverride(false);
+    }
     stopDevtoolsPolling();
 
     try {
