@@ -1,7 +1,9 @@
 <script lang="ts">
   import { createGameGateway } from '$lib/game/api';
   import CrewPanel from '$lib/components/devtools/CrewPanel.svelte';
+  import ProgressionPanel from '$lib/components/devtools/ProgressionPanel.svelte';
   import ResourcesPanel from '$lib/components/devtools/ResourcesPanel.svelte';
+  import SessionPanel from '$lib/components/devtools/SessionPanel.svelte';
   import ServicesPanel from '$lib/components/devtools/ServicesPanel.svelte';
   import SystemsPanel from '$lib/components/devtools/SystemsPanel.svelte';
   import type { GameSnapshot } from '$lib/game/api/types';
@@ -59,9 +61,11 @@
 
   <section data-testid="devtools-progression-section">
     <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Progression</h3>
+    <ProgressionPanel {snapshot} {gateway} />
   </section>
 
   <section data-testid="devtools-session-section">
     <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Session</h3>
+    <SessionPanel {snapshot} {gateway} />
   </section>
 </div>
