@@ -35,6 +35,7 @@ export function createCrewPanelState(snapshot: GameSnapshot | null, gateway: Cre
   async function apply() {
     if (!isInRange(crewTotalDraft, CREW_MIN, CREW_MAX)) {
       errorMessage = 'invalid_range';
+      crewTotalDraft = currentSnapshot?.resources.crew.total ?? 0;
       return;
     }
 
@@ -51,6 +52,7 @@ export function createCrewPanelState(snapshot: GameSnapshot | null, gateway: Cre
         return;
       }
 
+      crewTotalDraft = response.snapshot.resources.crew.total;
       errorMessage = response.reasonCode;
     } finally {
       isApplying = false;

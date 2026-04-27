@@ -15,6 +15,14 @@
   let devtoolsPollInterval: ReturnType<typeof setInterval> | null = null;
   let devtoolsDestroyed = false;
 
+  function isFixtureModeEnabled() {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return window.localStorage.getItem(E2E_FIXTURE_STORAGE_KEY) !== null;
+  }
+
   function setDevtoolsLocalOverride(visible: boolean) {
     if (typeof window === 'undefined') return;
 
@@ -70,7 +78,7 @@
   }
 
   $effect(() => {
-    if (!IS_DEBUG || devtoolsDestroyed) {
+    if ((!IS_DEBUG && !isFixtureModeEnabled()) || devtoolsDestroyed) {
       stopDevtoolsPolling();
       return;
     }
@@ -86,7 +94,7 @@
   onMount(() => {
     devtoolsDestroyed = false;
 
-    const isFixtureMode = window.localStorage.getItem(E2E_FIXTURE_STORAGE_KEY) !== null;
+    const isFixtureMode = isFixtureModeEnabled();
 
     if (!IS_DEBUG && !isFixtureMode) {
       return () => {

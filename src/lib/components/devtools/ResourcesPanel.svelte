@@ -5,6 +5,7 @@
   import { createGameGateway } from '$lib/game/api';
   import type { GameSnapshot } from '$lib/game/api/types';
   import { cn } from '$lib/utils';
+  import { createResourcesPanelState } from './resources-panel-state.svelte';
 
   let {
     snapshot,
@@ -14,72 +15,13 @@
     gateway: ReturnType<typeof createGameGateway>;
   } = $props();
 
-  const MATERIALS_MIN = 0;
-  const MATERIALS_MAX = 99999;
-  const DATA_MIN = 0;
-  const DATA_MAX = 99999;
-
-  let panelSnapshot = $state<GameSnapshot | null>(null);
-  let materialsDraft = $state<number | undefined>(0);
-  let dataDraft = $state<number | undefined>(0);
-  let errorMessage = $state<string | null>(null);
-  let isApplying = $state(false);
-  let lastSnapshot: GameSnapshot | null = null;
-
-  $effect(() => {
-    const previousMaterials = lastSnapshot?.resources.materials ?? 0;
-    const previousData = lastSnapshot?.resources.data ?? 0;
-    const wasDirty = untrack(() => materialsDraft) !== previousMaterials || untrack(() => dataDraft) !== previousData;
-
-    lastSnapshot = snapshot;
-    panelSnapshot = snapshot;
-
-    if (!wasDirty) {
-      materialsDraft = snapshot?.resources.materials ?? 0;
-      dataDraft = snapshot?.resources.data ?? 0;
-
-      if (snapshot) {
-        errorMessage = null;
-      }
-    }
+  const state = createResourcesPanelState(null, {
+    applyResources: (input) => gateway.applyResources(input),
   });
 
-  function isInRange(value: number | undefined, min: number, max: number): value is number {
-    return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
-  }
-
-  async function applyDraft() {
-    if (
-      !isInRange(materialsDraft, MATERIALS_MIN, MATERIALS_MAX) ||
-      !isInRange(dataDraft, DATA_MIN, DATA_MAX)
-    ) {
-      errorMessage = 'invalid_range';
-      return;
-    }
-
-    isApplying = true;
-    errorMessage = null;
-
-    try {
-      const response = await gateway.applyResources({
-        materials: materialsDraft,
-        data: dataDraft,
-      });
-
-      lastSnapshot = response.snapshot;
-      panelSnapshot = response.snapshot;
-
-      if (response.ok) {
-        materialsDraft = response.snapshot.resources.materials;
-        dataDraft = response.snapshot.resources.data;
-        return;
-      }
-
-      errorMessage = response.reasonCode;
-    } finally {
-      isApplying = false;
-    }
-  }
+  $effect(() => {
+    untrack(() => state.sync(snapshot));
+  });
 </script>
 
 <div data-testid="devtools-resources-panel" class="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
@@ -91,7 +33,7 @@
 
     <div class="text-right text-[0.625rem] font-mono uppercase tracking-wide text-zinc-500">
       <div>Power</div>
-      <div>{panelSnapshot ? `${panelSnapshot.resources.power.available} avail` : 'offline'}</div>
+      <div>{state.snapshot ? `${state.snapshot.resources.power.available} avail` : 'offline'}</div>
     </div>
   </div>
 
@@ -104,8 +46,8 @@
         min="0"
         max="99999"
         step="1"
-        bind:value={materialsDraft}
-        disabled={!panelSnapshot || isApplying}
+        bind:value={state.materialsDraft}
+        disabled={!state.snapshot || state.isApplying}
         class="font-mono text-zinc-100"
       />
     </label>
@@ -118,8 +60,8 @@
         min="0"
         max="99999"
         step="1"
-        bind:value={dataDraft}
-        disabled={!panelSnapshot || isApplying}
+        bind:value={state.dataDraft}
+        disabled={!state.snapshot || state.isApplying}
         class="font-mono text-zinc-100"
       />
     </label>
@@ -132,15 +74,15 @@
       <div class="grid grid-cols-3 gap-2 text-xs font-mono text-zinc-300">
         <div class="grid gap-1">
           <span class="text-zinc-500">Generated</span>
-          <span>{panelSnapshot ? panelSnapshot.resources.power.generated : '—'}</span>
+          <span>{state.snapshot ? state.snapshot.resources.power.generated : '—'}</span>
         </div>
         <div class="grid gap-1">
           <span class="text-zinc-500">Reserved</span>
-          <span>{panelSnapshot ? panelSnapshot.resources.power.reserved : '—'}</span>
+          <span>{state.snapshot ? state.snapshot.resources.power.reserved : '—'}</span>
         </div>
         <div class="grid gap-1">
           <span class="text-zinc-500">Available</span>
-          <span>{panelSnapshot ? panelSnapshot.resources.power.available : '—'}</span>
+          <span>{state.snapshot ? state.snapshot.resources.power.available : '—'}</span>
         </div>
       </div>
     </div>
@@ -149,18 +91,18 @@
   <div class="mt-3 flex items-center justify-between gap-3">
     <p
       data-testid="devtools-resources-error"
-      class={cn('min-h-4 text-xs font-medium', errorMessage ? 'text-amber-400' : 'text-zinc-600')}
+      class={cn('min-h-4 text-xs font-medium', state.errorMessage ? 'text-amber-400' : 'text-zinc-600')}
     >
-      {errorMessage ?? ''}
+      {state.errorMessage ?? ''}
     </p>
 
     <Button
       data-testid="devtools-resources-apply"
       size="sm"
-      onclick={applyDraft}
-      disabled={!panelSnapshot || isApplying}
+      onclick={() => state.apply()}
+      disabled={!state.snapshot || state.isApplying}
     >
-      {isApplying ? 'Applying…' : 'Apply'}
+      {state.isApplying ? 'Applying…' : 'Apply'}
     </Button>
   </div>
 </div>

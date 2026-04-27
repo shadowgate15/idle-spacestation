@@ -475,6 +475,7 @@ export interface DevtoolsApplySystemsPayload {
 export type DevtoolsApplySystemsRejectionCode =
   | 'invalid_range'
   | 'unknown_id'
+  | 'constraint_violation'
   | 'invalid_state';
 
 export type RawDevtoolsApplySystemsResponse = GameActionResponse<

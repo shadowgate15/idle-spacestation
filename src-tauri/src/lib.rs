@@ -812,7 +812,13 @@ fn apply_devtools_system_levels(
     run_state: &mut RunState,
     systems: &[DevtoolsApplySystemEntry],
 ) -> Result<(), &'static str> {
+    let mut seen_ids = std::collections::HashSet::new();
+
     for entry in systems {
+        if !seen_ids.insert(entry.id.as_str()) {
+            return Err("constraint_violation");
+        }
+
         let Some(max_level) = system_max_level(&entry.id) else {
             return Err("unknown_id");
         };
@@ -1315,6 +1321,29 @@ mod tests {
         .expect_err("out of range level should be rejected");
 
         assert_eq!(error, "invalid_range");
+    }
+
+    #[test]
+    fn apply_systems_rejects_duplicate_ids() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_system_levels(
+            &mut run_state,
+            &[
+                DevtoolsApplySystemEntry {
+                    id: REACTOR_CORE_ID.to_string(),
+                    level: 2,
+                },
+                DevtoolsApplySystemEntry {
+                    id: REACTOR_CORE_ID.to_string(),
+                    level: 3,
+                },
+            ],
+        )
+        .expect_err("duplicate system ids should be rejected");
+
+        assert_eq!(error, "constraint_violation");
+        assert_eq!(run_state.system_level(REACTOR_CORE_ID), Some(1));
     }
 
     #[test]

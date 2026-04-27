@@ -46,10 +46,12 @@ test.describe('Devtools overlay in preview fixture mode', () => {
   test('resources apply with invalid range shows error', async ({ page }) => {
     await gotoSeededOverview(page);
 
+    await expect(page.getByTestId('devtools-materials-input')).toHaveValue('120');
     await page.getByTestId('devtools-materials-input').fill('999999');
     await page.getByTestId('devtools-resources-apply').click();
 
     await expect(page.getByTestId('devtools-resources-error')).toContainText('invalid_range');
+    await expect(page.getByTestId('devtools-materials-input')).toHaveValue('120');
   });
 
   test('close button hides overlay', async ({ page }) => {
@@ -87,6 +89,24 @@ test.describe('Devtools overlay in preview fixture mode', () => {
 
     await expect(inputNumericValue(page.getByTestId('devtools-materials-input'))).resolves.toBe(true);
     await expect(inputNumericValue(page.getByTestId('devtools-data-input'))).resolves.toBe(true);
+  });
+
+  test('closing and reopening overlay discards staged drafts', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    await page.getByTestId('devtools-materials-input').fill('500');
+    await expect(page.getByTestId('devtools-materials-input')).toHaveValue('500');
+
+    await page.getByTestId('devtools-close-btn').click();
+    await expect(page.getByTestId('devtools-overlay')).toHaveCount(0);
+
+    await page.evaluate(() => {
+      localStorage.setItem('idle-spacestation.devtools-open', 'true');
+    });
+    await page.reload();
+
+    await expect(page.getByTestId('devtools-overlay')).toBeVisible();
+    await expect(page.getByTestId('devtools-materials-input')).toHaveValue('120');
   });
 });
 

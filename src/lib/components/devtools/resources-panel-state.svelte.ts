@@ -46,6 +46,8 @@ export function createResourcesPanelState(snapshot: GameSnapshot | null, gateway
       !isInRange(dataDraft, DATA_MIN, DATA_MAX)
     ) {
       errorMessage = 'invalid_range';
+      materialsDraft = currentSnapshot?.resources.materials ?? 0;
+      dataDraft = currentSnapshot?.resources.data ?? 0;
       return;
     }
 
@@ -66,6 +68,8 @@ export function createResourcesPanelState(snapshot: GameSnapshot | null, gateway
         return;
       }
 
+      materialsDraft = response.snapshot.resources.materials;
+      dataDraft = response.snapshot.resources.data;
       errorMessage = response.reasonCode;
     } finally {
       isApplying = false;

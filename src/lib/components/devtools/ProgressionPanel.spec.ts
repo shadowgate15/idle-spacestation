@@ -15,7 +15,7 @@ function createSnapshot(): GameSnapshot {
       doctrineIds: ['efficient-shifts', 'hardened-relays'] satisfies DoctrineId[],
       discoveredPlanetIds: ['solstice-anchor', 'cinder-forge'] satisfies PlanetId[],
       activePlanetId: 'cinder-forge' as const,
-      surveyProgress: 0.42,
+      surveyProgress: 600,
     },
   };
 }
@@ -33,7 +33,7 @@ function createUpdatedSnapshot(): GameSnapshot {
       ] satisfies DoctrineId[],
       discoveredPlanetIds: ['solstice-anchor', 'cinder-forge', 'aurora-pier'] satisfies PlanetId[],
       activePlanetId: 'aurora-pier' as const,
-      surveyProgress: 0.9,
+      surveyProgress: 1260,
     },
   };
 }
@@ -66,7 +66,7 @@ describe('createProgressionPanelState', () => {
       unlockedDoctrines: snapshot.run.doctrineIds,
       discoveredPlanets: snapshot.run.discoveredPlanetIds,
       activePlanet: snapshot.run.activePlanetId,
-      surveyProgress: snapshot.run.surveyProgress,
+      surveyProgress: 1,
     });
     expect(state.activePlanetOptions).toEqual(snapshot.run.discoveredPlanetIds);
   });
@@ -85,7 +85,7 @@ describe('createProgressionPanelState', () => {
     state.toggleUnlockedDoctrine('frontier-charters', true);
     state.toggleDiscoveredPlanet('aurora-pier', true);
     state.setActivePlanet('aurora-pier');
-    state.setSurveyProgress(nextSnapshot.run.surveyProgress);
+    state.setSurveyProgress(0.9);
 
     await state.apply();
 
@@ -95,7 +95,7 @@ describe('createProgressionPanelState', () => {
       discoveredPlanets: nextSnapshot.run.discoveredPlanetIds,
       activePlanet: nextSnapshot.run.activePlanetId,
       surveyProgress: {
-        'aurora-pier': nextSnapshot.run.surveyProgress,
+        'aurora-pier': 0.9,
       },
     });
     expect(state.snapshot?.run).toEqual(nextSnapshot.run);
@@ -104,7 +104,7 @@ describe('createProgressionPanelState', () => {
       unlockedDoctrines: nextSnapshot.run.doctrineIds,
       discoveredPlanets: nextSnapshot.run.discoveredPlanetIds,
       activePlanet: nextSnapshot.run.activePlanetId,
-      surveyProgress: nextSnapshot.run.surveyProgress,
+      surveyProgress: 0.9,
     });
     expect(state.errorMessage).toBeNull();
   });

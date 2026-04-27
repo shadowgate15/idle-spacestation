@@ -567,10 +567,16 @@ function applySystems(
   fixtureName: PreviewFixtureName,
   payload: DevtoolsApplySystemsPayload,
 ): GameActionResponse<DevtoolsApplySystemsRejectionCode> {
+  const seenIds = new Set<string>();
+
   for (const entry of payload.systems) {
     if (!DEVTOOLS_SYSTEM_IDS.includes(entry.id)) {
       return failure(fixtureName, state, 'unknown_id');
     }
+    if (seenIds.has(entry.id)) {
+      return failure(fixtureName, state, 'constraint_violation');
+    }
+    seenIds.add(entry.id);
     if (!Number.isInteger(entry.level) || entry.level < 1 || entry.level > 4) {
       return failure(fixtureName, state, 'invalid_range');
     }
@@ -802,22 +808,28 @@ function deriveServiceRuntimeState(state: PreviewFixtureState): void {
 }
 
 function calculateSurveyProgress(payload: DevtoolsApplyProgressionPayload): number {
-  const currentPlanetProgress = payload.surveyProgress['solstice-anchor'] ?? 0;
+  const discoveredFloor = payload.discoveredPlanets.reduce((max, planetId) => {
+    if (planetId === 'cinder-forge') {
+      return Math.max(max, PLANET_THRESHOLDS['cinder-forge']);
+    }
 
-  if (payload.discoveredPlanets.includes('aurora-pier')) {
-    return Math.max(
-      PLANET_THRESHOLDS['aurora-pier'],
-      payload.surveyProgress['aurora-pier'] ?? PLANET_THRESHOLDS['aurora-pier'],
-    );
-  }
+    if (planetId === 'aurora-pier') {
+      return Math.max(max, PLANET_THRESHOLDS['aurora-pier']);
+    }
 
-  if (payload.discoveredPlanets.includes('cinder-forge')) {
-    return (
-      PLANET_THRESHOLDS['cinder-forge'] + (payload.surveyProgress['aurora-pier'] ?? 0)
-    );
-  }
+    return max;
+  }, 0);
 
-  return payload.surveyProgress['cinder-forge'] ?? currentPlanetProgress;
+  return Object.entries(payload.surveyProgress).reduce((max, [planetId, progress]) => {
+    const threshold =
+      planetId === 'cinder-forge'
+        ? PLANET_THRESHOLDS['cinder-forge']
+        : planetId === 'aurora-pier'
+          ? PLANET_THRESHOLDS['aurora-pier']
+          : 0;
+
+    return Math.max(max, progress * threshold);
+  }, discoveredFloor);
 }
 
 function replaceFixtureState(target: PreviewFixtureState, next: PreviewFixtureState): void {

@@ -142,8 +142,8 @@ describe('game api fixtures and adapters', () => {
       discoveredPlanets: ['solstice-anchor', 'cinder-forge'],
       activePlanet: 'cinder-forge',
       surveyProgress: {
-        'cinder-forge': 600,
-        'aurora-pier': 200,
+        'cinder-forge': 1,
+        'aurora-pier': 0.2,
       },
     });
     await gateway.advanceTicks({ count: 4 });
@@ -202,8 +202,8 @@ describe('game api fixtures and adapters', () => {
           discoveredPlanets: ['solstice-anchor', 'cinder-forge'],
           activePlanet: 'cinder-forge',
           surveyProgress: {
-            'cinder-forge': 600,
-            'aurora-pier': 200,
+            'cinder-forge': 1,
+            'aurora-pier': 0.2,
           },
         },
       },
@@ -469,6 +469,19 @@ describe('fixture transport devtools commands', () => {
     });
 
     expect(result).toMatchObject({ ok: false, reasonCode: 'unknown_id' });
+  });
+
+  it('game_devtools_apply_systems rejects duplicate system ids', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+
+    const result = await gateway.applySystems({
+      systems: [
+        { id: 'reactor-core', level: 2 },
+        { id: 'reactor-core', level: 3 },
+      ],
+    });
+
+    expect(result).toMatchObject({ ok: false, reasonCode: 'constraint_violation' });
   });
 
   it('game_devtools_advance_ticks advances tick count', async () => {

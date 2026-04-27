@@ -28,6 +28,10 @@ export const doctrineIds: DoctrineId[] = [
 export const planetIds: PlanetId[] = ['solstice-anchor', 'cinder-forge', 'aurora-pier'];
 
 const STARTER_PLANET_ID: PlanetId = 'solstice-anchor';
+const SURVEY_PROGRESS_THRESHOLDS: Record<Exclude<PlanetId, typeof STARTER_PLANET_ID>, number> = {
+  'cinder-forge': 600,
+  'aurora-pier': 1400,
+};
 
 export function createProgressionPanelState(snapshot: GameSnapshot | null, gateway: ProgressionGateway) {
   let currentSnapshot = $state<GameSnapshot | null>(snapshot);
@@ -161,8 +165,29 @@ function createDraft(snapshot: GameSnapshot | null): ProgressionDraft {
     unlockedDoctrines: normalizeDoctrineIds(snapshot?.run.doctrineIds ?? []),
     discoveredPlanets,
     activePlanet,
-    surveyProgress: snapshot?.run.surveyProgress ?? 0,
+    surveyProgress: deriveSurveyProgressDraft(snapshot, activePlanet),
   };
+}
+
+function deriveSurveyProgressDraft(snapshot: GameSnapshot | null, activePlanet: PlanetId) {
+  if (!snapshot || activePlanet === STARTER_PLANET_ID) {
+    return 0;
+  }
+
+  const threshold = SURVEY_PROGRESS_THRESHOLDS[activePlanet as Exclude<PlanetId, typeof STARTER_PLANET_ID>];
+  if (!threshold) {
+    return 0;
+  }
+
+  return clampSurveyProgress(snapshot.run.surveyProgress / threshold);
+}
+
+function clampSurveyProgress(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.min(1, Math.max(0, value));
 }
 
 function hasDraftChanges(draft: ProgressionDraft, snapshot: GameSnapshot | null) {
