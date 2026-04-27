@@ -103,7 +103,10 @@
       };
     }
 
-    const localOverride = window.localStorage.getItem(DEVTOOLS_STORAGE_KEY) === 'true';
+    // localOverride is only meaningful in fixture mode (no Tauri backend).
+    // In a real Tauri debug session the backend is authoritative; reading
+    // localStorage there would let a developer bypass the Debug menu toggle.
+    const localOverride = isFixtureMode && window.localStorage.getItem(DEVTOOLS_STORAGE_KEY) === 'true';
     let unlisten: (() => void | Promise<void>) | null = null;
 
     const initialize = async () => {
@@ -113,7 +116,11 @@
           if (devtoolsDestroyed) return;
 
           devtoolsVisible = event.payload.visible;
-          setDevtoolsLocalOverride(event.payload.visible);
+          // Only persist visibility to localStorage in fixture mode so that
+          // page reloads during E2E tests restore the overlay state.
+          if (isFixtureMode) {
+            setDevtoolsLocalOverride(event.payload.visible);
+          }
 
           if (event.payload.visible) {
             void refreshDevtoolsSnapshot();
@@ -132,7 +139,9 @@
         if (devtoolsDestroyed) return;
 
         devtoolsVisible = localOverride || state.visible;
-        setDevtoolsLocalOverride(devtoolsVisible);
+        if (isFixtureMode) {
+          setDevtoolsLocalOverride(devtoolsVisible);
+        }
 
         if (devtoolsVisible) {
           devtoolsSnapshot = state.snapshot;
@@ -140,7 +149,9 @@
       } catch {
         if (localOverride && !devtoolsDestroyed) {
           devtoolsVisible = true;
-          setDevtoolsLocalOverride(true);
+          if (isFixtureMode) {
+            setDevtoolsLocalOverride(true);
+          }
           await refreshDevtoolsSnapshot();
         }
       }
