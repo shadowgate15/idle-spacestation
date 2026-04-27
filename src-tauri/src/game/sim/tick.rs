@@ -221,7 +221,7 @@ fn autosave_prestige_check_phase(state: &mut RunState) {
         state.last_autosave_tick = Some(state.tick_count);
     }
 
-    let net_power = state.resources.power_available - state.resources.power_reserved;
+    let net_power = state.resources.power_available;
     state.consecutive_stable_power_ticks =
         crate::game::progression::prestige::update_stable_power_ticks(
             state.consecutive_stable_power_ticks,

@@ -39,7 +39,9 @@ const tauriTransport: GameTransport = {
     }
 
     if (command === 'game_confirm_prestige') {
-      return tauriInvoke('game_execute_prestige') as Promise<GameCommandResponses[typeof command]>;
+      return tauriInvoke('game_execute_prestige', payload as InvokeArgs | undefined) as Promise<
+        GameCommandResponses[typeof command]
+      >;
     }
 
     return tauriInvoke(command, payload as InvokeArgs | undefined) as Promise<
