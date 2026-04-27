@@ -4,13 +4,15 @@
   import { resolve } from '$app/paths';
   import { gameGateway } from '$lib/game/api';
   import type {
+    GameSnapshot,
     OverviewViewModel,
-    WarningSnapshot,
     ResourceDeltaSnapshot,
+    WarningSnapshot,
   } from '$lib/game/api/types';
 
   type AppRoute = '/' | '/systems' | '/services' | '/planets' | '/prestige';
 
+  let fullSnapshot = $state<GameSnapshot | null>(null);
   let overview = $state<OverviewViewModel | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -25,9 +27,9 @@
 
     isPolling = true;
     try {
-      const snapshot = await gameGateway.getSnapshot();
+      fullSnapshot = await gameGateway.getSnapshot();
       if (destroyed) return;
-      overview = snapshot.routes.overview;
+      overview = fullSnapshot.routes.overview;
       error = null;
     } catch (e) {
       if (destroyed) return;
@@ -143,6 +145,36 @@
       {/each}
     </dl>
   </section>
+
+  {#if fullSnapshot}
+    <section class="mb-8 rounded-lg border border-border bg-card p-4" data-testid="stockpile-strip">
+      <dl class="flex flex-wrap gap-6">
+        <div class="flex flex-col">
+          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Materials</dt>
+          <dd class="text-lg font-bold text-foreground">
+            {Math.floor(fullSnapshot.resources.materials)}
+          </dd>
+        </div>
+        <div class="flex flex-col">
+          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Data</dt>
+          <dd class="text-lg font-bold text-foreground">{Math.floor(fullSnapshot.resources.data)}</dd>
+        </div>
+        <div class="flex flex-col">
+          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Crew</dt>
+          <dd class="text-lg font-bold text-foreground">
+            {fullSnapshot.resources.crew.assigned} / {fullSnapshot.resources.crew.total}
+          </dd>
+        </div>
+        <div class="flex flex-col">
+          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Power</dt>
+          <dd class="text-lg font-bold text-foreground">
+            {fullSnapshot.resources.power.available.toFixed(1)} available of
+            {fullSnapshot.resources.power.generated.toFixed(1)} generated
+          </dd>
+        </div>
+      </dl>
+    </section>
+  {/if}
 
   {#if hasDeficitWarnings.length > 0}
     <section data-testid="deficit-warnings" class="mb-8 flex flex-col gap-2">

@@ -28,21 +28,25 @@ import type {
 } from './types';
 import { maybeCreatePreviewFixtureTransport } from './testing/transport';
 
+const NO_INPUT_COMMANDS = new Set([
+  'game_get_snapshot',
+  'game_start_survey',
+  'game_request_save',
+  'game_request_load',
+]);
+
 const tauriTransport: GameTransport = {
   invoke(command, payload) {
-    if (command === 'game_set_service_activation') {
-      return tauriInvoke('game_toggle_service', payload as InvokeArgs | undefined) as Promise<
-        GameCommandResponses[typeof command]
-      >;
-    }
+    const rustCommand =
+      command === 'game_set_service_activation'
+        ? 'game_toggle_service'
+        : command === 'game_confirm_prestige'
+          ? 'game_execute_prestige'
+          : command;
 
-    if (command === 'game_confirm_prestige') {
-      return tauriInvoke('game_execute_prestige', payload as InvokeArgs | undefined) as Promise<
-        GameCommandResponses[typeof command]
-      >;
-    }
+    const args = NO_INPUT_COMMANDS.has(rustCommand) || payload === undefined ? undefined : { input: payload };
 
-    return tauriInvoke(command, payload as InvokeArgs | undefined) as Promise<
+    return tauriInvoke(rustCommand, args as InvokeArgs | undefined) as Promise<
       GameCommandResponses[typeof command]
     >;
   },
