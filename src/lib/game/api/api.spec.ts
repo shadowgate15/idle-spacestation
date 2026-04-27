@@ -1,15 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
   adaptGameSnapshot,
   adaptGameViewModels,
   createGameGateway,
   previewFixtureNames,
+  type DevtoolsCommandName,
+  type DevtoolsCommandPayloads,
+  type DevtoolsCommandResponses,
+  type DevtoolsApplyResourcesRejectionCode,
   type GameSnapshot,
   type GameCommandName,
   type GameCommandPayloads,
   type GameCommandResponses,
+  type GameGatewayTransport,
   type GameTransport,
+  type RawDevtoolsStateSnapshot,
+  type RawGameSnapshot,
 } from './index';
 import {
   buildSnapshotFromFixtureState,
@@ -79,6 +86,230 @@ describe('game api fixtures and adapters', () => {
         payload: { systemId: 'reactor-core' },
       },
     ]);
+  });
+
+  it('sends camelCase payloads for all devtools commands', async () => {
+    const calls: Array<{ command: string; payload: unknown }> = [];
+    const rawSnapshot = createRawSnapshot();
+    const transport = createDevtoolsTransport(async (command, payload) => {
+      calls.push({ command, payload });
+
+      switch (command) {
+        case 'game_devtools_get_state':
+        case 'game_devtools_set_visibility':
+          return createRawDevtoolsState(rawSnapshot, true);
+        case 'game_devtools_apply_resources':
+        case 'game_devtools_apply_crew':
+        case 'game_devtools_apply_systems':
+        case 'game_devtools_apply_services':
+        case 'game_devtools_apply_progression':
+        case 'game_devtools_advance_ticks':
+        case 'game_devtools_reset_to_starter':
+          return createRawActionSuccess(rawSnapshot);
+      }
+    });
+    const gateway = createGameGateway(transport);
+
+    await gateway.getDevtoolsState();
+    await gateway.setDevtoolsVisibility({ visible: true });
+    await gateway.applyResources({ materials: 240, data: 60 });
+    await gateway.applyCrew({ crewTotal: 8 });
+    await gateway.applySystems({
+      systems: [
+        { id: 'reactor-core', level: 2 },
+        { id: 'survey-array', level: 3 },
+      ],
+    });
+    await gateway.applyServices({
+      services: [
+        {
+          id: 'solar-harvester',
+          desiredActive: true,
+          assignedCrew: 2,
+          priority: 1,
+        },
+        {
+          id: 'survey-uplink',
+          desiredActive: false,
+          assignedCrew: 0,
+          priority: 2,
+        },
+      ],
+    });
+    await gateway.applyProgression({
+      doctrineFragments: 2,
+      unlockedDoctrines: ['efficient-shifts'],
+      discoveredPlanets: ['solstice-anchor', 'cinder-forge'],
+      activePlanet: 'cinder-forge',
+      surveyProgress: {
+        'cinder-forge': 600,
+        'aurora-pier': 200,
+      },
+    });
+    await gateway.advanceTicks({ count: 4 });
+    await gateway.resetToStarter();
+
+    expect(calls).toEqual([
+      {
+        command: 'game_devtools_get_state',
+        payload: undefined,
+      },
+      {
+        command: 'game_devtools_set_visibility',
+        payload: { visible: true },
+      },
+      {
+        command: 'game_devtools_apply_resources',
+        payload: { materials: 240, data: 60 },
+      },
+      {
+        command: 'game_devtools_apply_crew',
+        payload: { crewTotal: 8 },
+      },
+      {
+        command: 'game_devtools_apply_systems',
+        payload: {
+          systems: [
+            { id: 'reactor-core', level: 2 },
+            { id: 'survey-array', level: 3 },
+          ],
+        },
+      },
+      {
+        command: 'game_devtools_apply_services',
+        payload: {
+          services: [
+            {
+              id: 'solar-harvester',
+              desiredActive: true,
+              assignedCrew: 2,
+              priority: 1,
+            },
+            {
+              id: 'survey-uplink',
+              desiredActive: false,
+              assignedCrew: 0,
+              priority: 2,
+            },
+          ],
+        },
+      },
+      {
+        command: 'game_devtools_apply_progression',
+        payload: {
+          doctrineFragments: 2,
+          unlockedDoctrines: ['efficient-shifts'],
+          discoveredPlanets: ['solstice-anchor', 'cinder-forge'],
+          activePlanet: 'cinder-forge',
+          surveyProgress: {
+            'cinder-forge': 600,
+            'aurora-pier': 200,
+          },
+        },
+      },
+      {
+        command: 'game_devtools_advance_ticks',
+        payload: { count: 4 },
+      },
+      {
+        command: 'game_devtools_reset_to_starter',
+        payload: {},
+      },
+    ]);
+  });
+
+  it('adapts devtools state and action responses with typed result contracts', async () => {
+    const rawSnapshot = createRawSnapshot();
+    const transport = createDevtoolsTransport(async (command) => {
+      switch (command) {
+        case 'game_devtools_get_state':
+          return createRawDevtoolsState(rawSnapshot, true);
+        case 'game_devtools_set_visibility':
+          return createRawDevtoolsState(rawSnapshot, false);
+        case 'game_devtools_apply_resources':
+          return {
+            ok: false,
+            reasonCode: 'invalid_range',
+            snapshot: rawSnapshot,
+          };
+        case 'game_devtools_advance_ticks':
+          return createRawActionSuccess(rawSnapshot);
+        default:
+          throw new Error(`Unhandled command: ${String(command)}`);
+      }
+    });
+    const gateway = createGameGateway(transport);
+
+    const state = await gateway.getDevtoolsState();
+    const visibility = await gateway.setDevtoolsVisibility({ visible: false });
+    const resources = await gateway.applyResources({ materials: -1, data: 10 });
+    const ticks = await gateway.advanceTicks({ count: 8 });
+
+    expect(state).toEqual({ visible: true, snapshot: adaptGameSnapshot(rawSnapshot) });
+    expect(visibility).toEqual({ visible: false, snapshot: adaptGameSnapshot(rawSnapshot) });
+    expect(resources).toEqual({
+      ok: false,
+      reasonCode: 'invalid_range',
+      snapshot: adaptGameSnapshot(rawSnapshot),
+    });
+    expect(ticks).toEqual({
+      ok: true,
+      snapshot: adaptGameSnapshot(rawSnapshot),
+    });
+
+    expectTypeOf(state.visible).toEqualTypeOf<boolean>();
+    expectTypeOf(state.snapshot).toEqualTypeOf<GameSnapshot>();
+
+    if (resources.ok) {
+      throw new Error('Expected applyResources to fail');
+    }
+
+    expect(resources.reasonCode).toBe('invalid_range');
+    expectTypeOf(resources.reasonCode).toEqualTypeOf<DevtoolsApplyResourcesRejectionCode>();
+  });
+
+  it('does not mutate devtools state before an explicit apply call', async () => {
+    let rawSnapshot = createRawSnapshot();
+    const transport = createDevtoolsTransport(async (command, payload) => {
+      switch (command) {
+        case 'game_devtools_get_state':
+          return createRawDevtoolsState(rawSnapshot, false);
+        case 'game_devtools_apply_resources': {
+          const resourcesPayload = payload as DevtoolsCommandPayloads['game_devtools_apply_resources'];
+          rawSnapshot = {
+            ...structuredClone(rawSnapshot),
+            resources: {
+              ...structuredClone(rawSnapshot.resources),
+              materials: resourcesPayload.materials,
+              data: resourcesPayload.data,
+            },
+          };
+          return createRawActionSuccess(rawSnapshot);
+        }
+        default:
+          throw new Error(`Unhandled command: ${String(command)}`);
+      }
+    });
+    const gateway = createGameGateway(transport);
+
+    const initialState = await gateway.getDevtoolsState();
+    const draft = { materials: 999, data: 321 };
+    const unchangedState = await gateway.getDevtoolsState();
+
+    expect(initialState.snapshot.resources.materials).toBe(120);
+    expect(initialState.snapshot.resources.data).toBe(0);
+    expect(unchangedState.snapshot.resources.materials).toBe(120);
+    expect(unchangedState.snapshot.resources.data).toBe(0);
+
+    const applied = await gateway.applyResources(draft);
+
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) {
+      throw new Error('Expected applyResources to succeed');
+    }
+
+    expect(applied.snapshot.resources.materials).toBe(999);
+    expect(applied.snapshot.resources.data).toBe(321);
   });
 
   it.each(previewFixtureNames)(
@@ -155,6 +386,125 @@ describe('game api fixtures and adapters', () => {
   });
 });
 
+describe('fixture transport devtools commands', () => {
+  it('game_devtools_get_state returns current visibility false initially', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+
+    const state = await gateway.getDevtoolsState();
+
+    expect(state.visible).toBe(false);
+  });
+
+  it('game_devtools_set_visibility toggles visibility and returns updated state', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+
+    const result = await gateway.setDevtoolsVisibility({ visible: true });
+
+    expect(result.visible).toBe(true);
+    expect(result.snapshot).toBeDefined();
+  });
+
+  it('game_devtools_apply_resources updates materials and data', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+
+    const result = await gateway.applyResources({ materials: 500, data: 100 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected applyResources to succeed');
+    }
+    expect(result.snapshot.resources.materials).toBe(500);
+    expect(result.snapshot.resources.data).toBe(100);
+  });
+
+  it('game_devtools_apply_resources rejects negative values', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+    const before = await gateway.getDevtoolsState();
+
+    const result = await gateway.applyResources({ materials: -1, data: 10 });
+
+    expect(result).toMatchObject({ ok: false, reasonCode: 'invalid_range' });
+    expect(result.snapshot).toEqual(before.snapshot);
+  });
+
+  it('game_devtools_apply_crew updates crew total', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+
+    const result = await gateway.applyCrew({ crewTotal: 4 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected applyCrew to succeed');
+    }
+    expect(result.snapshot.resources.crew).toEqual({ total: 4, assigned: 2, available: 2 });
+  });
+
+  it('game_devtools_apply_crew rejects below assigned count', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+
+    const result = await gateway.applyCrew({ crewTotal: 1 });
+
+    expect(result).toMatchObject({ ok: false, reasonCode: 'invalid_range' });
+  });
+
+  it('game_devtools_apply_systems sets system levels and recomputes power', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+
+    const result = await gateway.applySystems({
+      systems: [{ id: 'reactor-core', level: 2 }],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected applySystems to succeed');
+    }
+    expect(result.snapshot.resources.power.generated).toBe(12);
+  });
+
+  it('game_devtools_apply_systems rejects unknown system id', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+
+    const result = await gateway.applySystems({
+      systems: [{ id: 'unknown-system' as never, level: 2 }],
+    });
+
+    expect(result).toMatchObject({ ok: false, reasonCode: 'unknown_id' });
+  });
+
+  it('game_devtools_advance_ticks advances tick count', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+
+    const result = await gateway.advanceTicks({ count: 10 });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected advanceTicks to succeed');
+    }
+    expect(result.snapshot.meta.tickCount).toBe(10);
+  });
+
+  it('game_devtools_advance_ticks rejects count over 240', async () => {
+    const gateway = createGameGateway(createFixtureTransport('starter'));
+
+    const result = await gateway.advanceTicks({ count: 241 });
+
+    expect(result).toMatchObject({ ok: false, reasonCode: 'invalid_range' });
+  });
+
+  it('game_devtools_reset_to_starter resets all state', async () => {
+    const gateway = createGameGateway(createFixtureTransport('all-planets'));
+
+    const result = await gateway.resetToStarter();
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected resetToStarter to succeed');
+    }
+    expect(result.snapshot.resources.materials).toBe(120);
+    expect(result.snapshot.resources.data).toBe(0);
+  });
+});
+
 function assertCompleteSnapshot(snapshot: GameSnapshot): void {
   expect(snapshot.meta.source).toBe('preview-fixture');
   expect(snapshot.routes.overview.activePlanet.id).toMatch(
@@ -181,4 +531,41 @@ function assertCompleteSnapshot(snapshot: GameSnapshot): void {
   expect(snapshot.routes.prestige.unlockedDoctrines).toBeDefined();
   expect(snapshot.routes.prestige.purchaseOptions).toHaveLength(4);
   expect(snapshot.routes.prestige.resetConsequences.length).toBeGreaterThan(0);
+}
+
+function createRawSnapshot(): RawGameSnapshot {
+  return buildSnapshotFromFixtureState(createFixtureState('starter'), 'starter');
+}
+
+function createRawDevtoolsState(
+  snapshot: RawGameSnapshot,
+  visible: boolean,
+): RawDevtoolsStateSnapshot {
+  return {
+    visible,
+    snapshot,
+  };
+}
+
+function createRawActionSuccess(snapshot: RawGameSnapshot) {
+  return {
+    ok: true as const,
+    snapshot,
+  };
+}
+
+function createDevtoolsTransport(
+  handler: (
+    command: DevtoolsCommandName,
+    payload: DevtoolsCommandPayloads[DevtoolsCommandName],
+  ) => Promise<DevtoolsCommandResponses[DevtoolsCommandName]>,
+): GameGatewayTransport {
+  return {
+    invoke(command, payload) {
+      return handler(
+        command as DevtoolsCommandName,
+        payload as DevtoolsCommandPayloads[DevtoolsCommandName],
+      ) as Promise<DevtoolsCommandResponses[DevtoolsCommandName]>;
+    },
+  } as GameGatewayTransport;
 }
