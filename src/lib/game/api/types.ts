@@ -411,6 +411,200 @@ export interface GatewayLoadGameResponse {
   snapshot: GameSnapshot;
 }
 
+export interface RawDevtoolsStateSnapshot {
+  visible: boolean;
+  snapshot: RawGameSnapshot;
+}
+
+export interface DevtoolsStateSnapshot {
+  visible: boolean;
+  snapshot: GameSnapshot;
+}
+
+export interface RawDevtoolsGetStateResponse extends RawDevtoolsStateSnapshot {}
+
+export interface DevtoolsGetStateResponse extends DevtoolsStateSnapshot {}
+
+export interface DevtoolsSetVisibilityPayload {
+  visible: boolean;
+}
+
+export interface RawDevtoolsSetVisibilityResponse extends RawDevtoolsStateSnapshot {}
+
+export interface DevtoolsSetVisibilityResponse extends DevtoolsStateSnapshot {}
+
+export interface DevtoolsApplyResourcesPayload {
+  materials: number;
+  data: number;
+}
+
+export type DevtoolsApplyResourcesRejectionCode = 'invalid_range' | 'invalid_state';
+
+export type RawDevtoolsApplyResourcesResponse = GameActionResponse<
+  DevtoolsApplyResourcesRejectionCode
+>;
+
+export type GatewayDevtoolsApplyResourcesResponse = GatewayActionResponse<
+  DevtoolsApplyResourcesRejectionCode
+>;
+
+export interface DevtoolsApplyCrewPayload {
+  crewTotal: number;
+}
+
+export type DevtoolsApplyCrewRejectionCode =
+  | 'invalid_range'
+  | 'constraint_violation'
+  | 'invalid_state';
+
+export type RawDevtoolsApplyCrewResponse = GameActionResponse<DevtoolsApplyCrewRejectionCode>;
+
+export type GatewayDevtoolsApplyCrewResponse = GatewayActionResponse<
+  DevtoolsApplyCrewRejectionCode
+>;
+
+export interface DevtoolsApplySystemsEntryPayload {
+  id: SystemId;
+  level: number;
+}
+
+export interface DevtoolsApplySystemsPayload {
+  systems: DevtoolsApplySystemsEntryPayload[];
+}
+
+export type DevtoolsApplySystemsRejectionCode =
+  | 'invalid_range'
+  | 'unknown_id'
+  | 'constraint_violation'
+  | 'invalid_state';
+
+export type RawDevtoolsApplySystemsResponse = GameActionResponse<
+  DevtoolsApplySystemsRejectionCode
+>;
+
+export type GatewayDevtoolsApplySystemsResponse = GatewayActionResponse<
+  DevtoolsApplySystemsRejectionCode
+>;
+
+export interface DevtoolsApplyServicesEntryPayload {
+  id: ServiceId;
+  desiredActive: boolean;
+  assignedCrew: number;
+  priority: number;
+}
+
+export interface DevtoolsApplyServicesPayload {
+  services: DevtoolsApplyServicesEntryPayload[];
+}
+
+export type DevtoolsApplyServicesRejectionCode =
+  | 'invalid_range'
+  | 'unknown_id'
+  | 'constraint_violation'
+  | 'invalid_state';
+
+export type RawDevtoolsApplyServicesResponse = GameActionResponse<
+  DevtoolsApplyServicesRejectionCode
+>;
+
+export type GatewayDevtoolsApplyServicesResponse = GatewayActionResponse<
+  DevtoolsApplyServicesRejectionCode
+>;
+
+export type DevtoolsProgressionSurveyProgressPayload = Partial<Record<PlanetId, number>>;
+
+export interface DevtoolsApplyProgressionPayload {
+  doctrineFragments: number;
+  unlockedDoctrines: DoctrineId[];
+  discoveredPlanets: PlanetId[];
+  activePlanet: PlanetId;
+  surveyProgress: DevtoolsProgressionSurveyProgressPayload;
+}
+
+export type DevtoolsApplyProgressionRejectionCode =
+  | 'invalid_range'
+  | 'unknown_id'
+  | 'constraint_violation'
+  | 'invalid_state';
+
+export type RawDevtoolsApplyProgressionResponse = GameActionResponse<
+  DevtoolsApplyProgressionRejectionCode
+>;
+
+export type GatewayDevtoolsApplyProgressionResponse = GatewayActionResponse<
+  DevtoolsApplyProgressionRejectionCode
+>;
+
+export interface DevtoolsAdvanceTicksPayload {
+  count: number;
+}
+
+export type DevtoolsAdvanceTicksRejectionCode = 'invalid_range' | 'invalid_state';
+
+export type RawDevtoolsAdvanceTicksResponse = GameActionResponse<
+  DevtoolsAdvanceTicksRejectionCode
+>;
+
+export type GatewayDevtoolsAdvanceTicksResponse = GatewayActionResponse<
+  DevtoolsAdvanceTicksRejectionCode
+>;
+
+export interface DevtoolsResetToStarterPayload {}
+
+export type DevtoolsResetToStarterRejectionCode = 'invalid_state';
+
+export type RawDevtoolsResetToStarterResponse = GameActionResponse<
+  DevtoolsResetToStarterRejectionCode
+>;
+
+export type GatewayDevtoolsResetToStarterResponse = GatewayActionResponse<
+  DevtoolsResetToStarterRejectionCode
+>;
+
+export interface DevtoolsCommandPayloads {
+  game_devtools_get_state: undefined;
+  game_devtools_set_visibility: DevtoolsSetVisibilityPayload;
+  game_devtools_apply_resources: DevtoolsApplyResourcesPayload;
+  game_devtools_apply_crew: DevtoolsApplyCrewPayload;
+  game_devtools_apply_systems: DevtoolsApplySystemsPayload;
+  game_devtools_apply_services: DevtoolsApplyServicesPayload;
+  game_devtools_apply_progression: DevtoolsApplyProgressionPayload;
+  game_devtools_advance_ticks: DevtoolsAdvanceTicksPayload;
+  game_devtools_reset_to_starter: DevtoolsResetToStarterPayload;
+}
+
+export interface DevtoolsCommandResponses {
+  game_devtools_get_state: RawDevtoolsGetStateResponse;
+  game_devtools_set_visibility: RawDevtoolsSetVisibilityResponse;
+  game_devtools_apply_resources: RawDevtoolsApplyResourcesResponse;
+  game_devtools_apply_crew: RawDevtoolsApplyCrewResponse;
+  game_devtools_apply_systems: RawDevtoolsApplySystemsResponse;
+  game_devtools_apply_services: RawDevtoolsApplyServicesResponse;
+  game_devtools_apply_progression: RawDevtoolsApplyProgressionResponse;
+  game_devtools_advance_ticks: RawDevtoolsAdvanceTicksResponse;
+  game_devtools_reset_to_starter: RawDevtoolsResetToStarterResponse;
+}
+
+export type DevtoolsCommandName =
+  | 'game_devtools_get_state'
+  | 'game_devtools_set_visibility'
+  | 'game_devtools_apply_resources'
+  | 'game_devtools_apply_crew'
+  | 'game_devtools_apply_systems'
+  | 'game_devtools_apply_services'
+  | 'game_devtools_apply_progression'
+  | 'game_devtools_advance_ticks'
+  | 'game_devtools_reset_to_starter';
+
+export interface DevtoolsCommandTransport {
+  invoke<TCommand extends DevtoolsCommandName>(
+    command: TCommand,
+    payload: DevtoolsCommandPayloads[TCommand],
+  ): Promise<DevtoolsCommandResponses[TCommand]>;
+}
+
+export type GameGatewayTransport = GameTransport | (GameTransport & DevtoolsCommandTransport);
+
 export interface GameCommandPayloads {
   game_get_snapshot: undefined;
   game_upgrade_system: UpgradeSystemInput;
@@ -437,7 +631,17 @@ export interface GameCommandResponses {
   game_request_load: LoadGameResponse;
 }
 
-export type GameCommandName = keyof GameCommandPayloads;
+export type GameCommandName =
+  | 'game_get_snapshot'
+  | 'game_upgrade_system'
+  | 'game_set_service_activation'
+  | 'game_assign_service_crew'
+  | 'game_reprioritize_service'
+  | 'game_start_survey'
+  | 'game_purchase_doctrine'
+  | 'game_confirm_prestige'
+  | 'game_request_save'
+  | 'game_request_load';
 
 export interface GameTransport {
   invoke<TCommand extends GameCommandName>(
