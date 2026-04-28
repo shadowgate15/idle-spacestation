@@ -24,7 +24,8 @@
   });
 
   $effect(() => {
-    untrack(() => state.sync(snapshot));
+    const s = snapshot;
+    untrack(() => state.sync(s));
   });
 
   function toggleDoctrine(id: DoctrineId, checked: boolean) {
