@@ -102,4 +102,105 @@ describe('ResourcesPanel', () => {
       await view.unmount();
     }
   });
+
+  it('polling does not overwrite typed materials draft', async () => {
+    const gateway = createGateway();
+    const initialSnapshot = createSnapshot({ materials: 100, data: 200 });
+    const view = await mount(ResourcesPanel as Component, {
+      props: { snapshot: initialSnapshot, gateway },
+    });
+
+    try {
+      const materialsInput = page.getByTestId('devtools-materials-input');
+      await materialsInput.fill('555');
+      await expect.element(materialsInput).toHaveValue(555);
+
+      const materialsEl = materialsInput.element() as HTMLInputElement;
+      materialsEl.focus();
+      expect(document.activeElement).toBe(materialsEl);
+
+      await view.rerender({ snapshot: createSnapshot({ materials: 101, data: 201 }), gateway });
+
+      await expect.element(materialsInput).toHaveValue(555);
+      expect(document.activeElement).toBe(materialsEl);
+    } finally {
+      await view.unmount();
+    }
+  });
+
+  it('polling does not overwrite typed data draft', async () => {
+    const gateway = createGateway();
+    const initialSnapshot = createSnapshot({ materials: 100, data: 200 });
+    const view = await mount(ResourcesPanel as Component, {
+      props: { snapshot: initialSnapshot, gateway },
+    });
+
+    try {
+      const dataInput = page.getByTestId('devtools-data-input');
+      await dataInput.fill('777');
+      await expect.element(dataInput).toHaveValue(777);
+
+      const dataEl = dataInput.element() as HTMLInputElement;
+      dataEl.focus();
+      expect(document.activeElement).toBe(dataEl);
+
+      await view.rerender({ snapshot: createSnapshot({ materials: 102, data: 202 }), gateway });
+
+      await expect.element(dataInput).toHaveValue(777);
+      expect(document.activeElement).toBe(dataEl);
+    } finally {
+      await view.unmount();
+    }
+  });
+
+  it('Apply success reseeds drafts and clears isDirty', async () => {
+    const gateway = createGateway();
+    const responseSnapshot = createSnapshot({ materials: 333, data: 444 });
+    gateway.applyResources = vi.fn().mockResolvedValue({ ok: true, snapshot: responseSnapshot });
+
+    const view = await mount(ResourcesPanel as Component, {
+      props: { snapshot: createSnapshot({ materials: 1, data: 2 }), gateway },
+    });
+
+    try {
+      await page.getByTestId('devtools-materials-input').fill('333');
+      await page.getByTestId('devtools-data-input').fill('444');
+      await page.getByTestId('devtools-resources-apply').click();
+
+      await expect.element(page.getByTestId('devtools-materials-input')).toHaveValue(333);
+      await expect.element(page.getByTestId('devtools-data-input')).toHaveValue(444);
+
+      await view.rerender({ snapshot: responseSnapshot, gateway });
+      await expect.element(page.getByTestId('devtools-materials-input')).toHaveValue(333);
+      await expect.element(page.getByTestId('devtools-data-input')).toHaveValue(444);
+      await expect.element(page.getByTestId('devtools-resources-error')).toHaveTextContent('');
+    } finally {
+      await view.unmount();
+    }
+  });
+
+  it('Apply failure reseeds drafts to response.snapshot', async () => {
+    const gateway = createGateway();
+    const failureSnapshot = createSnapshot({ materials: 120, data: 50 });
+    gateway.applyResources = vi.fn().mockResolvedValue({
+      ok: false,
+      reasonCode: 'invalid_range',
+      snapshot: failureSnapshot,
+    });
+
+    const view = await mount(ResourcesPanel as Component, {
+      props: { snapshot: createSnapshot({ materials: 120, data: 50 }), gateway },
+    });
+
+    try {
+      await page.getByTestId('devtools-materials-input').fill('999');
+      await page.getByTestId('devtools-resources-apply').click();
+
+      await expect.element(page.getByTestId('devtools-materials-input')).toHaveValue(120);
+      await expect.element(page.getByTestId('devtools-data-input')).toHaveValue(50);
+      await expect.element(page.getByTestId('devtools-resources-error')).toHaveTextContent('invalid_range');
+    } finally {
+      await view.unmount();
+    }
+  });
 });

@@ -13,30 +13,30 @@ export function createResourcesPanelState(snapshot: GameSnapshot | null, gateway
   let currentSnapshot = $state<GameSnapshot | null>(snapshot);
   let materialsDraft = $state<number | undefined>(snapshot?.resources.materials ?? 0);
   let dataDraft = $state<number | undefined>(snapshot?.resources.data ?? 0);
+  let lastSeededMaterials = $state<number>(snapshot?.resources.materials ?? 0);
+  let lastSeededData = $state<number>(snapshot?.resources.data ?? 0);
+  let hasSeededOnce = snapshot !== null;
   let errorMessage = $state<string | null>(null);
   let isApplying = $state(false);
 
-  let isDirty = $derived(
-    materialsDraft !== (currentSnapshot?.resources.materials ?? 0) ||
-      dataDraft !== (currentSnapshot?.resources.data ?? 0),
+  const isDirty = $derived(
+    materialsDraft !== lastSeededMaterials || dataDraft !== lastSeededData,
   );
 
-  function sync(snapshot: GameSnapshot | null, force = false) {
-    const previousMaterials = currentSnapshot?.resources.materials ?? 0;
-    const previousData = currentSnapshot?.resources.data ?? 0;
-    const wasDirty = materialsDraft !== previousMaterials || dataDraft !== previousData;
+  function reseedDrafts(next: GameSnapshot) {
+    materialsDraft = next.resources.materials;
+    dataDraft = next.resources.data;
+    lastSeededMaterials = next.resources.materials;
+    lastSeededData = next.resources.data;
+  }
 
+  function sync(snapshot: GameSnapshot | null) {
     currentSnapshot = snapshot;
 
-    if (!force && wasDirty) {
-      return;
-    }
-
-    materialsDraft = snapshot?.resources.materials ?? 0;
-    dataDraft = snapshot?.resources.data ?? 0;
-
-    if (snapshot) {
+    if (!hasSeededOnce && snapshot !== null) {
+      reseedDrafts(snapshot);
       errorMessage = null;
+      hasSeededOnce = true;
     }
   }
 
@@ -46,8 +46,9 @@ export function createResourcesPanelState(snapshot: GameSnapshot | null, gateway
       !isInRange(dataDraft, DATA_MIN, DATA_MAX)
     ) {
       errorMessage = 'invalid_range';
-      materialsDraft = currentSnapshot?.resources.materials ?? 0;
-      dataDraft = currentSnapshot?.resources.data ?? 0;
+      if (currentSnapshot) {
+        reseedDrafts(currentSnapshot);
+      }
       return;
     }
 
@@ -61,16 +62,11 @@ export function createResourcesPanelState(snapshot: GameSnapshot | null, gateway
       });
 
       currentSnapshot = response.snapshot;
+      reseedDrafts(response.snapshot);
 
-      if (response.ok) {
-        materialsDraft = response.snapshot.resources.materials;
-        dataDraft = response.snapshot.resources.data;
-        return;
+      if (!response.ok) {
+        errorMessage = response.reasonCode;
       }
-
-      materialsDraft = response.snapshot.resources.materials;
-      dataDraft = response.snapshot.resources.data;
-      errorMessage = response.reasonCode;
     } finally {
       isApplying = false;
     }
