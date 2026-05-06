@@ -151,9 +151,7 @@ describe('createServicesPanelState', () => {
     state.sync(createUpdatedSnapshot());
 
     expect(state.drafts[1].priority).toBe(42);
-    expect(state.snapshot?.services[1].priority).toBe(
-      createUpdatedSnapshot().services[1].priority,
-    );
+    expect(state.snapshot?.services[1].priority).toBe(createUpdatedSnapshot().services[1].priority);
   });
 
   it('polling does not toggle desiredActive checkbox state', () => {
