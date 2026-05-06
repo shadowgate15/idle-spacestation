@@ -72,4 +72,24 @@ describe('createSessionPanelState', () => {
     expect(state.isConfirmingReset).toBe(false);
     expect(state.errorMessage).toBeNull();
   });
+
+  it('polling does not overwrite typed advanceCount', () => {
+    const state = createSessionPanelState(createSnapshot(24), {
+      advanceTicks: vi.fn(),
+      resetToStarter: vi.fn(),
+    });
+
+    // User types in advance count field
+    state.setAdvanceCount(42);
+    expect(state.advanceCount).toBe(42);
+
+    // Simulate a poll/snapshot update
+    const newSnapshot = createSnapshot(30);
+    state.sync(newSnapshot);
+
+    // advanceCount should NOT be overwritten by the sync
+    expect(state.advanceCount).toBe(42);
+    // But snapshot should be updated
+    expect(state.snapshot?.meta.tickCount).toBe(30);
+  });
 });
