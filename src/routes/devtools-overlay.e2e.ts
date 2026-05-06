@@ -203,6 +203,25 @@ test.describe('Devtools overlay in preview fixture mode', () => {
 
     await expect(applyBtn).toBeFocused();
   });
+
+  test('polling resumes after focused input is removed from DOM (self-heal)', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    const input = page.getByTestId('devtools-materials-input');
+    const overlay = page.getByTestId('devtools-overlay');
+
+    await input.click();
+    await page.waitForTimeout(1500); // confirm polling paused
+    const tickWhileRemoved = await readDisplayedTick(overlay);
+
+    // Remove the focused input from the DOM — simulates stuck focus
+    await input.evaluate((el) => el.remove());
+
+    // Polling should self-heal because document.activeElement falls back to <body>
+    await expect
+      .poll(async () => readDisplayedTick(overlay), { timeout: 5000, intervals: [250, 500, 750] })
+      .toBeGreaterThan(tickWhileRemoved);
+  });
 });
 
 async function typeAcrossPollingTicks(locator: Locator, text: string) {
