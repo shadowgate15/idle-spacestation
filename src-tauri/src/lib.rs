@@ -5,11 +5,17 @@ use std::time::Duration;
 use std::sync::Mutex;
 
 use serde::Deserialize;
+#[cfg(debug_assertions)]
+use serde::Serialize;
+#[cfg(debug_assertions)]
+use tauri::Emitter;
+#[cfg(debug_assertions)]
+use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder};
 use tauri::Manager;
 use crate::game::content::doctrines::doctrine_by_id;
-use crate::game::content::planets::{AURORA_PIER_ID, CINDER_FORGE_ID};
+use crate::game::content::planets::{planet_by_id, AURORA_PIER_ID, CINDER_FORGE_ID, SOLSTICE_ANCHOR_ID};
 use crate::game::content::services::service_by_id;
-use crate::game::content::systems::{system_by_id, SystemProgression, HABITAT_RING_ID, REACTOR_CORE_ID};
+use crate::game::content::systems::{system_by_id, SystemProgression, HABITAT_RING_ID, REACTOR_CORE_ID, SYSTEMS};
 use crate::game::progression::{execute_prestige, DoctrinePurchaseError, PrestigeExecutionError};
 use crate::game::progression::PrestigeProfile;
 use crate::game::snapshot::{build_snapshot, ActionResponse, RawGameSnapshot, SaveLoadResponse};
@@ -17,6 +23,360 @@ use crate::game::sim::{tick, RunState};
 
 
 struct GameState(Mutex<(RunState, PrestigeProfile, u32)>);
+
+#[cfg(debug_assertions)]
+struct DevtoolsState(Mutex<bool>);
+
+#[cfg(debug_assertions)]
+const DEVTOOLS_TOGGLE_OVERLAY_MENU_ID: &str = "devtools-toggle-overlay";
+#[cfg(debug_assertions)]
+const DEVTOOLS_VISIBILITY_CHANGED_EVENT: &str = "devtools:visibility-changed";
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsVisibilityInput {
+    visible: bool,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Serialize)]
+struct DevtoolsStateResponse {
+    visible: bool,
+    snapshot: RawGameSnapshot,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsApplyResourcesInput {
+    materials: f32,
+    data: f32,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsApplyCrewInput {
+    crew_total: u8,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsApplySystemEntry {
+    id: String,
+    level: u8,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsApplySystemsInput {
+    systems: Vec<DevtoolsApplySystemEntry>,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsServiceEntry {
+    id: String,
+    desired_active: bool,
+    assigned_crew: u8,
+    priority: u8,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsApplyServicesInput {
+    services: Vec<DevtoolsServiceEntry>,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsApplyProgressionInput {
+    doctrine_fragments: u32,
+    unlocked_doctrines: Vec<String>,
+    discovered_planets: Vec<String>,
+    active_planet: String,
+    survey_progress: std::collections::HashMap<String, f32>,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DevtoolsAdvanceTicksInput {
+    count: u32,
+}
+
+#[cfg(debug_assertions)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
+struct DevtoolsVisibilityChangedEvent {
+    visible: bool,
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_get_state(
+    game_state: tauri::State<GameState>,
+    devtools_state: tauri::State<DevtoolsState>,
+) -> Result<DevtoolsStateResponse, String> {
+    Ok(current_devtools_state_response(&game_state, &devtools_state))
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_set_visibility(
+    input: DevtoolsVisibilityInput,
+    app: tauri::AppHandle,
+) -> Result<DevtoolsStateResponse, String> {
+    update_devtools_visibility(&app, input.visible)
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_apply_resources(
+    input: DevtoolsApplyResourcesInput,
+    game_state: tauri::State<'_, GameState>,
+    _devtools_state: tauri::State<'_, DevtoolsState>,
+) -> Result<serde_json::Value, String> {
+    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+
+    match apply_devtools_resources(&mut guard.0, input.materials, input.data) {
+        Ok(()) => {
+            refresh_runtime_state(&mut guard.0);
+            Ok(devtools_action_success(&guard.0, &guard.1))
+        }
+        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+    }
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_apply_crew(
+    input: DevtoolsApplyCrewInput,
+    game_state: tauri::State<'_, GameState>,
+    _devtools_state: tauri::State<'_, DevtoolsState>,
+) -> Result<serde_json::Value, String> {
+    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+
+    match apply_devtools_crew_total(&mut guard.0, input.crew_total) {
+        Ok(()) => {
+            refresh_runtime_state(&mut guard.0);
+            Ok(devtools_action_success(&guard.0, &guard.1))
+        }
+        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+    }
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_apply_systems(
+    input: DevtoolsApplySystemsInput,
+    game_state: tauri::State<'_, GameState>,
+    _devtools_state: tauri::State<'_, DevtoolsState>,
+) -> Result<serde_json::Value, String> {
+    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+
+    match apply_devtools_system_levels(&mut guard.0, &input.systems) {
+        Ok(()) => {
+            refresh_runtime_state(&mut guard.0);
+            Ok(devtools_action_success(&guard.0, &guard.1))
+        }
+        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+    }
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_apply_services(
+    input: DevtoolsApplyServicesInput,
+    game_state: tauri::State<'_, GameState>,
+    _devtools_state: tauri::State<'_, DevtoolsState>,
+) -> Result<serde_json::Value, String> {
+    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+
+    match apply_devtools_services(&mut guard.0, &input.services) {
+        Ok(()) => {
+            refresh_runtime_state(&mut guard.0);
+            Ok(devtools_action_success(&guard.0, &guard.1))
+        }
+        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+    }
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_apply_progression(
+    input: DevtoolsApplyProgressionInput,
+    game_state: tauri::State<'_, GameState>,
+    _devtools_state: tauri::State<'_, DevtoolsState>,
+) -> Result<serde_json::Value, String> {
+    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+    let (run_state, profile, _) = &mut *guard;
+
+    match apply_devtools_progression(run_state, profile, &input) {
+        Ok(()) => {
+            refresh_runtime_state(run_state);
+            Ok(devtools_action_success(run_state, profile))
+        }
+        Err(reason_code) => Ok(devtools_action_failure(run_state, profile, reason_code)),
+    }
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_advance_ticks(
+    input: DevtoolsAdvanceTicksInput,
+    game_state: tauri::State<'_, GameState>,
+    _devtools_state: tauri::State<'_, DevtoolsState>,
+) -> Result<serde_json::Value, String> {
+    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+
+    match apply_devtools_advance_ticks(&mut guard.0, input.count) {
+        Ok(()) => {
+            guard.2 = guard.2.saturating_add(input.count);
+            Ok(devtools_action_success(&guard.0, &guard.1))
+        }
+        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+    }
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn game_devtools_reset_to_starter(
+    game_state: tauri::State<'_, GameState>,
+    _devtools_state: tauri::State<'_, DevtoolsState>,
+) -> Result<serde_json::Value, String> {
+    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+    let (run_state, profile, session_ticks) = &mut *guard;
+
+    reset_devtools_session(run_state, profile, session_ticks);
+    refresh_runtime_state(run_state);
+    Ok(devtools_action_success(run_state, profile))
+}
+
+#[cfg(debug_assertions)]
+fn read_devtools_visibility(devtools_state: &DevtoolsState) -> bool {
+    *devtools_state
+        .0
+        .lock()
+        .expect("devtools state mutex poisoned")
+}
+
+#[cfg(debug_assertions)]
+fn set_devtools_visibility_state(devtools_state: &DevtoolsState, visible: bool) -> bool {
+    let mut guard = devtools_state
+        .0
+        .lock()
+        .expect("devtools state mutex poisoned");
+    *guard = visible;
+    *guard
+}
+
+#[cfg(debug_assertions)]
+#[cfg_attr(not(test), allow(dead_code))]
+fn toggle_devtools_visibility_state(devtools_state: &DevtoolsState) -> bool {
+    let mut guard = devtools_state
+        .0
+        .lock()
+        .expect("devtools state mutex poisoned");
+    *guard = !*guard;
+    *guard
+}
+
+#[cfg(debug_assertions)]
+fn devtools_visibility_payload(visible: bool) -> DevtoolsVisibilityChangedEvent {
+    DevtoolsVisibilityChangedEvent { visible }
+}
+
+#[cfg(debug_assertions)]
+fn build_devtools_state_response(game_state: &GameState, visible: bool) -> DevtoolsStateResponse {
+    let guard = game_state.0.lock().expect("game state mutex poisoned");
+    DevtoolsStateResponse {
+        visible,
+        snapshot: build_snapshot(&guard.0, &guard.1),
+    }
+}
+
+#[cfg(debug_assertions)]
+fn current_devtools_state_response(
+    game_state: &GameState,
+    devtools_state: &DevtoolsState,
+) -> DevtoolsStateResponse {
+    build_devtools_state_response(game_state, read_devtools_visibility(devtools_state))
+}
+
+#[cfg(debug_assertions)]
+fn emit_devtools_visibility_changed<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    visible: bool,
+) -> Result<(), String> {
+    app.emit(
+        DEVTOOLS_VISIBILITY_CHANGED_EVENT,
+        devtools_visibility_payload(visible),
+    )
+    .map_err(|error| error.to_string())
+}
+
+#[cfg(debug_assertions)]
+fn update_devtools_visibility<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    visible: bool,
+) -> Result<DevtoolsStateResponse, String> {
+    let devtools_state = app.state::<DevtoolsState>();
+    let visible = set_devtools_visibility_state(&devtools_state, visible);
+    let game_state = app.state::<GameState>();
+    let response = build_devtools_state_response(&game_state, visible);
+    emit_devtools_visibility_changed(app, visible)?;
+    Ok(response)
+}
+
+#[cfg(debug_assertions)]
+fn toggle_devtools_visibility<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<DevtoolsStateResponse, String> {
+    let devtools_state = app.state::<DevtoolsState>();
+    let visible = !read_devtools_visibility(&devtools_state);
+    update_devtools_visibility(app, visible)
+}
+
+#[cfg(debug_assertions)]
+fn install_debug_menu<R: tauri::Runtime>(app: &mut tauri::App<R>) -> tauri::Result<()> {
+    let toggle_overlay = MenuItem::with_id(
+        app,
+        DEVTOOLS_TOGGLE_OVERLAY_MENU_ID,
+        "Toggle Game State Overlay",
+        true,
+        None::<&str>,
+    )?;
+    let debug_menu = SubmenuBuilder::new(app, "Debug")
+        .item(&toggle_overlay)
+        .build()?;
+    let menu = MenuBuilder::new(app).items(&[&debug_menu]).build()?;
+
+    app.set_menu(menu)?;
+    app.on_menu_event(|app_handle, event| {
+        if event.id().0.as_str() == DEVTOOLS_TOGGLE_OVERLAY_MENU_ID {
+            let _ = toggle_devtools_visibility(app_handle);
+        }
+    });
+
+    Ok(())
+}
+
+#[cfg(debug_assertions)]
+#[cfg_attr(not(test), allow(dead_code))]
+fn devtools_enabled() -> bool {
+    true
+}
+
+#[cfg(not(debug_assertions))]
+fn devtools_enabled() -> bool {
+    false
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -384,6 +744,302 @@ fn action_response(
     }
 }
 
+#[cfg(debug_assertions)]
+fn devtools_action_success(run_state: &RunState, profile: &PrestigeProfile) -> serde_json::Value {
+    serde_json::json!({
+        "ok": true,
+        "snapshot": build_snapshot(run_state, profile),
+    })
+}
+
+#[cfg(debug_assertions)]
+fn devtools_action_failure(
+    run_state: &RunState,
+    profile: &PrestigeProfile,
+    reason_code: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "ok": false,
+        "reasonCode": reason_code,
+        "snapshot": build_snapshot(run_state, profile),
+    })
+}
+
+#[cfg(any(debug_assertions, test))]
+fn apply_devtools_resources(
+    run_state: &mut RunState,
+    materials: f32,
+    data: f32,
+) -> Result<(), &'static str> {
+    if !(materials >= 0.0 && data >= 0.0) {
+        return Err("invalid_range");
+    }
+
+    run_state.resources.materials = materials;
+    run_state.resources.data = data;
+    Ok(())
+}
+
+#[cfg(any(debug_assertions, test))]
+fn apply_devtools_crew_total(run_state: &mut RunState, crew_total: u8) -> Result<(), &'static str> {
+    if crew_total < 1 || crew_total < run_state.resources.crew_assigned {
+        return Err("invalid_range");
+    }
+
+    if crew_total > habitat_crew_capacity(run_state) {
+        return Err("constraint_violation");
+    }
+
+    run_state.resources.crew_total = crew_total;
+    Ok(())
+}
+
+#[cfg(any(debug_assertions, test))]
+fn system_max_level(system_id: &str) -> Option<u8> {
+    SYSTEMS
+        .iter()
+        .find(|system| system.id == system_id)
+        .map(|system| match system.progression {
+            SystemProgression::ReactorCore(levels) => levels.len() as u8,
+            SystemProgression::HabitatRing(levels) => levels.len() as u8,
+            SystemProgression::LogisticsSpine(levels) => levels.len() as u8,
+            SystemProgression::SurveyArray(levels) => levels.len() as u8,
+        })
+}
+
+#[cfg(any(debug_assertions, test))]
+fn apply_devtools_system_levels(
+    run_state: &mut RunState,
+    systems: &[DevtoolsApplySystemEntry],
+) -> Result<(), &'static str> {
+    let mut seen_ids = std::collections::HashSet::new();
+
+    for entry in systems {
+        if !seen_ids.insert(entry.id.as_str()) {
+            return Err("constraint_violation");
+        }
+
+        let Some(max_level) = system_max_level(&entry.id) else {
+            return Err("unknown_id");
+        };
+
+        if entry.level < 1 || entry.level > max_level {
+            return Err("invalid_range");
+        }
+
+        if !run_state.systems.iter().any(|system| system.system_id == entry.id) {
+            return Err("unknown_id");
+        }
+    }
+
+    for entry in systems {
+        let system = run_state
+            .systems
+            .iter_mut()
+            .find(|system| system.system_id == entry.id)
+            .expect("validated system id must exist in run state");
+        system.level = entry.level;
+    }
+
+    Ok(())
+}
+
+#[cfg(any(debug_assertions, test))]
+fn apply_devtools_services(
+    run_state: &mut RunState,
+    services: &[DevtoolsServiceEntry],
+) -> Result<(), &'static str> {
+    let mut seen_ids = std::collections::HashSet::new();
+    let mut seen_priorities = std::collections::HashSet::new();
+
+    for entry in services {
+        if !seen_ids.insert(entry.id.as_str()) {
+            return Err("constraint_violation");
+        }
+
+        let Some(definition) = service_by_id(&entry.id) else {
+            return Err("unknown_id");
+        };
+
+        if !run_state
+            .services
+            .iter()
+            .any(|service| service.service_id == entry.id)
+        {
+            return Err("unknown_id");
+        }
+
+        if entry.assigned_crew > definition.crew_required {
+            return Err("invalid_range");
+        }
+
+        if entry.priority < 1 || entry.priority > run_state.services.len() as u8 {
+            return Err("invalid_range");
+        }
+
+        if !seen_priorities.insert(entry.priority) {
+            return Err("constraint_violation");
+        }
+    }
+
+    let mut resulting_priorities = std::collections::HashSet::new();
+    for service in &run_state.services {
+        let next_priority = services
+            .iter()
+            .find(|entry| entry.id == service.service_id)
+            .map(|entry| entry.priority)
+            .unwrap_or(service.priority);
+
+        if !resulting_priorities.insert(next_priority) {
+            return Err("constraint_violation");
+        }
+    }
+
+    for entry in services {
+        let service = run_state
+            .services
+            .iter_mut()
+            .find(|service| service.service_id == entry.id)
+            .expect("validated service id must exist in run state");
+        service.desired_active = entry.desired_active;
+        service.assigned_crew = entry.assigned_crew;
+        service.priority = entry.priority;
+    }
+
+    run_state.services.sort_by_key(|service| service.priority);
+    Ok(())
+}
+
+#[cfg(any(debug_assertions, test))]
+fn survey_progress_threshold(planet_id: &str) -> Option<f32> {
+    match planet_id {
+        SOLSTICE_ANCHOR_ID => Some(0.0),
+        CINDER_FORGE_ID => Some(crate::game::sim::state::CINDER_FORGE_SURVEY_THRESHOLD),
+        AURORA_PIER_ID => Some(crate::game::sim::state::AURORA_PIER_SURVEY_THRESHOLD),
+        _ => None,
+    }
+}
+
+#[cfg(any(debug_assertions, test))]
+fn total_survey_progress_from_map(
+    discovered_planets: &[String],
+    survey_progress: &std::collections::HashMap<String, f32>,
+) -> f32 {
+    let discovered_floor = discovered_planets
+        .iter()
+        .filter_map(|planet_id| survey_progress_threshold(planet_id))
+        .fold(0.0, f32::max);
+
+    survey_progress
+        .iter()
+        .filter_map(|(planet_id, progress)| {
+            survey_progress_threshold(planet_id).map(|threshold| progress * threshold)
+        })
+        .fold(discovered_floor, f32::max)
+}
+
+#[cfg(any(debug_assertions, test))]
+fn apply_devtools_progression(
+    run_state: &mut RunState,
+    profile: &mut PrestigeProfile,
+    input: &DevtoolsApplyProgressionInput,
+) -> Result<(), &'static str> {
+    let mut seen_doctrines = std::collections::HashSet::new();
+    for doctrine_id in &input.unlocked_doctrines {
+        if !seen_doctrines.insert(doctrine_id.as_str()) {
+            return Err("constraint_violation");
+        }
+
+        if doctrine_by_id(doctrine_id).is_none() {
+            return Err("unknown_id");
+        }
+    }
+
+    let mut seen_planets = std::collections::HashSet::new();
+    for planet_id in &input.discovered_planets {
+        if !seen_planets.insert(planet_id.as_str()) {
+            return Err("constraint_violation");
+        }
+
+        if planet_by_id(planet_id).is_none() {
+            return Err("unknown_id");
+        }
+    }
+
+    if !input
+        .discovered_planets
+        .iter()
+        .any(|planet_id| planet_id == SOLSTICE_ANCHOR_ID)
+    {
+        return Err("constraint_violation");
+    }
+
+    if planet_by_id(&input.active_planet).is_none() {
+        return Err("unknown_id");
+    }
+
+    if !input
+        .discovered_planets
+        .iter()
+        .any(|planet_id| planet_id == &input.active_planet)
+    {
+        return Err("constraint_violation");
+    }
+
+    for (planet_id, progress) in &input.survey_progress {
+        if planet_by_id(planet_id).is_none() {
+            return Err("unknown_id");
+        }
+
+        if !(*progress >= 0.0 && *progress <= 1.0) {
+            return Err("invalid_range");
+        }
+    }
+
+    let mut unlocked_doctrines = input.unlocked_doctrines.clone();
+    unlocked_doctrines.sort();
+
+    let mut discovered_planets = input.discovered_planets.clone();
+    discovered_planets.sort();
+
+    run_state.station.doctrine_fragments = input.doctrine_fragments;
+    run_state.station.doctrine_ids = unlocked_doctrines.clone();
+    run_state.station.discovered_planet_ids = discovered_planets.clone();
+    run_state.station.active_planet_id = input.active_planet.clone();
+    run_state.station.survey_progress =
+        total_survey_progress_from_map(&discovered_planets, &input.survey_progress);
+
+    profile.doctrine_fragments = input.doctrine_fragments;
+    profile.doctrine_ids = unlocked_doctrines;
+    profile.discovered_planet_ids = discovered_planets;
+
+    Ok(())
+}
+
+#[cfg(any(debug_assertions, test))]
+fn apply_devtools_advance_ticks(run_state: &mut RunState, count: u32) -> Result<(), &'static str> {
+    if !(1..=240).contains(&count) {
+        return Err("invalid_range");
+    }
+
+    for _ in 0..count {
+        tick(run_state);
+    }
+
+    Ok(())
+}
+
+#[cfg(any(debug_assertions, test))]
+fn reset_devtools_session(
+    run_state: &mut RunState,
+    profile: &mut PrestigeProfile,
+    session_ticks: &mut u32,
+) {
+    *run_state = RunState::starter_fixture();
+    *profile = PrestigeProfile::default();
+    *session_ticks = 0;
+}
+
 fn refresh_runtime_state(run_state: &mut RunState) {
     let crew_capacity = habitat_crew_capacity(run_state);
     run_state.resources.crew_total = run_state.resources.crew_total.min(crew_capacity);
@@ -540,6 +1196,442 @@ mod tests {
         assert_eq!(run_state.tick_count, initial_tick_count + 1);
         assert!(run_state.resources.materials >= initial_materials);
     }
+
+    #[test]
+    fn devtools_visibility_toggle_flips_separate_mutex_state() {
+        #[cfg(debug_assertions)]
+        {
+            let devtools_state = DevtoolsState(Mutex::new(false));
+
+            assert!(!read_devtools_visibility(&devtools_state));
+            assert!(toggle_devtools_visibility_state(&devtools_state));
+            assert!(read_devtools_visibility(&devtools_state));
+            assert!(!toggle_devtools_visibility_state(&devtools_state));
+            assert!(!read_devtools_visibility(&devtools_state));
+            assert!(set_devtools_visibility_state(&devtools_state, true));
+            assert!(read_devtools_visibility(&devtools_state));
+        }
+    }
+
+    #[test]
+    fn devtools_visibility_event_payload_matches_frontend_contract() {
+        #[cfg(debug_assertions)]
+        {
+            let payload = serde_json::to_value(devtools_visibility_payload(true))
+                .expect("event payload should serialize");
+
+            assert_eq!(payload, serde_json::json!({ "visible": true }));
+        }
+    }
+
+    #[test]
+    fn devtools_enabled_helper_matches_build_gating() {
+        assert_eq!(devtools_enabled(), cfg!(debug_assertions));
+    }
+
+    #[test]
+    fn apply_resources_success() {
+        let mut run_state = RunState::starter_fixture();
+
+        apply_devtools_resources(&mut run_state, 250.0, 15.5).expect("resources should apply");
+
+        assert_eq!(run_state.resources.materials, 250.0);
+        assert_eq!(run_state.resources.data, 15.5);
+    }
+
+    #[test]
+    fn apply_resources_rejects_negative() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_resources(&mut run_state, -1.0, 0.0)
+            .expect_err("negative resources should be rejected");
+
+        assert_eq!(error, "invalid_range");
+        assert_eq!(run_state.resources.materials, 120.0);
+    }
+
+    #[test]
+    fn apply_crew_success() {
+        let mut run_state = RunState::starter_fixture();
+        run_state.services[0].assigned_crew = 2;
+
+        apply_devtools_crew_total(&mut run_state, 4).expect("crew total should apply");
+        refresh_runtime_state(&mut run_state);
+
+        assert_eq!(run_state.resources.crew_total, 4);
+        assert_eq!(run_state.resources.crew_available, 2);
+    }
+
+    #[test]
+    fn apply_crew_rejects_below_assigned() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_crew_total(&mut run_state, 1)
+            .expect_err("crew below assigned should be rejected");
+
+        assert_eq!(error, "invalid_range");
+        assert_eq!(run_state.resources.crew_total, 6);
+    }
+
+    #[test]
+    fn apply_systems_sets_reactor_level() {
+        let mut run_state = RunState::starter_fixture();
+
+        apply_devtools_system_levels(
+            &mut run_state,
+            &[DevtoolsApplySystemEntry {
+                id: REACTOR_CORE_ID.to_string(),
+                level: 2,
+            }],
+        )
+        .expect("system levels should apply");
+        refresh_runtime_state(&mut run_state);
+
+        assert_eq!(run_state.system_level(REACTOR_CORE_ID), Some(2));
+        assert_eq!(run_state.resources.power_generated, 12.0);
+    }
+
+    #[test]
+    fn apply_systems_rejects_unknown_id() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_system_levels(
+            &mut run_state,
+            &[DevtoolsApplySystemEntry {
+                id: "unknown-system".to_string(),
+                level: 1,
+            }],
+        )
+        .expect_err("unknown system should be rejected");
+
+        assert_eq!(error, "unknown_id");
+    }
+
+    #[test]
+    fn apply_systems_rejects_out_of_range_level() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_system_levels(
+            &mut run_state,
+            &[DevtoolsApplySystemEntry {
+                id: HABITAT_RING_ID.to_string(),
+                level: 5,
+            }],
+        )
+        .expect_err("out of range level should be rejected");
+
+        assert_eq!(error, "invalid_range");
+    }
+
+    #[test]
+    fn apply_systems_rejects_duplicate_ids() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_system_levels(
+            &mut run_state,
+            &[
+                DevtoolsApplySystemEntry {
+                    id: REACTOR_CORE_ID.to_string(),
+                    level: 2,
+                },
+                DevtoolsApplySystemEntry {
+                    id: REACTOR_CORE_ID.to_string(),
+                    level: 3,
+                },
+            ],
+        )
+        .expect_err("duplicate system ids should be rejected");
+
+        assert_eq!(error, "constraint_violation");
+        assert_eq!(run_state.system_level(REACTOR_CORE_ID), Some(1));
+    }
+
+    #[test]
+    fn apply_services_success() {
+        let mut run_state = RunState::starter_fixture();
+
+        apply_devtools_services(
+            &mut run_state,
+            &[
+                DevtoolsServiceEntry {
+                    id: "solar-harvester".to_string(),
+                    desired_active: false,
+                    assigned_crew: 0,
+                    priority: 6,
+                },
+                DevtoolsServiceEntry {
+                    id: "ore-reclaimer".to_string(),
+                    desired_active: true,
+                    assigned_crew: 1,
+                    priority: 1,
+                },
+                DevtoolsServiceEntry {
+                    id: "survey-uplink".to_string(),
+                    desired_active: true,
+                    assigned_crew: 1,
+                    priority: 2,
+                },
+                DevtoolsServiceEntry {
+                    id: "maintenance-bay".to_string(),
+                    desired_active: false,
+                    assigned_crew: 0,
+                    priority: 3,
+                },
+                DevtoolsServiceEntry {
+                    id: "command-relay".to_string(),
+                    desired_active: true,
+                    assigned_crew: 1,
+                    priority: 4,
+                },
+                DevtoolsServiceEntry {
+                    id: "fabrication-loop".to_string(),
+                    desired_active: false,
+                    assigned_crew: 0,
+                    priority: 5,
+                },
+            ],
+        )
+        .expect("services should apply");
+
+        assert_eq!(run_state.services[0].service_id, "ore-reclaimer");
+        assert_eq!(run_state.services[0].priority, 1);
+        assert!(run_state.services[0].desired_active);
+        assert_eq!(run_state.services[0].assigned_crew, 1);
+        assert_eq!(run_state.services[5].service_id, "solar-harvester");
+        assert_eq!(run_state.services[5].priority, 6);
+        assert!(!run_state.services[5].desired_active);
+    }
+
+    #[test]
+    fn apply_services_rejects_unknown_id() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_services(
+            &mut run_state,
+            &[DevtoolsServiceEntry {
+                id: "nonexistent-service".to_string(),
+                desired_active: true,
+                assigned_crew: 0,
+                priority: 1,
+            }],
+        )
+        .expect_err("unknown service should be rejected");
+
+        assert_eq!(error, "unknown_id");
+    }
+
+    #[test]
+    fn apply_services_rejects_duplicate_priorities() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_services(
+            &mut run_state,
+            &[
+                DevtoolsServiceEntry {
+                    id: "solar-harvester".to_string(),
+                    desired_active: true,
+                    assigned_crew: 2,
+                    priority: 1,
+                },
+                DevtoolsServiceEntry {
+                    id: "ore-reclaimer".to_string(),
+                    desired_active: true,
+                    assigned_crew: 1,
+                    priority: 1,
+                },
+            ],
+        )
+        .expect_err("duplicate priorities should be rejected");
+
+        assert_eq!(error, "constraint_violation");
+    }
+
+    #[test]
+    fn apply_services_rejects_invalid_crew_assignment() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_services(
+            &mut run_state,
+            &[DevtoolsServiceEntry {
+                id: "ore-reclaimer".to_string(),
+                desired_active: true,
+                assigned_crew: 2,
+                priority: 2,
+            }],
+        )
+        .expect_err("crew assignment above requirement should be rejected");
+
+        assert_eq!(error, "invalid_range");
+    }
+
+    #[test]
+    fn apply_progression_success() {
+        let mut run_state = RunState::starter_fixture();
+        let mut profile = PrestigeProfile::default();
+        let mut survey_progress = std::collections::HashMap::new();
+        survey_progress.insert("cinder-forge".to_string(), 1.0);
+        survey_progress.insert("aurora-pier".to_string(), 0.5);
+
+        apply_devtools_progression(
+            &mut run_state,
+            &mut profile,
+            &DevtoolsApplyProgressionInput {
+                doctrine_fragments: 3,
+                unlocked_doctrines: vec![
+                    "hardened-relays".to_string(),
+                    "efficient-shifts".to_string(),
+                ],
+                discovered_planets: vec![
+                    "cinder-forge".to_string(),
+                    "solstice-anchor".to_string(),
+                ],
+                active_planet: "cinder-forge".to_string(),
+                survey_progress,
+            },
+        )
+        .expect("progression should apply");
+
+        assert_eq!(run_state.station.doctrine_fragments, 3);
+        assert_eq!(
+            run_state.station.doctrine_ids,
+            vec!["efficient-shifts".to_string(), "hardened-relays".to_string()]
+        );
+        assert_eq!(
+            run_state.station.discovered_planet_ids,
+            vec!["cinder-forge".to_string(), "solstice-anchor".to_string()]
+        );
+        assert_eq!(run_state.station.active_planet_id, "cinder-forge");
+        assert!((run_state.station.survey_progress - 700.0).abs() < 0.000_001);
+        assert_eq!(profile.doctrine_fragments, 3);
+        assert_eq!(profile.doctrine_ids, run_state.station.doctrine_ids);
+        assert_eq!(profile.discovered_planet_ids, run_state.station.discovered_planet_ids);
+    }
+
+    #[test]
+    fn apply_progression_rejects_active_planet_not_in_discovered() {
+        let mut run_state = RunState::starter_fixture();
+        let mut profile = PrestigeProfile::default();
+
+        let error = apply_devtools_progression(
+            &mut run_state,
+            &mut profile,
+            &DevtoolsApplyProgressionInput {
+                doctrine_fragments: 0,
+                unlocked_doctrines: Vec::new(),
+                discovered_planets: vec!["solstice-anchor".to_string()],
+                active_planet: "cinder-forge".to_string(),
+                survey_progress: std::collections::HashMap::new(),
+            },
+        )
+        .expect_err("active planet outside discovered set should be rejected");
+
+        assert_eq!(error, "constraint_violation");
+    }
+
+    #[test]
+    fn apply_progression_rejects_missing_solstice_anchor() {
+        let mut run_state = RunState::starter_fixture();
+        let mut profile = PrestigeProfile::default();
+
+        let error = apply_devtools_progression(
+            &mut run_state,
+            &mut profile,
+            &DevtoolsApplyProgressionInput {
+                doctrine_fragments: 0,
+                unlocked_doctrines: Vec::new(),
+                discovered_planets: vec!["cinder-forge".to_string()],
+                active_planet: "cinder-forge".to_string(),
+                survey_progress: std::collections::HashMap::new(),
+            },
+        )
+        .expect_err("starter planet must remain discovered");
+
+        assert_eq!(error, "constraint_violation");
+    }
+
+    #[test]
+    fn apply_progression_rejects_unknown_doctrine_id() {
+        let mut run_state = RunState::starter_fixture();
+        let mut profile = PrestigeProfile::default();
+
+        let error = apply_devtools_progression(
+            &mut run_state,
+            &mut profile,
+            &DevtoolsApplyProgressionInput {
+                doctrine_fragments: 1,
+                unlocked_doctrines: vec!["made-up-doctrine".to_string()],
+                discovered_planets: vec!["solstice-anchor".to_string()],
+                active_planet: "solstice-anchor".to_string(),
+                survey_progress: std::collections::HashMap::new(),
+            },
+        )
+        .expect_err("unknown doctrine should be rejected");
+
+        assert_eq!(error, "unknown_id");
+    }
+
+    #[test]
+    fn advance_ticks_success_boundary_low() {
+        let mut run_state = RunState::starter_fixture();
+
+        apply_devtools_advance_ticks(&mut run_state, 1).expect("one tick should be accepted");
+
+        assert_eq!(run_state.tick_count, 1);
+    }
+
+    #[test]
+    fn advance_ticks_success_boundary_high() {
+        let mut run_state = RunState::starter_fixture();
+
+        apply_devtools_advance_ticks(&mut run_state, 240).expect("240 ticks should be accepted");
+
+        assert_eq!(run_state.tick_count, 240);
+    }
+
+    #[test]
+    fn advance_ticks_rejects_zero() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_advance_ticks(&mut run_state, 0)
+            .expect_err("zero ticks should be rejected");
+
+        assert_eq!(error, "invalid_range");
+        assert_eq!(run_state.tick_count, 0);
+    }
+
+    #[test]
+    fn advance_ticks_rejects_over_240() {
+        let mut run_state = RunState::starter_fixture();
+
+        let error = apply_devtools_advance_ticks(&mut run_state, 241)
+            .expect_err("counts above 240 should be rejected");
+
+        assert_eq!(error, "invalid_range");
+        assert_eq!(run_state.tick_count, 0);
+    }
+
+    #[test]
+    fn reset_to_starter_restores_starter_fixture() {
+        let mut run_state = RunState::starter_fixture();
+        let mut profile = PrestigeProfile::default();
+        let mut session_ticks = 99;
+
+        run_state.tick_count = 42;
+        run_state.station.active_planet_id = "cinder-forge".to_string();
+        run_state.station.discovered_planet_ids = vec!["solstice-anchor".to_string(), "cinder-forge".to_string()];
+        run_state.station.doctrine_ids = vec!["efficient-shifts".to_string()];
+        run_state.station.doctrine_fragments = 4;
+        run_state.station.survey_progress = 800.0;
+        profile.discovered_planet_ids = vec!["solstice-anchor".to_string(), "aurora-pier".to_string()];
+        profile.doctrine_ids = vec!["hardened-relays".to_string()];
+        profile.doctrine_fragments = 2;
+
+        reset_devtools_session(&mut run_state, &mut profile, &mut session_ticks);
+
+        assert_eq!(run_state, RunState::starter_fixture());
+        assert_eq!(profile, PrestigeProfile::default());
+        assert_eq!(session_ticks, 0);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -551,37 +1643,69 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_mcp_bridge::init());
     }
 
+    let builder = builder.setup(|app| {
+        app.manage(GameState(Mutex::new((
+            RunState::starter_fixture(),
+            PrestigeProfile::default(),
+            0u32,
+        ))));
+
+        #[cfg(debug_assertions)]
+        {
+            app.manage(DevtoolsState(Mutex::new(false)));
+            install_debug_menu(app)?;
+        }
+
+        let app_handle = app.handle().clone();
+        thread::spawn(move || loop {
+            thread::sleep(Duration::from_millis(250));
+
+            let state = app_handle.state::<GameState>();
+            let mut guard = state.0.lock().expect("game state mutex poisoned");
+            tick(&mut guard.0);
+        });
+
+        Ok(())
+    });
+
+    #[cfg(debug_assertions)]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        game_get_snapshot,
+        game_toggle_service,
+        game_upgrade_system,
+        game_assign_service_crew,
+        game_reprioritize_service,
+        game_start_survey,
+        game_purchase_doctrine,
+        game_execute_prestige,
+        game_request_save,
+        game_request_load,
+        game_devtools_get_state,
+        game_devtools_set_visibility,
+        game_devtools_apply_resources,
+        game_devtools_apply_crew,
+        game_devtools_apply_systems,
+        game_devtools_apply_services,
+        game_devtools_apply_progression,
+        game_devtools_advance_ticks,
+        game_devtools_reset_to_starter,
+    ]);
+
+    #[cfg(not(debug_assertions))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        game_get_snapshot,
+        game_toggle_service,
+        game_upgrade_system,
+        game_assign_service_crew,
+        game_reprioritize_service,
+        game_start_survey,
+        game_purchase_doctrine,
+        game_execute_prestige,
+        game_request_save,
+        game_request_load,
+    ]);
+
     builder
-        .setup(|app| {
-            app.manage(GameState(Mutex::new((
-                RunState::starter_fixture(),
-                PrestigeProfile::default(),
-                0u32,
-            ))));
-
-            let app_handle = app.handle().clone();
-            thread::spawn(move || loop {
-                thread::sleep(Duration::from_millis(250));
-
-                let state = app_handle.state::<GameState>();
-                let mut guard = state.0.lock().expect("game state mutex poisoned");
-                tick(&mut guard.0);
-            });
-
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
-            game_get_snapshot,
-            game_toggle_service,
-            game_upgrade_system,
-            game_assign_service_crew,
-            game_reprioritize_service,
-            game_start_survey,
-            game_purchase_doctrine,
-            game_execute_prestige,
-            game_request_save,
-            game_request_load,
-        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

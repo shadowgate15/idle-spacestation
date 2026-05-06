@@ -1,8 +1,172 @@
 <script lang="ts">
   import './layout.css';
-  import type { Snippet } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
+  import DevtoolsOverlay from '$lib/components/DevtoolsOverlay.svelte';
+  import { gameGateway } from '$lib/game/api';
+  import type { GameSnapshot } from '$lib/game/api/types';
+
+  const IS_DEBUG = import.meta.env.DEV;
+  const DEVTOOLS_STORAGE_KEY = 'idle-spacestation.devtools-open';
+  const E2E_FIXTURE_STORAGE_KEY = 'idle-spacestation.e2e-fixture';
 
   let { children }: { children: Snippet } = $props();
+  let devtoolsVisible = $state(false);
+  let devtoolsSnapshot = $state<GameSnapshot | null>(null);
+  let devtoolsPollInterval: ReturnType<typeof setInterval> | null = null;
+  let devtoolsDestroyed = false;
+
+  function isFixtureModeEnabled() {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return window.localStorage.getItem(E2E_FIXTURE_STORAGE_KEY) !== null;
+  }
+
+  function setDevtoolsLocalOverride(visible: boolean) {
+    if (typeof window === 'undefined') return;
+
+    if (visible) {
+      window.localStorage.setItem(DEVTOOLS_STORAGE_KEY, 'true');
+      return;
+    }
+
+    window.localStorage.removeItem(DEVTOOLS_STORAGE_KEY);
+  }
+
+  function stopDevtoolsPolling() {
+    if (devtoolsPollInterval) {
+      clearInterval(devtoolsPollInterval);
+      devtoolsPollInterval = null;
+    }
+  }
+
+  async function refreshDevtoolsSnapshot() {
+    try {
+      const state = await gameGateway.getDevtoolsState();
+      if (!devtoolsDestroyed) {
+        devtoolsSnapshot = state.snapshot;
+      }
+    } catch {
+      // not available
+    }
+  }
+
+  function startDevtoolsPolling() {
+    stopDevtoolsPolling();
+    devtoolsPollInterval = setInterval(async () => {
+      if (!devtoolsVisible || devtoolsDestroyed) {
+        stopDevtoolsPolling();
+        return;
+      }
+
+      await refreshDevtoolsSnapshot();
+    }, 1000);
+  }
+
+  async function handleDevtoolsClose() {
+    devtoolsVisible = false;
+    devtoolsSnapshot = null;
+    if (isFixtureModeEnabled()) {
+      setDevtoolsLocalOverride(false);
+    }
+    stopDevtoolsPolling();
+
+    try {
+      await gameGateway.setDevtoolsVisibility({ visible: false });
+    } catch {
+      // ignore
+    }
+  }
+
+  $effect(() => {
+    if ((!IS_DEBUG && !isFixtureModeEnabled()) || devtoolsDestroyed) {
+      stopDevtoolsPolling();
+      return;
+    }
+
+    if (devtoolsVisible) {
+      startDevtoolsPolling();
+      return;
+    }
+
+    stopDevtoolsPolling();
+  });
+
+  onMount(() => {
+    devtoolsDestroyed = false;
+
+    const isFixtureMode = isFixtureModeEnabled();
+
+    if (!IS_DEBUG && !isFixtureMode) {
+      return () => {
+        devtoolsDestroyed = true;
+        stopDevtoolsPolling();
+      };
+    }
+
+    // localOverride is only meaningful in fixture mode (no Tauri backend).
+    // In a real Tauri debug session the backend is authoritative; reading
+    // localStorage there would let a developer bypass the Debug menu toggle.
+    const localOverride = isFixtureMode && window.localStorage.getItem(DEVTOOLS_STORAGE_KEY) === 'true';
+    let unlisten: (() => void | Promise<void>) | null = null;
+
+    const initialize = async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        unlisten = await listen<{ visible: boolean }>('devtools:visibility-changed', (event) => {
+          if (devtoolsDestroyed) return;
+
+          devtoolsVisible = event.payload.visible;
+          // Only persist visibility to localStorage in fixture mode so that
+          // page reloads during E2E tests restore the overlay state.
+          if (isFixtureMode) {
+            setDevtoolsLocalOverride(event.payload.visible);
+          }
+
+          if (event.payload.visible) {
+            void refreshDevtoolsSnapshot();
+            return;
+          }
+
+          devtoolsSnapshot = null;
+          stopDevtoolsPolling();
+        });
+      } catch {
+        // not in Tauri
+      }
+
+      try {
+        const state = await gameGateway.getDevtoolsState();
+        if (devtoolsDestroyed) return;
+
+        devtoolsVisible = localOverride || state.visible;
+        if (isFixtureMode) {
+          setDevtoolsLocalOverride(devtoolsVisible);
+        }
+
+        if (devtoolsVisible) {
+          devtoolsSnapshot = state.snapshot;
+        }
+      } catch {
+        if (localOverride && !devtoolsDestroyed) {
+          devtoolsVisible = true;
+          if (isFixtureMode) {
+            setDevtoolsLocalOverride(true);
+          }
+          await refreshDevtoolsSnapshot();
+        }
+      }
+    };
+
+    void initialize();
+
+    return () => {
+      devtoolsDestroyed = true;
+      stopDevtoolsPolling();
+      void unlisten?.();
+    };
+  });
 </script>
 
 <div data-testid="game-shell" class="flex min-h-screen flex-col bg-background text-foreground">
@@ -51,4 +215,8 @@
   <main class="flex-1 px-6 py-6">
     {@render children()}
   </main>
+
+  {#if devtoolsVisible}
+    <DevtoolsOverlay snapshot={devtoolsSnapshot} gateway={gameGateway} onClose={handleDevtoolsClose} />
+  {/if}
 </div>
