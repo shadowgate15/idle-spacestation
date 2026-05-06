@@ -123,4 +123,78 @@ describe('createProgressionPanelState', () => {
 
     expect(state.errorMessage).toBe('invalid_state');
   });
+
+  it('polling does not overwrite typed doctrineFragments draft', () => {
+    const initialSnapshot = createSnapshot();
+    const state = createProgressionPanelState(initialSnapshot, {
+      applyProgression: vi.fn(),
+    });
+
+    state.setDoctrineFragments(42);
+    expect(state.draft.doctrineFragments).toBe(42);
+
+    state.sync(createUpdatedSnapshot());
+
+    expect(state.draft.doctrineFragments).toBe(42);
+  });
+
+  it('polling does not overwrite typed surveyProgress draft', () => {
+    const initialSnapshot = createSnapshot();
+    const state = createProgressionPanelState(initialSnapshot, {
+      applyProgression: vi.fn(),
+    });
+
+    state.setSurveyProgress(0.42);
+    expect(state.draft.surveyProgress).toBe(0.42);
+
+    state.sync(createUpdatedSnapshot());
+
+    expect(state.draft.surveyProgress).toBe(0.42);
+  });
+
+  it('checkbox toggles for unlockedDoctrines persist across polling', () => {
+    const initialSnapshot = createSnapshot();
+    const state = createProgressionPanelState(initialSnapshot, {
+      applyProgression: vi.fn(),
+    });
+
+    state.toggleUnlockedDoctrine('hardened-relays', false);
+    state.toggleUnlockedDoctrine('deep-survey-protocols', true);
+
+    const expectedDoctrines: DoctrineId[] = ['efficient-shifts', 'deep-survey-protocols'];
+    expect(state.draft.unlockedDoctrines).toEqual(expectedDoctrines);
+
+    state.sync(createSnapshot());
+
+    expect(state.draft.unlockedDoctrines).toEqual(expectedDoctrines);
+  });
+
+  it('apply success in-place mutates draft fields without replacing the draft reference', async () => {
+    const initialSnapshot = createSnapshot();
+    const nextSnapshot = createUpdatedSnapshot();
+    const applyProgression = vi.fn().mockResolvedValue({ ok: true, snapshot: nextSnapshot });
+    const state = createProgressionPanelState(initialSnapshot, {
+      applyProgression,
+    });
+
+    const draftRefBefore = state.draft;
+
+    state.toggleUnlockedDoctrine('deep-survey-protocols', true);
+    state.toggleUnlockedDoctrine('hardened-relays', false);
+    state.toggleUnlockedDoctrine('frontier-charters', true);
+    state.toggleDiscoveredPlanet('aurora-pier', true);
+    state.setActivePlanet('aurora-pier');
+    state.setDoctrineFragments(nextSnapshot.run.doctrineFragments);
+    state.setSurveyProgress(0.9);
+
+    await state.apply();
+
+    expect(state.draft).toBe(draftRefBefore);
+
+    expect(state.draft.doctrineFragments).toBe(nextSnapshot.run.doctrineFragments);
+    expect(state.draft.unlockedDoctrines).toEqual(nextSnapshot.run.doctrineIds);
+    expect(state.draft.discoveredPlanets).toEqual(nextSnapshot.run.discoveredPlanetIds);
+    expect(state.draft.activePlanet).toBe(nextSnapshot.run.activePlanetId);
+    expect(state.draft.surveyProgress).toBeCloseTo(1260 / 1400);
+  });
 });
