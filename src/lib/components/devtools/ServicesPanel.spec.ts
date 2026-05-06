@@ -127,4 +127,93 @@ describe('createServicesPanelState', () => {
 
     expect(state.errorMessage).toBe('constraint_violation');
   });
+
+  it('polling does not overwrite typed assignedCrew for service A', () => {
+    const state = createServicesPanelState(createSnapshot(), {
+      applyServices: vi.fn(),
+    });
+
+    state.drafts[0].assignedCrew = 99;
+    state.sync(createUpdatedSnapshot());
+
+    expect(state.drafts[0].assignedCrew).toBe(99);
+    expect(state.snapshot?.services[0].assignedCrew).toBe(
+      createUpdatedSnapshot().services[0].assignedCrew,
+    );
+  });
+
+  it('polling does not overwrite typed priority for service B', () => {
+    const state = createServicesPanelState(createSnapshot(), {
+      applyServices: vi.fn(),
+    });
+
+    state.drafts[1].priority = 42;
+    state.sync(createUpdatedSnapshot());
+
+    expect(state.drafts[1].priority).toBe(42);
+    expect(state.snapshot?.services[1].priority).toBe(
+      createUpdatedSnapshot().services[1].priority,
+    );
+  });
+
+  it('polling does not toggle desiredActive checkbox state', () => {
+    const initialSnapshot = createSnapshot();
+    const state = createServicesPanelState(initialSnapshot, {
+      applyServices: vi.fn(),
+    });
+
+    const initialDesired = state.drafts[0].desiredActive;
+    state.drafts[0].desiredActive = !initialDesired;
+
+    state.sync(initialSnapshot);
+
+    expect(state.drafts[0].desiredActive).toBe(!initialDesired);
+  });
+
+  it('keeps drafts array reference stable across polling', () => {
+    const state = createServicesPanelState(createSnapshot(), {
+      applyServices: vi.fn(),
+    });
+    const drafts = state.drafts;
+
+    state.sync(createUpdatedSnapshot());
+
+    expect(state.drafts).toBe(drafts);
+  });
+
+  it('apply success mutates drafts in place and clears isDirty', async () => {
+    const initialSnapshot = createSnapshot();
+    const nextSnapshot = createUpdatedSnapshot();
+    const state = createServicesPanelState(initialSnapshot, {
+      applyServices: vi.fn().mockResolvedValue({ ok: true, snapshot: nextSnapshot }),
+    });
+    const drafts = state.drafts;
+
+    for (const [index, draft] of state.drafts.entries()) {
+      const nextService = nextSnapshot.services[index];
+      draft.desiredActive = nextService.desiredActive;
+      draft.assignedCrew = nextService.assignedCrew;
+      draft.priority = nextService.priority;
+    }
+
+    await state.apply();
+
+    expect(state.drafts).toBe(drafts);
+    expect(
+      state.drafts.map(({ id, desiredActive, assignedCrew, priority }) => ({
+        id,
+        desiredActive,
+        assignedCrew,
+        priority,
+      })),
+    ).toEqual(
+      nextSnapshot.services.map(({ id, desiredActive, assignedCrew, priority }) => ({
+        id,
+        desiredActive,
+        assignedCrew,
+        priority,
+      })),
+    );
+    expect(state.isDirty).toBe(false);
+  });
 });
