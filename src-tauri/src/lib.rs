@@ -32,6 +32,9 @@ const DEVTOOLS_TOGGLE_OVERLAY_MENU_ID: &str = "devtools-toggle-overlay";
 #[cfg(debug_assertions)]
 const DEVTOOLS_VISIBILITY_CHANGED_EVENT: &str = "devtools:visibility-changed";
 
+/// Payload: RawGameSnapshot (camelCase via existing serde rename_all attributes).
+pub const STATE_CHANGED_EVENT: &str = "game://state-changed";
+
 #[cfg(debug_assertions)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
