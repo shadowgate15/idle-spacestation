@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import {
   adaptGameSnapshot,
@@ -567,6 +567,84 @@ function createRawActionSuccess(snapshot: RawGameSnapshot) {
   };
 }
 
+describe('subscribeToStateChanges', () => {
+  it('gateway exposes subscribeToStateChanges method and returns an unsubscribe function', async () => {
+    const mockUnlisten = vi.fn();
+    let capturedHandler: ((event: { payload: RawGameSnapshot }) => void) | undefined;
+
+    vi.doMock('@tauri-apps/api/event', () => ({
+      listen: vi.fn(async (_eventName: string, handler: (event: { payload: RawGameSnapshot }) => void) => {
+        capturedHandler = handler;
+        return mockUnlisten;
+      }),
+    }));
+
+    const { createGameGateway: createGameGateway2 } = await import('./gateway');
+    const gateway = createGameGateway2();
+
+    expect(typeof gateway.subscribeToStateChanges).toBe('function');
+
+    const unsubscribe = gateway.subscribeToStateChanges(() => {});
+    expect(typeof unsubscribe).toBe('function');
+  });
+
+  it('gateway transport includes subscribeToStateChanges implementation', () => {
+    const gateway = createGameGateway();
+    expect(typeof gateway.transport.subscribeToStateChanges).toBe('function');
+  });
+
+  it('returns unsubscribe function that can be called', async () => {
+    const callback = vi.fn();
+    const mockUnlisten = vi.fn();
+    let capturedHandler: ((event: { payload: RawGameSnapshot }) => void) | undefined;
+
+    vi.doMock('@tauri-apps/api/event', () => ({
+      listen: vi.fn(async (_eventName: string, handler: (event: { payload: RawGameSnapshot }) => void) => {
+        capturedHandler = handler;
+        return mockUnlisten;
+      }),
+    }));
+
+    const mockTransport: GameGatewayTransport = {
+      invoke: vi.fn(),
+      subscribeToStateChanges(cb: (raw: RawGameSnapshot) => void): () => void {
+        let unlistenFn: (() => void) | null = null;
+        let cancelled = false;
+        import('@tauri-apps/api/event')
+          .then(({ listen }) =>
+            listen<RawGameSnapshot>('game://state-changed', (event) => {
+              if (!cancelled) cb(event.payload);
+            })
+          )
+          .then((fn) => {
+            if (cancelled) fn();
+            else unlistenFn = fn;
+          })
+          .catch((err) => {
+            console.error('[test] subscribeToStateChanges failed:', err);
+          });
+        return () => {
+          cancelled = true;
+          unlistenFn?.();
+        };
+      },
+    };
+
+    const gateway = createGameGateway(mockTransport);
+    const unsubscribe = gateway.subscribeToStateChanges(callback);
+
+    const rawSnapshot = createRawSnapshot();
+    if (capturedHandler) {
+      capturedHandler({ payload: rawSnapshot });
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(typeof unsubscribe).toBe('function');
+    expect(() => unsubscribe()).not.toThrow();
+  });
+});
+
 function createDevtoolsTransport(
   handler: (
     command: DevtoolsCommandName,
@@ -580,5 +658,6 @@ function createDevtoolsTransport(
         payload as DevtoolsCommandPayloads[DevtoolsCommandName],
       ) as Promise<DevtoolsCommandResponses[DevtoolsCommandName]>;
     },
+    subscribeToStateChanges: () => () => {},
   } as GameGatewayTransport;
 }

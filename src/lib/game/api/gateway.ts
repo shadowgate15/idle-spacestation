@@ -75,11 +75,33 @@ const tauriTransport: GameGatewayTransport = {
       GameCommandResponses[typeof command]
     >;
   },
+  subscribeToStateChanges(callback: (raw: RawGameSnapshot) => void): () => void {
+    let unlistenFn: (() => void) | null = null;
+    let cancelled = false;
+    import('@tauri-apps/api/event')
+      .then(({ listen }) =>
+        listen<RawGameSnapshot>('game://state-changed', (event) => {
+          if (!cancelled) callback(event.payload);
+        })
+      )
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlistenFn = fn;
+      })
+      .catch((err) => {
+        console.error('[tauriTransport] subscribeToStateChanges failed:', err);
+      });
+    return () => {
+      cancelled = true;
+      unlistenFn?.();
+    };
+  },
 };
 
 export function createGameGateway(transport: GameGatewayTransport = resolveDefaultTransport()) {
   return {
     transport,
+    subscribeToStateChanges: (callback: (raw: RawGameSnapshot) => void) => transport.subscribeToStateChanges(callback),
     getSnapshot: () => invokeSnapshot('game_get_snapshot', undefined, transport),
     upgradeSystem: (input: UpgradeSystemInput) =>
       invokeAction<'game_upgrade_system', SystemUpgradeRejectionCode>(
