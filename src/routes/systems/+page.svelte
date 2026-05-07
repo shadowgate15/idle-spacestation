@@ -19,7 +19,10 @@
 
     upgrading = new Set([...upgrading, systemId]);
     try {
-      await gameGateway.upgradeSystem({ systemId });
+      const result = await gameGateway.upgradeSystem({ systemId });
+      if (result.ok) {
+        gameState.applySnapshot(result.snapshot);
+      }
     } catch {
       // Error is handled by gameState
     } finally {

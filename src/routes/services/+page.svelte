@@ -43,8 +43,8 @@
         serviceId,
         active,
       });
-      if (!result.ok) {
-        // Error handling if needed; store updates via event
+      if (result.ok) {
+        gameState.applySnapshot(result.snapshot);
       }
     } catch {
       // Silent catch; store updates via event
@@ -62,8 +62,8 @@
         serviceId,
         direction,
       });
-      if (!result.ok) {
-        // Error handling if needed; store updates via event
+      if (result.ok) {
+        gameState.applySnapshot(result.snapshot);
       }
     } catch {
       // Silent catch; store updates via event
