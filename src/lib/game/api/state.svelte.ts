@@ -11,13 +11,22 @@ function createGameState() {
 	let error = $state<Error | null>(null);
 	let unlisten: (() => void) | null = null;
 	let initPromise: Promise<void> | null = null;
+	let isDeferred = false;
+	let pendingRaw: RawGameSnapshot | null = null;
 
 	function applyIfNewer(raw: RawGameSnapshot): void {
-		const adapted = adaptGameSnapshot(raw);
+		const incomingTickCount = raw.meta.tickCount;
 
-		if (!snapshot || adapted.meta.tickCount >= snapshot.meta.tickCount) {
-			snapshot = adapted;
+		if (snapshot && incomingTickCount < snapshot.meta.tickCount) return;
+
+		if (isDeferred) {
+			if (!pendingRaw || incomingTickCount >= pendingRaw.meta.tickCount) {
+				pendingRaw = raw;
+			}
+			return;
 		}
+
+		snapshot = adaptGameSnapshot(raw);
 	}
 
 	async function init(): Promise<void> {
@@ -75,9 +84,22 @@ function createGameState() {
 			status = 'idle';
 			error = null;
 			initPromise = null;
+			isDeferred = false;
+			pendingRaw = null;
 		},
-		deferUntilBlur(_focused: boolean): void {
-			// Implemented in Task 13.
+		deferUntilBlur(focused: boolean): void {
+			if (focused) {
+				isDeferred = true;
+				return;
+			}
+
+			isDeferred = false;
+
+			if (pendingRaw) {
+				const raw = pendingRaw;
+				pendingRaw = null;
+				applyIfNewer(raw);
+			}
 		},
 		_setSnapshot(s: GameSnapshot | null): void {
 			snapshot = s;

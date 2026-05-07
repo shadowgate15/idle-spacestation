@@ -5,6 +5,8 @@ import { gameGateway } from './gateway';
 import { buildSnapshotFromFixtureState, createFixtureState } from './testing';
 import { GameStateInitError, type GameSnapshot, type RawGameSnapshot } from './types';
 
+let gameState: Awaited<typeof import('./state.svelte')>['gameState'];
+
 vi.mock('./gateway', () => ({
 	gameGateway: {
 		getSnapshot: vi.fn(),
@@ -13,8 +15,6 @@ vi.mock('./gateway', () => ({
 }));
 
 describe('gameState', () => {
-	let gameState: Awaited<typeof import('./state.svelte')>['gameState'];
-
 	beforeEach(async () => {
 		vi.clearAllMocks();
 
@@ -227,11 +227,83 @@ describe('gameState', () => {
 		expect(gameState.error?.message).toBe('rpc failed');
 	});
 
-	it('deferUntilBlur is a no-op stub', () => {
-		expect(() => gameState.deferUntilBlur(true)).not.toThrow();
-		expect(() => gameState.deferUntilBlur(false)).not.toThrow();
+	describe('deferUntilBlur', () => {
+		it('defers push events while focused', async () => {
+			const pushCallback = await initializeWithPushCallback(2);
+
+			gameState.deferUntilBlur(true);
+			pushCallback(buildRawTestSnapshot(5, 500));
+
+			expect(gameState.snapshot?.meta.tickCount).toBe(2);
+			expect(gameState.snapshot?.resources.materials).toBe(2);
+		});
+
+		it('applies latest deferred event on blur', async () => {
+			const pushCallback = await initializeWithPushCallback(2);
+
+			gameState.deferUntilBlur(true);
+			pushCallback(buildRawTestSnapshot(5, 500));
+			gameState.deferUntilBlur(false);
+
+			expect(gameState.snapshot?.meta.tickCount).toBe(5);
+			expect(gameState.snapshot?.resources.materials).toBe(500);
+		});
+
+		it('keeps only latest deferred event', async () => {
+			const pushCallback = await initializeWithPushCallback(2);
+
+			gameState.deferUntilBlur(true);
+			pushCallback(buildRawTestSnapshot(3, 300));
+			pushCallback(buildRawTestSnapshot(7, 700));
+			pushCallback(buildRawTestSnapshot(5, 500));
+			gameState.deferUntilBlur(false);
+
+			expect(gameState.snapshot?.meta.tickCount).toBe(7);
+			expect(gameState.snapshot?.resources.materials).toBe(700);
+		});
+
+		it('drops stale deferred events', async () => {
+			const pushCallback = await initializeWithPushCallback(10);
+
+			gameState.deferUntilBlur(true);
+			pushCallback(buildRawTestSnapshot(3, 300));
+			gameState.deferUntilBlur(false);
+
+			expect(gameState.snapshot?.meta.tickCount).toBe(10);
+			expect(gameState.snapshot?.resources.materials).toBe(10);
+		});
+
+		it('applies push events normally after blur', async () => {
+			const pushCallback = await initializeWithPushCallback(2);
+
+			gameState.deferUntilBlur(true);
+			gameState.deferUntilBlur(false);
+			pushCallback(buildRawTestSnapshot(6, 600));
+
+			expect(gameState.snapshot?.meta.tickCount).toBe(6);
+			expect(gameState.snapshot?.resources.materials).toBe(600);
+		});
 	});
 });
+
+async function initializeWithPushCallback(
+	initialTickCount: number,
+): Promise<(raw: RawGameSnapshot) => void> {
+	let pushCallback: ((raw: RawGameSnapshot) => void) | undefined;
+	vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation((callback) => {
+		pushCallback = callback;
+		return () => {};
+	});
+	vi.mocked(gameGateway.getSnapshot).mockResolvedValue(buildTestSnapshot(initialTickCount));
+
+	await gameState.init();
+
+	if (!pushCallback) {
+		throw new Error('state change listener was not registered');
+	}
+
+	return pushCallback;
+}
 
 function buildTestSnapshot(tickCount: number, materials = tickCount): GameSnapshot {
 	return adaptGameSnapshot(buildRawTestSnapshot(tickCount, materials));
