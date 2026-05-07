@@ -1,21 +1,16 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { gameGateway } from '$lib/game/api';
+  import { gameState } from '$lib/game/api/state.svelte';
   import type { PlanetsViewModel } from '$lib/game/api/types';
 
-  let planets = $state<PlanetsViewModel | null>(null);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
-
-  onMount(async () => {
-    try {
-      const snapshot = await gameGateway.getSnapshot();
-      planets = snapshot.routes.planets;
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load planets data';
-    } finally {
-      loading = false;
+  const planets = $derived.by(() => {
+    return gameState.snapshot?.routes.planets ?? null;
+  });
+  const loading = $derived(gameState.status !== 'ready');
+  const error = $derived.by(() => {
+    if (gameState.status === 'error' && gameState.error) {
+      return gameState.error.message;
     }
+    return null;
   });
 
   function getPlanetStatusClass(discovered: boolean, active: boolean): string {

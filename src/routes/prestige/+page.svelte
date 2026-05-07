@@ -1,25 +1,20 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { gameGateway } from '$lib/game/api';
+  import { gameState } from '$lib/game/api/state.svelte';
   import type { PrestigeViewModel } from '$lib/game/api/types';
 
-  let prestige = $state<PrestigeViewModel | null>(null);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
+  const prestige = $derived.by(() => {
+    return gameState.snapshot?.routes.prestige ?? null;
+  });
+  const loading = $derived(gameState.status !== 'ready');
+  const error = $derived.by(() => {
+    if (gameState.status === 'error' && gameState.error) {
+      return gameState.error.message;
+    }
+    return null;
+  });
 
   let showResetConsequences = $state(false);
   let confirmPrestige = $state(false);
-
-  onMount(async () => {
-    try {
-      const snapshot = await gameGateway.getSnapshot();
-      prestige = snapshot.routes.prestige;
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load prestige data';
-    } finally {
-      loading = false;
-    }
-  });
 
   function formatTime(seconds: number): string {
     const mins = Math.floor(seconds / 60);
