@@ -20,7 +20,7 @@ use crate::game::sim::state::{
     SECONDS_PER_TICK,
 };
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionResponse {
     pub ok: bool,
@@ -29,7 +29,7 @@ pub struct ActionResponse {
     pub reason_code: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveLoadResponse {
     pub ok: bool,
@@ -37,7 +37,7 @@ pub struct SaveLoadResponse {
     pub snapshot: RawGameSnapshot,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawGameSnapshot {
     pub meta: SnapshotMeta,
@@ -48,7 +48,7 @@ pub struct RawGameSnapshot {
     pub route_snapshots: RouteSnapshots,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapshotMeta {
     pub source: String,
@@ -56,7 +56,7 @@ pub struct SnapshotMeta {
     pub tick_count: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunSnapshot {
     pub active_planet_id: String,
@@ -68,7 +68,7 @@ pub struct RunSnapshot {
     pub stable_power_seconds: f32,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourcesSnapshot {
     pub power: PowerSnapshot,
@@ -77,7 +77,7 @@ pub struct ResourcesSnapshot {
     pub crew: CrewSnapshot,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PowerSnapshot {
     pub generated: f32,
@@ -85,7 +85,7 @@ pub struct PowerSnapshot {
     pub available: f32,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CrewSnapshot {
     pub total: u8,
@@ -93,14 +93,14 @@ pub struct CrewSnapshot {
     pub available: u8,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawSystemStateSnapshot {
     pub id: String,
     pub level: u8,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawServiceStateSnapshot {
     pub id: String,
@@ -112,7 +112,7 @@ pub struct RawServiceStateSnapshot {
     pub assigned_crew: u8,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteSnapshots {
     pub overview: OverviewRouteSnapshot,
@@ -122,7 +122,7 @@ pub struct RouteSnapshots {
     pub prestige: PrestigeRouteSnapshot,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OverviewRouteSnapshot {
     pub active_planet: ActivePlanetSnapshot,
@@ -134,7 +134,7 @@ pub struct OverviewRouteSnapshot {
     pub guidance_triggers: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActivePlanetSnapshot {
     pub id: String,
@@ -143,7 +143,7 @@ pub struct ActivePlanetSnapshot {
     pub modifiers: Vec<PlanetModifierSnapshot>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanetModifierSnapshot {
     pub target: String,
@@ -152,7 +152,7 @@ pub struct PlanetModifierSnapshot {
     pub effect_text: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceDeltaSnapshot {
     pub id: String,
@@ -170,7 +170,7 @@ pub struct WarningSnapshot {
     pub body: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StationTierSnapshot {
     pub current: u8,
@@ -197,13 +197,13 @@ pub struct SurveyProgressSnapshot {
     pub summary: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemsRouteSnapshot {
     pub systems: Vec<SystemRouteEntrySnapshot>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemRouteEntrySnapshot {
     pub id: String,
@@ -217,7 +217,7 @@ pub struct SystemRouteEntrySnapshot {
     pub upgrade_blocked_reason: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemCapSnapshot {
     pub key: String,
@@ -226,7 +226,7 @@ pub struct SystemCapSnapshot {
     pub unit: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServicesRouteSnapshot {
     pub services: Vec<ServiceRouteEntrySnapshot>,
@@ -234,7 +234,7 @@ pub struct ServicesRouteSnapshot {
     pub deficit_warnings: Vec<WarningSnapshot>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceRouteEntrySnapshot {
     pub id: String,
@@ -250,21 +250,21 @@ pub struct ServiceRouteEntrySnapshot {
     pub disabled_reasons: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceCrewAssignmentSnapshot {
     pub current: u8,
     pub required: u8,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServicePowerUsageSnapshot {
     pub upkeep: f32,
     pub output: f32,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanetsRouteSnapshot {
     pub active_planet_id: String,
@@ -272,7 +272,7 @@ pub struct PlanetsRouteSnapshot {
     pub survey_progress: SurveyProgressSnapshot,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanetRouteEntrySnapshot {
     pub id: String,
@@ -287,7 +287,7 @@ pub struct PlanetRouteEntrySnapshot {
     pub survey_progress: f32,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrestigeRouteSnapshot {
     pub eligibility: PrestigeEligibilitySnapshot,
@@ -297,7 +297,7 @@ pub struct PrestigeRouteSnapshot {
     pub reset_consequences: Vec<ResetConsequenceSnapshot>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrestigeEligibilitySnapshot {
     pub eligible: bool,
@@ -307,7 +307,7 @@ pub struct PrestigeEligibilitySnapshot {
     pub required_stable_power_seconds: f32,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DoctrineSnapshot {
     pub id: String,
@@ -315,7 +315,7 @@ pub struct DoctrineSnapshot {
     pub description: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DoctrinePurchaseOptionSnapshot {
     pub id: String,
@@ -326,7 +326,7 @@ pub struct DoctrinePurchaseOptionSnapshot {
     pub blocked_reason: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResetConsequenceSnapshot {
     pub label: String,
