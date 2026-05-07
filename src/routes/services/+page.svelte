@@ -1,21 +1,18 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { gameState } from '$lib/game/api/state.svelte';
   import { gameGateway } from '$lib/game/api';
-  import type { ServiceId, ServicesViewModel, ServiceStatus } from '$lib/game/api/types';
+  import type { ServiceId, ServiceStatus } from '$lib/game/api/types';
   import * as Card from '$lib/components/ui/card';
   import Button from '$lib/components/ui/button/button.svelte';
 
   type AppRoute = '/' | '/systems' | '/services' | '/planets' | '/prestige';
 
-  let services = $state<ServicesViewModel | null>(null);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
+  const services = $derived(gameState.snapshot?.routes.services ?? null);
+  const loading = $derived(gameState.status !== 'ready');
+  const error = $derived(gameState.error?.message ?? null);
   let acting = $state<Set<string>>(new Set());
-  let isPolling = $state(false);
-  let destroyed = $state(false);
-  let pollInterval = $state<ReturnType<typeof setInterval> | null>(null);
 
   const disabledReasonLabels: Record<string, string> = {
     capacity: 'No service slots available',
@@ -37,51 +34,6 @@
     disabled: 'text-muted-foreground',
   };
 
-  async function loadServices() {
-    if (isPolling) return;
-
-    isPolling = true;
-    try {
-      const snapshot = await gameGateway.getSnapshot();
-      if (destroyed) return;
-      services = snapshot.routes.services;
-      error = null;
-    } catch (e) {
-      if (destroyed) return;
-      error = e instanceof Error ? e.message : 'Failed to load services data';
-    } finally {
-      isPolling = false;
-    }
-  }
-
-  onMount(() => {
-    destroyed = false;
-
-    const initialize = async () => {
-      try {
-        await loadServices();
-      } finally {
-        if (destroyed) return;
-        loading = false;
-      }
-
-      if (destroyed) return;
-      pollInterval = setInterval(async () => {
-        await loadServices();
-      }, 1000);
-    };
-
-    void initialize();
-
-    return () => {
-      destroyed = true;
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-      }
-    };
-  });
-
   async function handleActivation(serviceId: ServiceId, active: boolean) {
     if (acting.has(serviceId)) return;
 
@@ -91,11 +43,11 @@
         serviceId,
         active,
       });
-      if (result.ok) {
-        services = result.snapshot.routes.services;
+      if (!result.ok) {
+        // Error handling if needed; store updates via event
       }
     } catch (e) {
-      error = e instanceof Error ? e.message : `Failed to ${active ? 'activate' : 'pause'} service`;
+      // Silent catch; store updates via event
     } finally {
       acting = new Set([...acting].filter((id) => id !== serviceId));
     }
@@ -110,11 +62,11 @@
         serviceId,
         direction,
       });
-      if (result.ok) {
-        services = result.snapshot.routes.services;
+      if (!result.ok) {
+        // Error handling if needed; store updates via event
       }
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to reprioritize service';
+      // Silent catch; store updates via event
     } finally {
       acting = new Set([...acting].filter((id) => id !== serviceId));
     }
