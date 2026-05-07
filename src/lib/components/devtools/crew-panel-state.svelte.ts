@@ -10,32 +10,34 @@ const CREW_MAX = 999;
 export function createCrewPanelState(snapshot: GameSnapshot | null, gateway: CrewGateway) {
   let currentSnapshot = $state<GameSnapshot | null>(snapshot);
   let crewTotalDraft = $state<number | undefined>(snapshot?.resources.crew.total ?? 0);
+  let lastSeededCrewTotal = $state<number>(snapshot?.resources.crew.total ?? 0);
+  let hasSeededOnce = snapshot !== null;
   let errorMessage = $state<string | null>(null);
   let isApplying = $state(false);
 
-  let isDirty = $derived(crewTotalDraft !== (currentSnapshot?.resources.crew.total ?? 0));
+  const isDirty = $derived(crewTotalDraft !== lastSeededCrewTotal);
 
-  function sync(snapshot: GameSnapshot | null, force = false) {
-    const previousCrewTotal = currentSnapshot?.resources.crew.total ?? 0;
-    const wasDirty = crewTotalDraft !== previousCrewTotal;
+  function reseedDrafts(next: GameSnapshot) {
+    crewTotalDraft = next.resources.crew.total;
+    lastSeededCrewTotal = next.resources.crew.total;
+  }
 
+  function sync(snapshot: GameSnapshot | null) {
     currentSnapshot = snapshot;
 
-    if (!force && wasDirty) {
-      return;
-    }
-
-    crewTotalDraft = snapshot?.resources.crew.total ?? 0;
-
-    if (snapshot) {
+    if (!hasSeededOnce && snapshot !== null) {
+      reseedDrafts(snapshot);
       errorMessage = null;
+      hasSeededOnce = true;
     }
   }
 
   async function apply() {
     if (!isInRange(crewTotalDraft, CREW_MIN, CREW_MAX)) {
       errorMessage = 'invalid_range';
-      crewTotalDraft = currentSnapshot?.resources.crew.total ?? 0;
+      if (currentSnapshot) {
+        reseedDrafts(currentSnapshot);
+      }
       return;
     }
 
@@ -46,14 +48,11 @@ export function createCrewPanelState(snapshot: GameSnapshot | null, gateway: Cre
       const response = await gateway.applyCrew({ crewTotal: crewTotalDraft });
 
       currentSnapshot = response.snapshot;
+      reseedDrafts(response.snapshot);
 
-      if (response.ok) {
-        crewTotalDraft = response.snapshot.resources.crew.total;
-        return;
+      if (!response.ok) {
+        errorMessage = response.reasonCode;
       }
-
-      crewTotalDraft = response.snapshot.resources.crew.total;
-      errorMessage = response.reasonCode;
     } finally {
       isApplying = false;
     }

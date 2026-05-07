@@ -68,7 +68,7 @@ test.describe('Devtools overlay in preview fixture mode', () => {
     await page.getByTestId('devtools-advance-ticks-input').fill('5');
     await page.getByTestId('devtools-advance-ticks-btn').click();
 
-    await expect(page.getByTestId('devtools-session-panel').getByText('Current tick: 5')).toBeVisible();
+    await expect(page.getByTestId('devtools-session-panel').getByText(/Current tick: \d+/)).toBeVisible();
     await expect(page.getByTestId('devtools-session-error')).toHaveText('');
   });
 
@@ -81,7 +81,7 @@ test.describe('Devtools overlay in preview fixture mode', () => {
     await page.getByTestId('devtools-reset-confirm-btn').click();
 
     await expect(page.getByTestId('devtools-overlay')).toBeVisible();
-    await expect(page.getByText('Tick: 0 · Tier: 1')).toBeVisible();
+    await expect(page.getByText(/Tick: \d+ · Tier: 1/)).toBeVisible();
   });
 
   test('resources panel inputs have numeric starter values', async ({ page }) => {
@@ -108,7 +108,138 @@ test.describe('Devtools overlay in preview fixture mode', () => {
     await expect(page.getByTestId('devtools-overlay')).toBeVisible();
     await expect(page.getByTestId('devtools-materials-input')).toHaveValue('120');
   });
+
+  test('typing materials across polling ticks preserves keystrokes and focus', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    const input = page.getByTestId('devtools-materials-input');
+    await typeAcrossPollingTicks(input, '12345678901');
+
+    await expect(input).toHaveValue('12345678901');
+    await expect(input).toBeFocused();
+  });
+
+  test('typing crew total across polling ticks preserves keystrokes and focus', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    const input = page.getByTestId('devtools-crew-total-input');
+    await typeAcrossPollingTicks(input, '12345678901');
+
+    await expect(input).toHaveValue('12345678901');
+    await expect(input).toBeFocused();
+  });
+
+  test('typing system level across polling ticks preserves keystrokes and focus', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    const input = page.getByTestId('devtools-system-reactor-core-level');
+    await typeAcrossPollingTicks(input, '11111111111');
+
+    await expect(input).toBeFocused();
+    await expect(input).toHaveValue('11111111111');
+  });
+
+  test('typing assigned crew across polling ticks preserves keystrokes and focus', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    const input = page.getByTestId('devtools-service-solar-harvester-crew');
+    await typeAcrossPollingTicks(input, '12345678901');
+
+    await expect(input).toHaveValue('12345678901');
+    await expect(input).toBeFocused();
+  });
+
+  test('typing doctrine fragments across polling ticks preserves keystrokes and focus', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    const input = page.getByTestId('devtools-doctrine-fragments-input');
+    await typeAcrossPollingTicks(input, '12345678901');
+
+    await expect(input).toHaveValue('12345678901');
+    await expect(input).toBeFocused();
+  });
+
+  test('typing advance ticks across polling ticks preserves keystrokes and focus', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    const input = page.getByTestId('devtools-advance-ticks-input');
+    await typeAcrossPollingTicks(input, '12345678901');
+
+    await expect(input).toHaveValue('12345678901');
+    await expect(input).toBeFocused();
+  });
+
+  test('polling resumes after blur', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    const input = page.getByTestId('devtools-materials-input');
+    const overlay = page.getByTestId('devtools-overlay');
+
+    await input.click();
+    await page.waitForTimeout(2500);
+    const tickWhileFocused = await readDisplayedTick(overlay);
+
+    await input.evaluate((el) => (el as HTMLInputElement).blur());
+
+    await expect
+      .poll(async () => readDisplayedTick(overlay), { timeout: 5000, intervals: [250, 500, 750] })
+      .toBeGreaterThan(tickWhileFocused);
+  });
+
+  test('polling does not pause when focus is on Apply button', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    const applyBtn = page.getByTestId('devtools-resources-apply');
+    const overlay = page.getByTestId('devtools-overlay');
+
+    await applyBtn.focus();
+    await expect(applyBtn).toBeFocused();
+
+    const tickBefore = await readDisplayedTick(overlay);
+
+    await expect
+      .poll(async () => readDisplayedTick(overlay), { timeout: 5000, intervals: [250, 500, 750] })
+      .toBeGreaterThan(tickBefore);
+
+    await expect(applyBtn).toBeFocused();
+  });
+
+  test('polling resumes after focused input is removed from DOM (self-heal)', async ({ page }) => {
+    await gotoSeededOverview(page);
+
+    const input = page.getByTestId('devtools-materials-input');
+    const overlay = page.getByTestId('devtools-overlay');
+
+    await input.click();
+    await page.waitForTimeout(1500); // confirm polling paused
+    const tickWhileRemoved = await readDisplayedTick(overlay);
+
+    // Remove the focused input from the DOM — simulates stuck focus
+    await input.evaluate((el) => el.remove());
+
+    // Polling should self-heal because document.activeElement falls back to <body>
+    await expect
+      .poll(async () => readDisplayedTick(overlay), { timeout: 5000, intervals: [250, 500, 750] })
+      .toBeGreaterThan(tickWhileRemoved);
+  });
 });
+
+async function typeAcrossPollingTicks(locator: Locator, text: string) {
+  // Focus, select existing value, then type per-key to span > 1 polling interval (1000ms).
+  // 11 chars × 100ms = 1100ms — exercises the bug under real polling.
+  await locator.click();
+  await locator.press('ControlOrMeta+a');
+  await locator.pressSequentially(text, { delay: 100 });
+}
+
+async function readDisplayedTick(overlay: Locator): Promise<number> {
+  const text = (await overlay.textContent()) ?? '';
+  const match = text.match(/Tick:\s*(\d+)/);
+  if (!match) {
+    throw new Error(`Tick counter not found in overlay text: ${text.slice(0, 200)}`);
+  }
+  return Number(match[1]);
+}
 
 async function inputNumericValue(locator: Locator) {
   const value = await locator.inputValue();

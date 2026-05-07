@@ -19,25 +19,39 @@ type ServiceDraft = {
 const ASSIGNED_CREW_MIN = 0;
 
 export function createServicesPanelState(snapshot: GameSnapshot | null, gateway: ServicesGateway) {
+  const initialDrafts = createDrafts(snapshot);
   let currentSnapshot = $state<GameSnapshot | null>(snapshot);
-  let drafts = $state<ServiceDraft[]>(createDrafts(snapshot));
+  let drafts = $state<ServiceDraft[]>(initialDrafts);
+  let lastSeededDrafts = $state<ServiceDraft[]>(initialDrafts.map((draft) => ({ ...draft })));
+  let hasSeededOnce = snapshot !== null;
   let errorMessage = $state<string | null>(null);
   let isApplying = $state(false);
 
-  let isDirty = $derived(hasDraftChanges(drafts, currentSnapshot));
+  const isDirty = $derived(hasServiceDraftChanges(drafts, lastSeededDrafts));
 
-  function sync(snapshot: GameSnapshot | null, force = false) {
-    const wasDirty = hasDraftChanges(drafts, currentSnapshot);
-
-    currentSnapshot = snapshot;
-
-    if (!force && wasDirty) {
+  function reseedDrafts(snapshot: GameSnapshot) {
+    if (snapshot.services.length !== drafts.length) {
+      drafts = createDrafts(snapshot);
+      lastSeededDrafts = drafts.map((draft) => ({ ...draft }));
       return;
     }
 
-    drafts = createDrafts(snapshot);
+    for (let index = 0; index < drafts.length; index++) {
+      drafts[index].desiredActive = snapshot.services[index].desiredActive;
+      drafts[index].assignedCrew = snapshot.services[index].assignedCrew;
+      drafts[index].priority = snapshot.services[index].priority;
+    }
 
-    if (snapshot) {
+    lastSeededDrafts = drafts.map((draft) => ({ ...draft }));
+  }
+
+  function sync(snapshot: GameSnapshot | null) {
+    currentSnapshot = snapshot;
+
+    if (!hasSeededOnce && snapshot !== null) {
+      drafts = createDrafts(snapshot);
+      lastSeededDrafts = drafts.map((draft) => ({ ...draft }));
+      hasSeededOnce = true;
       errorMessage = null;
     }
   }
@@ -64,7 +78,7 @@ export function createServicesPanelState(snapshot: GameSnapshot | null, gateway:
       currentSnapshot = response.snapshot;
 
       if (response.ok) {
-        drafts = createDrafts(response.snapshot);
+        reseedDrafts(response.snapshot);
         return;
       }
 
@@ -106,21 +120,19 @@ function createDrafts(snapshot: GameSnapshot | null): ServiceDraft[] {
   );
 }
 
-function hasDraftChanges(drafts: ServiceDraft[], snapshot: GameSnapshot | null) {
-  const services = snapshot?.services ?? [];
-
-  if (drafts.length !== services.length) {
-    return drafts.length > 0 || services.length > 0;
+function hasServiceDraftChanges(drafts: ServiceDraft[], lastSeededDrafts: ServiceDraft[]) {
+  if (drafts.length !== lastSeededDrafts.length) {
+    return drafts.length > 0 || lastSeededDrafts.length > 0;
   }
 
   return drafts.some((draft, index) => {
-    const current = services[index];
+    const lastSeededDraft = lastSeededDrafts[index];
     return (
-      !current ||
-      current.id !== draft.id ||
-      current.desiredActive !== draft.desiredActive ||
-      current.assignedCrew !== draft.assignedCrew ||
-      current.priority !== draft.priority
+      !lastSeededDraft ||
+      lastSeededDraft.id !== draft.id ||
+      lastSeededDraft.desiredActive !== draft.desiredActive ||
+      lastSeededDraft.assignedCrew !== draft.assignedCrew ||
+      lastSeededDraft.priority !== draft.priority
     );
   });
 }

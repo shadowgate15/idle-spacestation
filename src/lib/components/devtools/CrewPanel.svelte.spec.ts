@@ -102,4 +102,76 @@ describe('CrewPanel', () => {
       await view.unmount();
     }
   });
+
+  it('polling does not overwrite typed crew draft', async () => {
+    const gateway = createGateway();
+    const initialSnapshot = createSnapshot(6);
+    const view = await mount(CrewPanel as Component, {
+      props: { snapshot: initialSnapshot, gateway },
+    });
+
+    try {
+      const crewInput = page.getByTestId('devtools-crew-total-input');
+      await crewInput.fill('5');
+      await expect.element(crewInput).toHaveValue(5);
+
+      const crewEl = crewInput.element() as HTMLInputElement;
+      crewEl.focus();
+      expect(document.activeElement).toBe(crewEl);
+
+      await view.rerender({ snapshot: createSnapshot(7), gateway });
+
+      await expect.element(crewInput).toHaveValue(5);
+      expect(document.activeElement).toBe(crewEl);
+    } finally {
+      await view.unmount();
+    }
+  });
+
+  it('Apply success reseeds crew draft to response.snapshot', async () => {
+    const gateway = createGateway();
+    const responseSnapshot = createSnapshot(20);
+    gateway.applyCrew = vi.fn().mockResolvedValue({ ok: true, snapshot: responseSnapshot });
+
+    const view = await mount(CrewPanel as Component, {
+      props: { snapshot: createSnapshot(6), gateway },
+    });
+
+    try {
+      await page.getByTestId('devtools-crew-total-input').fill('20');
+      await page.getByTestId('devtools-crew-apply').click();
+
+      await expect.element(page.getByTestId('devtools-crew-total-input')).toHaveValue(20);
+
+      await view.rerender({ snapshot: responseSnapshot, gateway });
+      await expect.element(page.getByTestId('devtools-crew-total-input')).toHaveValue(20);
+      await expect.element(page.getByTestId('devtools-crew-error')).toHaveTextContent('');
+    } finally {
+      await view.unmount();
+    }
+  });
+
+  it('Apply failure reseeds crew draft to response.snapshot', async () => {
+    const gateway = createGateway();
+    const failureSnapshot = createSnapshot(6);
+    gateway.applyCrew = vi.fn().mockResolvedValue({
+      ok: false,
+      reasonCode: 'constraint_violation',
+      snapshot: failureSnapshot,
+    });
+
+    const view = await mount(CrewPanel as Component, {
+      props: { snapshot: createSnapshot(6), gateway },
+    });
+
+    try {
+      await page.getByTestId('devtools-crew-total-input').fill('99');
+      await page.getByTestId('devtools-crew-apply').click();
+
+      await expect.element(page.getByTestId('devtools-crew-total-input')).toHaveValue(6);
+      await expect.element(page.getByTestId('devtools-crew-error')).toHaveTextContent('constraint_violation');
+    } finally {
+      await view.unmount();
+    }
+  });
 });

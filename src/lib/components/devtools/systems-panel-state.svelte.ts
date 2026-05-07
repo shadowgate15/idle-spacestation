@@ -18,25 +18,37 @@ const SYSTEM_LEVEL_MIN = 1;
 const SYSTEM_LEVEL_MAX = 4;
 
 export function createSystemsPanelState(snapshot: GameSnapshot | null, gateway: SystemsGateway) {
+  const initialDrafts = createDrafts(snapshot);
   let currentSnapshot = $state<GameSnapshot | null>(snapshot);
-  let drafts = $state<SystemDraft[]>(createDrafts(snapshot));
+  let drafts = $state<SystemDraft[]>(initialDrafts);
+  let lastSeededDrafts = $state<SystemDraft[]>(initialDrafts.map((draft) => ({ ...draft })));
+  let hasSeededOnce = snapshot !== null;
   let errorMessage = $state<string | null>(null);
   let isApplying = $state(false);
 
-  let isDirty = $derived(hasDraftChanges(drafts, currentSnapshot));
+  const isDirty = $derived(hasSystemDraftChanges(drafts, lastSeededDrafts));
 
-  function sync(snapshot: GameSnapshot | null, force = false) {
-    const wasDirty = hasDraftChanges(drafts, currentSnapshot);
-
-    currentSnapshot = snapshot;
-
-    if (!force && wasDirty) {
+  function reseedDrafts(snapshot: GameSnapshot) {
+    if (snapshot.systems.length !== drafts.length) {
+      drafts = createDrafts(snapshot);
+      lastSeededDrafts = drafts.map((draft) => ({ ...draft }));
       return;
     }
 
-    drafts = createDrafts(snapshot);
+    for (let index = 0; index < drafts.length; index++) {
+      drafts[index].level = snapshot.systems[index].level;
+    }
 
-    if (snapshot) {
+    lastSeededDrafts = drafts.map((draft) => ({ ...draft }));
+  }
+
+  function sync(snapshot: GameSnapshot | null) {
+    currentSnapshot = snapshot;
+
+    if (!hasSeededOnce && snapshot !== null) {
+      drafts = createDrafts(snapshot);
+      lastSeededDrafts = drafts.map((draft) => ({ ...draft }));
+      hasSeededOnce = true;
       errorMessage = null;
     }
   }
@@ -58,7 +70,7 @@ export function createSystemsPanelState(snapshot: GameSnapshot | null, gateway: 
       currentSnapshot = response.snapshot;
 
       if (response.ok) {
-        drafts = createDrafts(response.snapshot);
+        reseedDrafts(response.snapshot);
         return;
       }
 
@@ -93,16 +105,18 @@ function createDrafts(snapshot: GameSnapshot | null): SystemDraft[] {
   return snapshot?.systems.map(({ id, level }) => ({ id, level })) ?? [];
 }
 
-function hasDraftChanges(drafts: SystemDraft[], snapshot: GameSnapshot | null) {
-  const systems = snapshot?.systems ?? [];
-
-  if (drafts.length !== systems.length) {
-    return drafts.length > 0 || systems.length > 0;
+function hasSystemDraftChanges(drafts: SystemDraft[], lastSeededDrafts: SystemDraft[]) {
+  if (drafts.length !== lastSeededDrafts.length) {
+    return drafts.length > 0 || lastSeededDrafts.length > 0;
   }
 
   return drafts.some((draft, index) => {
-    const current = systems[index];
-    return !current || current.id !== draft.id || current.level !== draft.level;
+    const lastSeededDraft = lastSeededDrafts[index];
+    return (
+      !lastSeededDraft ||
+      lastSeededDraft.id !== draft.id ||
+      lastSeededDraft.level !== draft.level
+    );
   });
 }
 

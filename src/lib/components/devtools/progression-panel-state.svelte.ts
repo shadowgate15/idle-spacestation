@@ -34,26 +34,33 @@ const SURVEY_PROGRESS_THRESHOLDS: Record<Exclude<PlanetId, typeof STARTER_PLANET
 };
 
 export function createProgressionPanelState(snapshot: GameSnapshot | null, gateway: ProgressionGateway) {
+  const initialDraft = createDraft(snapshot);
   let currentSnapshot = $state<GameSnapshot | null>(snapshot);
-  let draft = $state<ProgressionDraft>(createDraft(snapshot));
+  let draft = $state<ProgressionDraft>(initialDraft);
+  let lastSeededDraft = $state<ProgressionDraft>(cloneDraft(initialDraft));
+  let hasSeededOnce = snapshot !== null;
   let errorMessage = $state<string | null>(null);
   let isApplying = $state(false);
 
   let activePlanetOptions = $derived(planetIds.filter((id) => draft.discoveredPlanets.includes(id)));
-  let isDirty = $derived(hasDraftChanges(draft, currentSnapshot));
+  let isDirty = $derived(hasProgressionDraftChanges(draft, lastSeededDraft));
 
-  function sync(snapshot: GameSnapshot | null, force = false) {
-    const wasDirty = hasDraftChanges(draft, currentSnapshot);
+  function reseedDrafts(snapshot: GameSnapshot) {
+    const next = createDraft(snapshot);
+    draft.doctrineFragments = next.doctrineFragments;
+    draft.unlockedDoctrines = next.unlockedDoctrines;
+    draft.discoveredPlanets = next.discoveredPlanets;
+    draft.activePlanet = next.activePlanet;
+    draft.surveyProgress = next.surveyProgress;
+    lastSeededDraft = cloneDraft(next);
+  }
 
+  function sync(snapshot: GameSnapshot | null) {
     currentSnapshot = snapshot;
 
-    if (!force && wasDirty) {
-      return;
-    }
-
-    draft = createDraft(snapshot);
-
-    if (snapshot) {
+    if (!hasSeededOnce && snapshot !== null) {
+      reseedDrafts(snapshot);
+      hasSeededOnce = true;
       errorMessage = null;
     }
   }
@@ -115,7 +122,7 @@ export function createProgressionPanelState(snapshot: GameSnapshot | null, gatew
       currentSnapshot = response.snapshot;
 
       if (response.ok) {
-        draft = createDraft(response.snapshot);
+        reseedDrafts(response.snapshot);
         return;
       }
 
@@ -169,6 +176,16 @@ function createDraft(snapshot: GameSnapshot | null): ProgressionDraft {
   };
 }
 
+function cloneDraft(draft: ProgressionDraft): ProgressionDraft {
+  return {
+    doctrineFragments: draft.doctrineFragments,
+    unlockedDoctrines: [...draft.unlockedDoctrines],
+    discoveredPlanets: [...draft.discoveredPlanets],
+    activePlanet: draft.activePlanet,
+    surveyProgress: draft.surveyProgress,
+  };
+}
+
 function deriveSurveyProgressDraft(snapshot: GameSnapshot | null, activePlanet: PlanetId) {
   if (!snapshot || activePlanet === STARTER_PLANET_ID) {
     return 0;
@@ -190,15 +207,13 @@ function clampSurveyProgress(value: number) {
   return Math.min(1, Math.max(0, value));
 }
 
-function hasDraftChanges(draft: ProgressionDraft, snapshot: GameSnapshot | null) {
-  const currentDraft = createDraft(snapshot);
-
+function hasProgressionDraftChanges(draft: ProgressionDraft, baseline: ProgressionDraft) {
   return (
-    draft.doctrineFragments !== currentDraft.doctrineFragments ||
-    draft.activePlanet !== currentDraft.activePlanet ||
-    draft.surveyProgress !== currentDraft.surveyProgress ||
-    !hasSameIds(draft.unlockedDoctrines, currentDraft.unlockedDoctrines) ||
-    !hasSameIds(draft.discoveredPlanets, currentDraft.discoveredPlanets)
+    draft.doctrineFragments !== baseline.doctrineFragments ||
+    draft.activePlanet !== baseline.activePlanet ||
+    draft.surveyProgress !== baseline.surveyProgress ||
+    !hasSameIds(draft.unlockedDoctrines, baseline.unlockedDoctrines) ||
+    !hasSameIds(draft.discoveredPlanets, baseline.discoveredPlanets)
   );
 }
 

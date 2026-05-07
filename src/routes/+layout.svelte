@@ -23,6 +23,14 @@
     return window.localStorage.getItem(E2E_FIXTURE_STORAGE_KEY) !== null;
   }
 
+  function isEditableDevtoolsInputFocused(): boolean {
+    if (typeof document === 'undefined') return false;
+    const active = document.activeElement;
+    if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement))
+      return false;
+    return Boolean(active.closest('[data-testid="devtools-overlay"]'));
+  }
+
   function setDevtoolsLocalOverride(visible: boolean) {
     if (typeof window === 'undefined') return;
 
@@ -42,6 +50,7 @@
   }
 
   async function refreshDevtoolsSnapshot() {
+    if (isEditableDevtoolsInputFocused()) return;
     try {
       const state = await gameGateway.getDevtoolsState();
       if (!devtoolsDestroyed) {
@@ -79,20 +88,6 @@
     }
   }
 
-  $effect(() => {
-    if ((!IS_DEBUG && !isFixtureModeEnabled()) || devtoolsDestroyed) {
-      stopDevtoolsPolling();
-      return;
-    }
-
-    if (devtoolsVisible) {
-      startDevtoolsPolling();
-      return;
-    }
-
-    stopDevtoolsPolling();
-  });
-
   onMount(() => {
     devtoolsDestroyed = false;
 
@@ -126,6 +121,7 @@
 
           if (event.payload.visible) {
             void refreshDevtoolsSnapshot();
+            startDevtoolsPolling();
             return;
           }
 
@@ -147,6 +143,7 @@
 
         if (devtoolsVisible) {
           devtoolsSnapshot = state.snapshot;
+          startDevtoolsPolling();
         }
       } catch {
         if (localOverride && !devtoolsDestroyed) {
@@ -155,6 +152,7 @@
             setDevtoolsLocalOverride(true);
           }
           await refreshDevtoolsSnapshot();
+          startDevtoolsPolling();
         }
       }
     };

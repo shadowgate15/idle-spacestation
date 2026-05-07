@@ -101,7 +101,10 @@ export function createFixtureTransport(fixtureName: PreviewFixtureName): Preview
   let state = createFixtureState(fixtureName);
   let devtoolsVisible = false;
 
-  const snapshot = () => buildSnapshotFromFixtureState(state, fixtureName);
+  const snapshot = () => {
+    state.tickCount += 1;
+    return buildSnapshotFromFixtureState(state, fixtureName);
+  };
 
   return {
     fixtureName,
