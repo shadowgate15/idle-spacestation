@@ -76,7 +76,10 @@ const tauriTransport: GameGatewayTransport = {
       GameCommandResponses[typeof command]
     >;
   },
-  subscribeToStateChanges(callback: (raw: RawGameSnapshot) => void): () => void {
+  subscribeToStateChanges(
+    callback: (raw: RawGameSnapshot) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
     let unlistenFn: (() => void) | null = null;
     let cancelled = false;
     import('@tauri-apps/api/event')
@@ -90,7 +93,12 @@ const tauriTransport: GameGatewayTransport = {
         else unlistenFn = fn;
       })
       .catch((err) => {
-        console.error('[tauriTransport] subscribeToStateChanges failed:', err);
+        const error = err instanceof Error ? err : new Error(String(err));
+        if (onError && !cancelled) {
+          onError(error);
+        } else {
+          console.error('[tauriTransport] subscribeToStateChanges failed:', error);
+        }
       });
     return () => {
       cancelled = true;
@@ -102,8 +110,10 @@ const tauriTransport: GameGatewayTransport = {
 export function createGameGateway(transport: GameGatewayTransport = resolveDefaultTransport()) {
   return {
     transport,
-    subscribeToStateChanges: (callback: (raw: RawGameSnapshot) => void) =>
-      transport.subscribeToStateChanges(callback),
+    subscribeToStateChanges: (
+      callback: (raw: RawGameSnapshot) => void,
+      onError?: (err: Error) => void,
+    ) => transport.subscribeToStateChanges(callback, onError),
     getSnapshot: () => invokeSnapshot('game_get_snapshot', undefined, transport),
     upgradeSystem: (input: UpgradeSystemInput) =>
       invokeAction<'game_upgrade_system', SystemUpgradeRejectionCode>(

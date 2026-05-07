@@ -38,9 +38,18 @@ function createGameState() {
 
     initPromise = (async () => {
       try {
-        unlisten = gameGateway.subscribeToStateChanges((raw) => {
-          applyIfNewer(raw);
-        });
+        unlisten = gameGateway.subscribeToStateChanges(
+          (raw) => {
+            applyIfNewer(raw);
+          },
+          (err) => {
+            // Async listener registration failed post-init — put store in error state
+            status = 'error';
+            error = err;
+            unlisten?.();
+            unlisten = null;
+          },
+        );
 
         const bootstrapped = await gameGateway.getSnapshot();
 
@@ -99,6 +108,11 @@ function createGameState() {
         const raw = pendingRaw;
         pendingRaw = null;
         applyIfNewer(raw);
+      }
+    },
+    applySnapshot(adapted: GameSnapshot): void {
+      if (!snapshot || adapted.meta.tickCount >= snapshot.meta.tickCount) {
+        snapshot = adapted;
       }
     },
     _setSnapshot(s: GameSnapshot | null): void {

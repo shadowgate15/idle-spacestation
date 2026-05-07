@@ -87,10 +87,13 @@ describe('gameState', () => {
 
   it('applies push event with higher tickCount', async () => {
     let pushCallback: ((raw: RawGameSnapshot) => void) | undefined;
-    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation((callback) => {
-      pushCallback = callback;
-      return () => {};
-    });
+    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (callback: any) => {
+        pushCallback = callback;
+        return () => {};
+      },
+    );
     vi.mocked(gameGateway.getSnapshot).mockResolvedValue(buildTestSnapshot(5));
 
     await gameState.init();
@@ -102,10 +105,13 @@ describe('gameState', () => {
 
   it('applies push event with equal tickCount', async () => {
     let pushCallback: ((raw: RawGameSnapshot) => void) | undefined;
-    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation((callback) => {
-      pushCallback = callback;
-      return () => {};
-    });
+    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (callback: any) => {
+        pushCallback = callback;
+        return () => {};
+      },
+    );
     vi.mocked(gameGateway.getSnapshot).mockResolvedValue(buildTestSnapshot(6));
 
     await gameState.init();
@@ -117,10 +123,13 @@ describe('gameState', () => {
 
   it('ignores push event with lower tickCount', async () => {
     let pushCallback: ((raw: RawGameSnapshot) => void) | undefined;
-    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation((callback) => {
-      pushCallback = callback;
-      return () => {};
-    });
+    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (callback: any) => {
+        pushCallback = callback;
+        return () => {};
+      },
+    );
     vi.mocked(gameGateway.getSnapshot).mockResolvedValue(buildTestSnapshot(10));
 
     await gameState.init();
@@ -133,10 +142,13 @@ describe('gameState', () => {
   it('keeps newer push event when older bootstrap snapshot resolves later', async () => {
     let pushCallback: ((raw: RawGameSnapshot) => void) | undefined;
     let resolveGetSnapshot!: (snapshot: GameSnapshot) => void;
-    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation((callback) => {
-      pushCallback = callback;
-      return () => {};
-    });
+    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (callback: any) => {
+        pushCallback = callback;
+        return () => {};
+      },
+    );
     vi.mocked(gameGateway.getSnapshot).mockReturnValue(
       new Promise((resolve) => {
         resolveGetSnapshot = resolve;
@@ -155,10 +167,13 @@ describe('gameState', () => {
   it('uses bootstrap snapshot when it is newer than a push event during init', async () => {
     let pushCallback: ((raw: RawGameSnapshot) => void) | undefined;
     let resolveGetSnapshot!: (snapshot: GameSnapshot) => void;
-    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation((callback) => {
-      pushCallback = callback;
-      return () => {};
-    });
+    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (callback: any) => {
+        pushCallback = callback;
+        return () => {};
+      },
+    );
     vi.mocked(gameGateway.getSnapshot).mockReturnValue(
       new Promise((resolve) => {
         resolveGetSnapshot = resolve;
@@ -210,6 +225,31 @@ describe('gameState', () => {
     await expect(gameState.init()).rejects.toBeInstanceOf(GameStateInitError);
     expect(gameState.status).toBe('error');
     expect(gameState.error?.message).toBe('network error');
+  });
+
+  it('enters error state when onError callback is invoked post-init', async () => {
+    let onErrorFn: ((err: Error) => void) | undefined;
+    const unsubscribeFn = vi.fn();
+    vi.mocked(gameGateway.subscribeToStateChanges).mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (callback: any, onError: any) => {
+        onErrorFn = onError;
+        return unsubscribeFn;
+      },
+    );
+    vi.mocked(gameGateway.getSnapshot).mockResolvedValue(buildTestSnapshot(5));
+
+    await gameState.init();
+
+    expect(gameState.status).toBe('ready');
+    expect(gameState.error).toBeNull();
+
+    // Simulate async listener registration failure post-init
+    onErrorFn?.(new Error('listener failed'));
+
+    expect(gameState.status).toBe('error');
+    expect(gameState.error?.message).toBe('listener failed');
+    expect(unsubscribeFn).toHaveBeenCalledOnce();
   });
 
   it('throws GameStateInitError and unsubscribes when getSnapshot fails', async () => {

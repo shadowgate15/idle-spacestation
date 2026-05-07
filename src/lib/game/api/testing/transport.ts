@@ -260,7 +260,11 @@ export function createFixtureTransport(fixtureName: PreviewFixtureName): Preview
     getSnapshot() {
       return snapshot();
     },
-    subscribeToStateChanges(callback: (raw: RawGameSnapshot) => void): () => void {
+    subscribeToStateChanges(
+      callback: (raw: RawGameSnapshot) => void,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      onError?: (err: Error) => void,
+    ): () => void {
       subscribers.add(callback);
       return () => {
         subscribers.delete(callback);

@@ -633,7 +633,10 @@ export interface GameTransport {
     command: TCommand,
     payload: GameCommandPayloads[TCommand],
   ): Promise<GameCommandResponses[TCommand]>;
-  subscribeToStateChanges(callback: (raw: RawGameSnapshot) => void): () => void;
+  subscribeToStateChanges(
+    callback: (raw: RawGameSnapshot) => void,
+    onError?: (err: Error) => void,
+  ): () => void;
 }
 
 export class GameStateInitError extends Error {
