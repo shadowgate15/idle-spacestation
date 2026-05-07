@@ -226,9 +226,11 @@ fn game_devtools_apply_services(
 #[cfg(debug_assertions)]
 #[tauri::command]
 fn game_devtools_apply_progression(
+    app: tauri::AppHandle<impl tauri::Runtime>,
     input: DevtoolsApplyProgressionInput,
     game_state: tauri::State<'_, GameState>,
     _devtools_state: tauri::State<'_, DevtoolsState>,
+    last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
     let mut guard = game_state.0.lock().expect("game state mutex poisoned");
     let (run_state, profile, _) = &mut *guard;
@@ -236,6 +238,7 @@ fn game_devtools_apply_progression(
     match apply_devtools_progression(run_state, profile, &input) {
         Ok(()) => {
             refresh_runtime_state(run_state);
+            let _ = commit_and_emit(&app, run_state, profile, &last_emitted);
             Ok(devtools_action_success(run_state, profile))
         }
         Err(reason_code) => Ok(devtools_action_failure(run_state, profile, reason_code)),
@@ -245,15 +248,20 @@ fn game_devtools_apply_progression(
 #[cfg(debug_assertions)]
 #[tauri::command]
 fn game_devtools_advance_ticks(
+    app: tauri::AppHandle<impl tauri::Runtime>,
     input: DevtoolsAdvanceTicksInput,
     game_state: tauri::State<'_, GameState>,
     _devtools_state: tauri::State<'_, DevtoolsState>,
+    last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
     let mut guard = game_state.0.lock().expect("game state mutex poisoned");
 
+    // apply_devtools_advance_ticks runs the tick loop internally; we emit ONCE
+    // after all ticks complete (not per-tick) to avoid flooding the frontend.
     match apply_devtools_advance_ticks(&mut guard.0, input.count) {
         Ok(()) => {
             guard.2 = guard.2.saturating_add(input.count);
+            let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
             Ok(devtools_action_success(&guard.0, &guard.1))
         }
         Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
@@ -263,14 +271,17 @@ fn game_devtools_advance_ticks(
 #[cfg(debug_assertions)]
 #[tauri::command]
 fn game_devtools_reset_to_starter(
+    app: tauri::AppHandle<impl tauri::Runtime>,
     game_state: tauri::State<'_, GameState>,
     _devtools_state: tauri::State<'_, DevtoolsState>,
+    last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
     let mut guard = game_state.0.lock().expect("game state mutex poisoned");
     let (run_state, profile, session_ticks) = &mut *guard;
 
     reset_devtools_session(run_state, profile, session_ticks);
     refresh_runtime_state(run_state);
+    let _ = commit_and_emit(&app, run_state, profile, &last_emitted);
     Ok(devtools_action_success(run_state, profile))
 }
 
@@ -800,12 +811,18 @@ fn game_request_save(state: tauri::State<GameState>) -> SaveLoadResponse {
 }
 
 #[tauri::command]
-fn game_request_load(state: tauri::State<GameState>) -> SaveLoadResponse {
+fn game_request_load(
+    app: tauri::AppHandle<impl tauri::Runtime>,
+    state: tauri::State<GameState>,
+    last_emitted: tauri::State<LastEmittedSnapshot>,
+) -> SaveLoadResponse {
     let guard = state.0.lock().expect("game state mutex poisoned");
+    let snapshot = build_snapshot(&guard.0, &guard.1);
+    let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
     SaveLoadResponse {
         ok: true,
         status: "loaded".to_string(),
-        snapshot: build_snapshot(&guard.0, &guard.1),
+        snapshot,
     }
 }
 
@@ -1306,6 +1323,33 @@ mod tests {
             let changed_snapshot = build_snapshot(&changed_run, &PrestigeProfile::default());
 
             assert!(should_emit(&cache, &changed_snapshot), "changed state should emit");
+        }
+
+        #[test]
+        #[cfg(debug_assertions)]
+        fn advance_ticks_commit_and_emit_called_once_not_n_times() {
+            // Mirrors the body of game_devtools_advance_ticks: run N ticks under
+            // a single guard, then update the cache once. The assertion is that
+            // after the loop the cache reflects the FINAL state (post-N-ticks)
+            // and only one cache write occurred.
+            let cache = LastEmittedSnapshot(Mutex::new(None));
+            let mut run = RunState::starter_fixture();
+            let profile = PrestigeProfile::default();
+
+            apply_devtools_advance_ticks(&mut run, 5)
+                .expect("5 ticks should be accepted");
+
+            let final_snapshot = build_snapshot(&run, &profile);
+            update_cache(&cache, final_snapshot.clone());
+
+            let cache_guard = cache.0.lock().expect("last emitted cache should lock");
+            let cached = cache_guard
+                .as_ref()
+                .expect("cache should hold final post-loop snapshot");
+            assert!(
+                crate::game::snapshot::state_equals(cached, &final_snapshot),
+                "cache should contain the final post-N-ticks snapshot, not an intermediate one"
+            );
         }
     }
 
