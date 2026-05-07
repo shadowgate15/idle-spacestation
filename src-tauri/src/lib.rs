@@ -7,7 +7,6 @@ use std::sync::Mutex;
 use serde::Deserialize;
 #[cfg(debug_assertions)]
 use serde::Serialize;
-#[cfg(debug_assertions)]
 use tauri::Emitter;
 #[cfg(debug_assertions)]
 use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder};
@@ -23,6 +22,8 @@ use crate::game::sim::{tick, RunState};
 
 
 struct GameState(Mutex<(RunState, PrestigeProfile, u32)>);
+
+struct LastEmittedSnapshot(Mutex<Option<RawGameSnapshot>>);
 
 #[cfg(debug_assertions)]
 struct DevtoolsState(Mutex<bool>);
@@ -322,6 +323,32 @@ fn emit_devtools_visibility_changed<R: tauri::Runtime>(
         devtools_visibility_payload(visible),
     )
     .map_err(|error| error.to_string())
+}
+
+fn commit_and_emit<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    run: &crate::game::sim::RunState,
+    profile: &crate::game::progression::PrestigeProfile,
+    last_emitted: &LastEmittedSnapshot,
+) -> Result<(), String> {
+    use crate::game::snapshot::{build_snapshot, state_equals};
+
+    let new_snapshot = build_snapshot(run, profile);
+    // Lock order: callers acquire GameState first, then this helper acquires
+    // LastEmittedSnapshot. Keep every push-based caller in that order to avoid deadlocks.
+    let mut cache = last_emitted.0.lock().expect("last_emitted mutex poisoned");
+
+    if let Some(ref previous_snapshot) = *cache {
+        if state_equals(previous_snapshot, &new_snapshot) {
+            return Ok(());
+        }
+    }
+
+    *cache = Some(new_snapshot.clone());
+    drop(cache);
+
+    app.emit(STATE_CHANGED_EVENT, &new_snapshot)
+        .map_err(|error| error.to_string())
 }
 
 #[cfg(debug_assertions)]
@@ -1168,6 +1195,72 @@ fn effective_service_power_upkeep(run_state: &RunState, service_id: &str) -> f32
 mod tests {
     use super::*;
 
+    mod commit_and_emit {
+        use super::*;
+
+        fn should_emit(
+            cache: &LastEmittedSnapshot,
+            snapshot: &crate::game::snapshot::RawGameSnapshot,
+        ) -> bool {
+            use crate::game::snapshot::state_equals;
+
+            let cache_guard = cache.0.lock().expect("last emitted cache should lock");
+            match &*cache_guard {
+                Some(previous_snapshot) => !state_equals(previous_snapshot, snapshot),
+                None => true,
+            }
+        }
+
+        fn update_cache(
+            cache: &LastEmittedSnapshot,
+            snapshot: crate::game::snapshot::RawGameSnapshot,
+        ) {
+            let mut cache_guard = cache.0.lock().expect("last emitted cache should lock");
+            *cache_guard = Some(snapshot);
+        }
+
+        #[test]
+        fn cache_starts_empty() {
+            let cache = LastEmittedSnapshot(Mutex::new(None));
+            let cache_guard = cache.0.lock().expect("last emitted cache should lock");
+
+            assert!(cache_guard.is_none(), "cache should start empty");
+        }
+
+        #[test]
+        fn first_call_emits() {
+            let cache = LastEmittedSnapshot(Mutex::new(None));
+            let snapshot = build_snapshot(&RunState::starter_fixture(), &PrestigeProfile::default());
+
+            assert!(should_emit(&cache, &snapshot), "first call should always emit");
+        }
+
+        #[test]
+        fn unchanged_skips() {
+            let cache = LastEmittedSnapshot(Mutex::new(None));
+            let snapshot = build_snapshot(&RunState::starter_fixture(), &PrestigeProfile::default());
+            update_cache(&cache, snapshot.clone());
+
+            assert!(
+                !should_emit(&cache, &snapshot),
+                "second call with same state should skip emit"
+            );
+        }
+
+        #[test]
+        fn changed_emits() {
+            let cache = LastEmittedSnapshot(Mutex::new(None));
+            let snapshot = build_snapshot(&RunState::starter_fixture(), &PrestigeProfile::default());
+            update_cache(&cache, snapshot);
+
+            let mut changed_run = RunState::starter_fixture();
+            changed_run.resources.materials += 100.0;
+            let changed_snapshot = build_snapshot(&changed_run, &PrestigeProfile::default());
+
+            assert!(should_emit(&cache, &changed_snapshot), "changed state should emit");
+        }
+    }
+
     #[test]
     fn toggle_service_input_accepts_camel_case_payload() {
         let input: ToggleServiceInput = serde_json::from_str(
@@ -1652,6 +1745,7 @@ pub fn run() {
             PrestigeProfile::default(),
             0u32,
         ))));
+        app.manage(LastEmittedSnapshot(Mutex::new(None)));
 
         #[cfg(debug_assertions)]
         {
