@@ -5,6 +5,8 @@ import { render as mount } from 'vitest-browser-svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRawSnippet, type Component } from 'svelte';
 import { createFixtureTransport } from '$lib/game/api/testing/transport';
+import { gameGateway } from '$lib/game/api';
+import { gameState } from '$lib/game/api/state.svelte';
 import Layout from './+layout.svelte';
 
 const DEVTOOLS_STORAGE_KEY = 'idle-spacestation.devtools-open';
@@ -15,6 +17,8 @@ function setupIPC() {
   mockIPC(
     (cmd, payload) => {
       switch (cmd) {
+        case 'game_get_snapshot':
+          return fixtureTransport.getSnapshot();
         case 'game_devtools_get_state':
           return { visible: false, snapshot: fixtureTransport.getSnapshot() };
         case 'game_devtools_set_visibility': {
@@ -51,10 +55,6 @@ async function mountVisibleLayout() {
   return view;
 }
 
-async function advanceOnePollingInterval() {
-  await vi.advanceTimersByTimeAsync(1100);
-}
-
 describe('Root layout devtools overlay', () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -64,12 +64,14 @@ describe('Root layout devtools overlay', () => {
     localStorage.setItem(FIXTURE_STORAGE_KEY, 'starter');
     clearMocks();
     setupIPC();
+    gameState.dispose();
   });
 
   afterEach(() => {
     vi.useRealTimers();
     localStorage.clear();
     clearMocks();
+    gameState.dispose();
   });
 
   it('does not render the overlay when devtools are hidden', async () => {
@@ -111,82 +113,123 @@ describe('Root layout devtools overlay', () => {
       await view.unmount();
     }
   });
+});
 
-  it('blocks polling while a devtools input is focused', async () => {
-    vi.useFakeTimers();
-    const getSnapshotSpy = vi.spyOn(fixtureTransport, 'getSnapshot');
-    const view = await mountVisibleLayout();
+describe('Root layout gameState integration', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+    fixtureTransport = createFixtureTransport('starter');
+    localStorage.clear();
+    localStorage.setItem('idle-spacestation.transport-mode', 'fixture');
+    localStorage.setItem(FIXTURE_STORAGE_KEY, 'starter');
+    clearMocks();
+    setupIPC();
+    gameState.dispose();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    localStorage.clear();
+    clearMocks();
+    gameState.dispose();
+  });
+
+  it('initializes the gameState store on mount', async () => {
+    const initSpy = vi.spyOn(gameState, 'init');
+    const subscribeSpy = vi.spyOn(gameGateway, 'subscribeToStateChanges');
+    const view = await mountLayout();
 
     try {
-      const input = page.getByTestId('devtools-materials-input');
-      await input.click();
-      const baselineCallCount = getSnapshotSpy.mock.calls.length;
-
-      await advanceOnePollingInterval();
-
-      expect(getSnapshotSpy).toHaveBeenCalledTimes(baselineCallCount);
+      await expect.element(page.getByTestId('game-shell')).toBeInTheDocument();
+      await vi.waitFor(() => {
+        expect(initSpy).toHaveBeenCalledTimes(1);
+      });
+      await vi.waitFor(() => {
+        expect(subscribeSpy).toHaveBeenCalledTimes(1);
+      });
     } finally {
       await view.unmount();
     }
   });
 
-  it('resumes polling after a focused devtools input blurs', async () => {
-    vi.useFakeTimers();
-    const getSnapshotSpy = vi.spyOn(fixtureTransport, 'getSnapshot');
+  it('disposes the gameState store on unmount', async () => {
+    const disposeSpy = vi.spyOn(gameState, 'dispose');
+    const view = await mountLayout();
+
+    await expect.element(page.getByTestId('game-shell')).toBeInTheDocument();
+    await view.unmount();
+
+    expect(disposeSpy).toHaveBeenCalled();
+  });
+
+  it('passes the store snapshot to DevtoolsOverlay when visible', async () => {
+    const view = await mountVisibleLayout();
+
+    try {
+      await expect.element(page.getByText(/Tick: \d+ · Tier: 1/i)).toBeInTheDocument();
+      await vi.waitFor(() => {
+        expect(gameState.snapshot).not.toBeNull();
+      });
+    } finally {
+      await view.unmount();
+    }
+  });
+
+  it('defers store updates while a devtools input is focused', async () => {
+    const deferSpy = vi.spyOn(gameState, 'deferUntilBlur');
     const view = await mountVisibleLayout();
 
     try {
       const input = page.getByTestId('devtools-materials-input');
       await input.click();
-      const focusedCallCount = getSnapshotSpy.mock.calls.length;
 
-      await advanceOnePollingInterval();
-      expect(getSnapshotSpy).toHaveBeenCalledTimes(focusedCallCount);
+      await vi.waitFor(() => {
+        expect(deferSpy).toHaveBeenCalledWith(true);
+      });
+    } finally {
+      await view.unmount();
+    }
+  });
+
+  it('resumes store updates after the devtools input blurs', async () => {
+    const deferSpy = vi.spyOn(gameState, 'deferUntilBlur');
+    const view = await mountVisibleLayout();
+
+    try {
+      const input = page.getByTestId('devtools-materials-input');
+      await input.click();
+
+      await vi.waitFor(() => {
+        expect(deferSpy).toHaveBeenCalledWith(true);
+      });
 
       await input.element().blur();
-      await advanceOnePollingInterval();
 
-      expect(getSnapshotSpy).toHaveBeenCalledTimes(focusedCallCount + 1);
+      await vi.waitFor(() => {
+        expect(deferSpy).toHaveBeenCalledWith(false);
+      });
     } finally {
       await view.unmount();
     }
   });
 
-  it('self-heals polling when the focused devtools input is removed', async () => {
-    vi.useFakeTimers();
-    const getSnapshotSpy = vi.spyOn(fixtureTransport, 'getSnapshot');
+  it('does not defer updates when a non-input devtools element is focused', async () => {
+    const deferSpy = vi.spyOn(gameState, 'deferUntilBlur');
     const view = await mountVisibleLayout();
 
     try {
-      const input = page.getByTestId('devtools-materials-input');
-      await input.click();
-      const focusedCallCount = getSnapshotSpy.mock.calls.length;
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      deferSpy.mockClear();
 
-      await advanceOnePollingInterval();
-      expect(getSnapshotSpy).toHaveBeenCalledTimes(focusedCallCount);
-
-      input.element().remove();
-      await advanceOnePollingInterval();
-
-      expect(getSnapshotSpy).toHaveBeenCalledTimes(focusedCallCount + 1);
-    } finally {
-      await view.unmount();
-    }
-  });
-
-  it('continues polling when a devtools button is focused', async () => {
-    vi.useFakeTimers();
-    const getSnapshotSpy = vi.spyOn(fixtureTransport, 'getSnapshot');
-    const view = await mountVisibleLayout();
-
-    try {
       const button = page.getByTestId('devtools-close-btn');
       await button.element().focus();
-      const baselineCallCount = getSnapshotSpy.mock.calls.length;
 
-      await advanceOnePollingInterval();
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      expect(getSnapshotSpy).toHaveBeenCalledTimes(baselineCallCount + 1);
+      const trueCalls = deferSpy.mock.calls.filter(([focused]) => focused === true);
+      expect(trueCalls).toHaveLength(0);
     } finally {
       await view.unmount();
     }

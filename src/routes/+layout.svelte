@@ -3,7 +3,7 @@
   import { onMount, type Snippet } from 'svelte';
   import DevtoolsOverlay from '$lib/components/DevtoolsOverlay.svelte';
   import { gameGateway } from '$lib/game/api';
-  import type { GameSnapshot } from '$lib/game/api/types';
+  import { gameState } from '$lib/game/api/state.svelte';
 
   const IS_DEBUG = import.meta.env.DEV;
   const DEVTOOLS_STORAGE_KEY = 'idle-spacestation.devtools-open';
@@ -11,8 +11,6 @@
 
   let { children }: { children: Snippet } = $props();
   let devtoolsVisible = $state(false);
-  let devtoolsSnapshot = $state<GameSnapshot | null>(null);
-  let devtoolsPollInterval: ReturnType<typeof setInterval> | null = null;
   let devtoolsDestroyed = false;
 
   function isFixtureModeEnabled() {
@@ -26,7 +24,13 @@
   function isEditableDevtoolsInputFocused(): boolean {
     if (typeof document === 'undefined') return false;
     const active = document.activeElement;
-    if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement))
+    if (
+      !(
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        active instanceof HTMLSelectElement
+      )
+    )
       return false;
     return Boolean(active.closest('[data-testid="devtools-overlay"]'));
   }
@@ -42,44 +46,11 @@
     window.localStorage.removeItem(DEVTOOLS_STORAGE_KEY);
   }
 
-  function stopDevtoolsPolling() {
-    if (devtoolsPollInterval) {
-      clearInterval(devtoolsPollInterval);
-      devtoolsPollInterval = null;
-    }
-  }
-
-  async function refreshDevtoolsSnapshot() {
-    if (isEditableDevtoolsInputFocused()) return;
-    try {
-      const state = await gameGateway.getDevtoolsState();
-      if (!devtoolsDestroyed) {
-        devtoolsSnapshot = state.snapshot;
-      }
-    } catch {
-      // not available
-    }
-  }
-
-  function startDevtoolsPolling() {
-    stopDevtoolsPolling();
-    devtoolsPollInterval = setInterval(async () => {
-      if (!devtoolsVisible || devtoolsDestroyed) {
-        stopDevtoolsPolling();
-        return;
-      }
-
-      await refreshDevtoolsSnapshot();
-    }, 1000);
-  }
-
   async function handleDevtoolsClose() {
     devtoolsVisible = false;
-    devtoolsSnapshot = null;
     if (isFixtureModeEnabled()) {
       setDevtoolsLocalOverride(false);
     }
-    stopDevtoolsPolling();
 
     try {
       await gameGateway.setDevtoolsVisibility({ visible: false });
@@ -91,19 +62,39 @@
   onMount(() => {
     devtoolsDestroyed = false;
 
+    void gameState.init().catch((err) => {
+      console.error('[layout] gameState.init failed:', err);
+    });
+
+    function onFocusIn() {
+      if (isEditableDevtoolsInputFocused()) {
+        gameState.deferUntilBlur(true);
+      }
+    }
+    function onFocusOut() {
+      if (!isEditableDevtoolsInputFocused()) {
+        gameState.deferUntilBlur(false);
+      }
+    }
+    document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('focusout', onFocusOut);
+
     const isFixtureMode = isFixtureModeEnabled();
 
     if (!IS_DEBUG && !isFixtureMode) {
       return () => {
         devtoolsDestroyed = true;
-        stopDevtoolsPolling();
+        document.removeEventListener('focusin', onFocusIn);
+        document.removeEventListener('focusout', onFocusOut);
+        gameState.dispose();
       };
     }
 
     // localOverride is only meaningful in fixture mode (no Tauri backend).
     // In a real Tauri debug session the backend is authoritative; reading
     // localStorage there would let a developer bypass the Debug menu toggle.
-    const localOverride = isFixtureMode && window.localStorage.getItem(DEVTOOLS_STORAGE_KEY) === 'true';
+    const localOverride =
+      isFixtureMode && window.localStorage.getItem(DEVTOOLS_STORAGE_KEY) === 'true';
     let unlisten: (() => void | Promise<void>) | null = null;
 
     const initialize = async () => {
@@ -118,15 +109,6 @@
           if (isFixtureMode) {
             setDevtoolsLocalOverride(event.payload.visible);
           }
-
-          if (event.payload.visible) {
-            void refreshDevtoolsSnapshot();
-            startDevtoolsPolling();
-            return;
-          }
-
-          devtoolsSnapshot = null;
-          stopDevtoolsPolling();
         });
       } catch {
         // not in Tauri
@@ -140,19 +122,12 @@
         if (isFixtureMode) {
           setDevtoolsLocalOverride(devtoolsVisible);
         }
-
-        if (devtoolsVisible) {
-          devtoolsSnapshot = state.snapshot;
-          startDevtoolsPolling();
-        }
       } catch {
         if (localOverride && !devtoolsDestroyed) {
           devtoolsVisible = true;
           if (isFixtureMode) {
             setDevtoolsLocalOverride(true);
           }
-          await refreshDevtoolsSnapshot();
-          startDevtoolsPolling();
         }
       }
     };
@@ -161,7 +136,9 @@
 
     return () => {
       devtoolsDestroyed = true;
-      stopDevtoolsPolling();
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('focusout', onFocusOut);
+      gameState.dispose();
       void unlisten?.();
     };
   });
@@ -215,6 +192,10 @@
   </main>
 
   {#if devtoolsVisible}
-    <DevtoolsOverlay snapshot={devtoolsSnapshot} gateway={gameGateway} onClose={handleDevtoolsClose} />
+    <DevtoolsOverlay
+      snapshot={gameState.snapshot}
+      gateway={gameGateway}
+      onClose={handleDevtoolsClose}
+    />
   {/if}
 </div>
