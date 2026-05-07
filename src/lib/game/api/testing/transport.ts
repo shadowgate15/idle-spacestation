@@ -28,6 +28,7 @@ import type {
   PurchaseDoctrineInput,
   RawDevtoolsGetStateResponse,
   RawDevtoolsSetVisibilityResponse,
+  RawGameSnapshot,
   RawServiceStateSnapshot,
   RawSystemStateSnapshot,
   ServiceActivationRejectionCode,
@@ -98,6 +99,15 @@ export type PreviewFixtureTransport = GameTransport &
   };
 
 export function createFixtureTransport(fixtureName: PreviewFixtureName): PreviewFixtureTransport {
+  const subscribers = new Set<(raw: RawGameSnapshot) => void>();
+
+  function notify(): void {
+    const raw = buildSnapshotFromFixtureState(cloneFixtureState(state), fixtureName);
+    for (const cb of subscribers) {
+      cb(raw);
+    }
+  }
+
   let state = createFixtureState(fixtureName);
   let devtoolsVisible = false;
 
@@ -116,60 +126,84 @@ export function createFixtureTransport(fixtureName: PreviewFixtureName): Preview
       switch (command) {
         case 'game_get_snapshot':
           return snapshot() as FixtureCommandResponses[TCommand];
-        case 'game_upgrade_system':
-          return upgradeSystem(
+        case 'game_upgrade_system': {
+          const result = upgradeSystem(
             state,
             fixtureName,
             (payload as GameCommandPayloads['game_upgrade_system']).systemId,
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_set_service_activation':
-          return setServiceActivation(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_set_service_activation': {
+          const result = setServiceActivation(
             state,
             fixtureName,
             (payload as GameCommandPayloads['game_set_service_activation']).serviceId,
             (payload as GameCommandPayloads['game_set_service_activation']).active,
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_assign_service_crew':
-          return assignServiceCrew(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_assign_service_crew': {
+          const result = assignServiceCrew(
             state,
             fixtureName,
             (payload as GameCommandPayloads['game_assign_service_crew']).serviceId,
             (payload as GameCommandPayloads['game_assign_service_crew']).assignedCrew,
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_reprioritize_service':
-          return reprioritizeService(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_reprioritize_service': {
+          const result = reprioritizeService(
             state,
             fixtureName,
             (payload as GameCommandPayloads['game_reprioritize_service']).serviceId,
             (payload as GameCommandPayloads['game_reprioritize_service']).direction,
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_start_survey':
-          return startSurvey(state, fixtureName) as FixtureCommandResponses[TCommand];
-        case 'game_purchase_doctrine':
-          return purchaseDoctrine(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_start_survey': {
+          const result = startSurvey(state, fixtureName);
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_purchase_doctrine': {
+          const result = purchaseDoctrine(
             state,
             fixtureName,
             payload as GameCommandPayloads['game_purchase_doctrine'],
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_confirm_prestige':
-          return confirmPrestige(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_confirm_prestige': {
+          const result = confirmPrestige(
             state,
             fixtureName,
             payload as GameCommandPayloads['game_confirm_prestige'],
-          ) as FixtureCommandResponses[TCommand];
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
         case 'game_request_save':
           return {
             ok: true,
             status: 'saved',
             snapshot: snapshot(),
           } as GameRequestSaveResponse as FixtureCommandResponses[TCommand];
-        case 'game_request_load':
+        case 'game_request_load': {
           state = createFixtureState(fixtureName);
-          return {
+          const result = {
             ok: true,
             status: 'loaded',
             snapshot: snapshot(),
-          } as GameRequestLoadResponse as FixtureCommandResponses[TCommand];
+          } as GameRequestLoadResponse;
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
         case 'game_devtools_get_state':
           return buildDevtoolsStateResponse(
             snapshot(),
@@ -182,54 +216,81 @@ export function createFixtureTransport(fixtureName: PreviewFixtureName): Preview
             snapshot(),
             devtoolsVisible,
           ) as FixtureCommandResponses[TCommand];
-        case 'game_devtools_apply_resources':
-          return applyResources(
+        case 'game_devtools_apply_resources': {
+          const result = applyResources(
             state,
             fixtureName,
             payload as DevtoolsApplyResourcesPayload,
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_devtools_apply_crew':
-          return applyCrew(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_devtools_apply_crew': {
+          const result = applyCrew(
             state,
             fixtureName,
             payload as DevtoolsApplyCrewPayload,
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_devtools_apply_systems':
-          return applySystems(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_devtools_apply_systems': {
+          const result = applySystems(
             state,
             fixtureName,
             payload as DevtoolsApplySystemsPayload,
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_devtools_apply_services':
-          return applyServices(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_devtools_apply_services': {
+          const result = applyServices(
             state,
             fixtureName,
             payload as DevtoolsApplyServicesPayload,
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_devtools_apply_progression':
-          return applyProgression(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_devtools_apply_progression': {
+          const result = applyProgression(
             state,
             fixtureName,
             payload as DevtoolsApplyProgressionPayload,
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_devtools_advance_ticks':
-          return advanceTicks(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_devtools_advance_ticks': {
+          const result = advanceTicks(
             state,
             fixtureName,
             payload as DevtoolsAdvanceTicksPayload,
-          ) as FixtureCommandResponses[TCommand];
-        case 'game_devtools_reset_to_starter':
-          return resetToStarter(
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
+        case 'game_devtools_reset_to_starter': {
+          const result = resetToStarter(
             state,
             fixtureName,
             payload as DevtoolsResetToStarterPayload,
-          ) as FixtureCommandResponses[TCommand];
+          );
+          notify();
+          return result as FixtureCommandResponses[TCommand];
+        }
       }
 
       return unreachable(command as never);
     },
     getSnapshot() {
       return snapshot();
+    },
+    subscribeToStateChanges(callback: (raw: RawGameSnapshot) => void): () => void {
+      subscribers.add(callback);
+      return () => {
+        subscribers.delete(callback);
+      };
     },
   } as PreviewFixtureTransport;
 }

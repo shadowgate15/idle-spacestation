@@ -44,6 +44,7 @@ describe('game api fixtures and adapters', () => {
 
         throw new Error(`Unexpected command: ${command}`);
       },
+      subscribeToStateChanges: () => () => {},
     };
     const gateway = createGameGateway(transport);
 
@@ -75,6 +76,7 @@ describe('game api fixtures and adapters', () => {
 
         throw new Error(`Unexpected command: ${command}`);
       },
+      subscribeToStateChanges: () => () => {},
     };
     const gateway = createGameGateway(transport);
 
