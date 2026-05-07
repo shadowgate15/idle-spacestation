@@ -1,71 +1,19 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { gameGateway } from '$lib/game/api';
+  import { gameState } from '$lib/game/api/state.svelte';
   import type {
-    GameSnapshot,
-    OverviewViewModel,
     ResourceDeltaSnapshot,
     WarningSnapshot,
   } from '$lib/game/api/types';
 
   type AppRoute = '/' | '/systems' | '/services' | '/planets' | '/prestige';
 
-  let fullSnapshot = $state<GameSnapshot | null>(null);
-  let overview = $state<OverviewViewModel | null>(null);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
-  let isPolling = $state(false);
-  let destroyed = $state(false);
-  let pollInterval = $state<ReturnType<typeof setInterval> | null>(null);
+  const overview = $derived(gameState.snapshot?.routes.overview ?? null);
+  const loading = $derived(gameState.status !== 'ready');
+  const error = $derived(gameState.error?.message ?? null);
 
   const hasDeficitWarnings = $derived(overview?.deficitWarnings ?? []);
-
-  async function loadOverview() {
-    if (isPolling) return;
-
-    isPolling = true;
-    try {
-      fullSnapshot = await gameGateway.getSnapshot();
-      if (destroyed) return;
-      overview = fullSnapshot.routes.overview;
-      error = null;
-    } catch (e) {
-      if (destroyed) return;
-      error = e instanceof Error ? e.message : 'Failed to load station data';
-    } finally {
-      isPolling = false;
-    }
-  }
-
-  onMount(() => {
-    destroyed = false;
-
-    const initialize = async () => {
-      try {
-        await loadOverview();
-      } finally {
-        if (destroyed) return;
-        loading = false;
-      }
-
-      if (destroyed) return;
-      pollInterval = setInterval(async () => {
-        await loadOverview();
-      }, 1000);
-    };
-
-    void initialize();
-
-    return () => {
-      destroyed = true;
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-      }
-    };
-  });
 
   function formatDelta(delta: ResourceDeltaSnapshot): string {
     const sign = delta.deltaPerSecond >= 0 ? '+' : '';
@@ -146,30 +94,30 @@
     </dl>
   </section>
 
-  {#if fullSnapshot}
+  {#if gameState.snapshot}
     <section class="mb-8 rounded-lg border border-border bg-card p-4" data-testid="stockpile-strip">
       <dl class="flex flex-wrap gap-6">
         <div class="flex flex-col">
           <dt class="text-xs tracking-wide text-muted-foreground uppercase">Materials</dt>
           <dd class="text-lg font-bold text-foreground">
-            {Math.floor(fullSnapshot.resources.materials)}
+            {Math.floor(gameState.snapshot.resources.materials)}
           </dd>
         </div>
         <div class="flex flex-col">
           <dt class="text-xs tracking-wide text-muted-foreground uppercase">Data</dt>
-          <dd class="text-lg font-bold text-foreground">{Math.floor(fullSnapshot.resources.data)}</dd>
+          <dd class="text-lg font-bold text-foreground">{Math.floor(gameState.snapshot.resources.data)}</dd>
         </div>
         <div class="flex flex-col">
           <dt class="text-xs tracking-wide text-muted-foreground uppercase">Crew</dt>
           <dd class="text-lg font-bold text-foreground">
-            {fullSnapshot.resources.crew.assigned} / {fullSnapshot.resources.crew.total}
+            {gameState.snapshot.resources.crew.assigned} / {gameState.snapshot.resources.crew.total}
           </dd>
         </div>
         <div class="flex flex-col">
           <dt class="text-xs tracking-wide text-muted-foreground uppercase">Power</dt>
           <dd class="text-lg font-bold text-foreground">
-            {fullSnapshot.resources.power.available.toFixed(1)} available of
-            {fullSnapshot.resources.power.generated.toFixed(1)} generated
+            {gameState.snapshot.resources.power.available.toFixed(1)} available of
+            {gameState.snapshot.resources.power.generated.toFixed(1)} generated
           </dd>
         </div>
       </dl>
