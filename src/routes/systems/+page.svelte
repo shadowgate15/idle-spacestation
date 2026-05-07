@@ -1,78 +1,27 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { gameState } from '$lib/game/api/state.svelte';
   import { gameGateway } from '$lib/game/api';
-  import type { SystemId, SystemsViewModel } from '$lib/game/api/types';
+  import type { SystemId } from '$lib/game/api/types';
   import * as Card from '$lib/components/ui/card';
   import Button from '$lib/components/ui/button/button.svelte';
 
   type AppRoute = '/' | '/systems' | '/services' | '/planets' | '/prestige';
 
-  let systems = $state<SystemsViewModel | null>(null);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
-  let isPolling = $state(false);
-  let destroyed = $state(false);
+  const systems = $derived(gameState.snapshot?.routes.systems ?? null);
+  const loading = $derived(gameState.status !== 'ready');
+  const error = $derived(gameState.error?.message ?? null);
   let upgrading = $state<Set<string>>(new Set());
-  let pollInterval = $state<ReturnType<typeof setInterval> | null>(null);
-
-  async function loadSystems() {
-    if (isPolling) return;
-
-    isPolling = true;
-    try {
-      const snapshot = await gameGateway.getSnapshot();
-      if (destroyed) return;
-      systems = snapshot.routes.systems;
-      error = null;
-    } catch (e) {
-      if (destroyed) return;
-      error = e instanceof Error ? e.message : 'Failed to load systems data';
-    } finally {
-      isPolling = false;
-    }
-  }
-
-  onMount(() => {
-    destroyed = false;
-
-    const initialize = async () => {
-      try {
-        await loadSystems();
-      } finally {
-        if (destroyed) return;
-        loading = false;
-      }
-
-      if (destroyed) return;
-      pollInterval = setInterval(async () => {
-        await loadSystems();
-      }, 1000);
-    };
-
-    void initialize();
-
-    return () => {
-      destroyed = true;
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-      }
-    };
-  });
 
   async function handleUpgrade(systemId: SystemId) {
     if (upgrading.has(systemId)) return;
 
     upgrading = new Set([...upgrading, systemId]);
     try {
-      const result = await gameGateway.upgradeSystem({ systemId });
-      if (result.ok) {
-        systems = result.snapshot.routes.systems;
-      }
+      await gameGateway.upgradeSystem({ systemId });
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to upgrade system';
+      // Error is handled by gameState
     } finally {
       upgrading = new Set([...upgrading].filter((id) => id !== systemId));
     }

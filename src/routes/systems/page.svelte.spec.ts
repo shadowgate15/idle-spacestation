@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { createFixtureTransport } from '$lib/game/api/testing/transport';
 import { createGameGateway } from '$lib/game/api/gateway';
 import type { PreviewFixtureName } from '$lib/game/api/types';
@@ -18,7 +18,6 @@ function clearFixture() {
 describe('Systems route', () => {
   beforeEach(() => {
     clearFixture();
-    vi.restoreAllMocks();
   });
 
   it('renders all 4 systems for starter fixture at level 1', async () => {
