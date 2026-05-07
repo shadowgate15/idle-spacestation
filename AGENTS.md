@@ -50,19 +50,12 @@ Repo is still close to template scale; keep the hierarchy minimal and ignore gen
 - Storybook exists for component isolation, but app code does not depend on `src/stories/`.
 - Repo-local OpenCode skills live under `.opencode/skills/` and should be preferred when a reusable repo workflow exists.
 
-## WORKFLOW
-
-- For implementation work, start from a dedicated worktree under `.worktree/<task-slug>` on a separate branch instead of editing the primary checkout.
-- Use the repo-local OpenCode skill `idle-spacestation-worktree-pr` for the expected workflow: inspect `.worktree/`, reuse an existing worktree only when it is clearly the same task and branch, otherwise create a new `.worktree/<task-slug>` checkout before making implementation changes.
-- Running `/start-work` without `--worktree` does not waive this repo rule. If the current directory is the primary checkout, stop and create or attach the dedicated worktree first.
-
 ## ANTI-PATTERNS (THIS PROJECT)
 
 - Do not edit generated output: `.svelte-kit/`, `build/`, `storybook-static/`, `src-tauri/target/`, `src-tauri/gen/schemas/`.
 - Do not treat `src/stories/`, `src/lib/vitest-examples/`, or `src/routes/demo/` as production patterns unless the task explicitly targets examples/demo code.
 - Do not remove the Windows subsystem guard in `src-tauri/src/main.rs` (`DO NOT REMOVE!!`).
 - Do not route TypeScript fixes through `no-undef`; ESLint intentionally disables it for this repo.
-- Do not start implementation from the primary checkout just because `/start-work` was invoked without `--worktree`; that is a stop condition, not an allowed fallback.
 
 ## UNIQUE STYLES
 
