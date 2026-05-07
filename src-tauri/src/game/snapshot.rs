@@ -1212,3 +1212,322 @@ fn survey_array_level(run_state: &RunState) -> (f32, f32) {
         _ => unreachable!("survey-array progression must use survey levels"),
     }
 }
+
+/// Compare two snapshots with bitwise-precise f32 equality.
+/// Uses `f32::to_bits()` for float comparisons (handles NaN consistently by bit pattern).
+/// Uses standard `==` for integers, strings, booleans, and enums.
+pub fn state_equals(a: &RawGameSnapshot, b: &RawGameSnapshot) -> bool {
+    meta_eq(&a.meta, &b.meta)
+        && run_eq(&a.run, &b.run)
+        && resources_eq(&a.resources, &b.resources)
+        && systems_eq(&a.systems, &b.systems)
+        && services_eq(&a.services, &b.services)
+        && route_snapshots_eq(&a.route_snapshots, &b.route_snapshots)
+}
+
+fn meta_eq(a: &SnapshotMeta, b: &SnapshotMeta) -> bool {
+    a.source == b.source && a.fixture_name == b.fixture_name && a.tick_count == b.tick_count
+}
+
+fn run_eq(a: &RunSnapshot, b: &RunSnapshot) -> bool {
+    a.active_planet_id == b.active_planet_id
+        && a.discovered_planet_ids == b.discovered_planet_ids
+        && a.doctrine_ids == b.doctrine_ids
+        && a.doctrine_fragments == b.doctrine_fragments
+        && a.survey_progress.to_bits() == b.survey_progress.to_bits()
+        && a.station_tier == b.station_tier
+        && a.stable_power_seconds.to_bits() == b.stable_power_seconds.to_bits()
+}
+
+fn resources_eq(a: &ResourcesSnapshot, b: &ResourcesSnapshot) -> bool {
+    power_eq(&a.power, &b.power)
+        && a.materials.to_bits() == b.materials.to_bits()
+        && a.data.to_bits() == b.data.to_bits()
+        && crew_eq(&a.crew, &b.crew)
+}
+
+fn power_eq(a: &PowerSnapshot, b: &PowerSnapshot) -> bool {
+    a.generated.to_bits() == b.generated.to_bits()
+        && a.reserved.to_bits() == b.reserved.to_bits()
+        && a.available.to_bits() == b.available.to_bits()
+}
+
+fn crew_eq(a: &CrewSnapshot, b: &CrewSnapshot) -> bool {
+    a.total == b.total && a.assigned == b.assigned && a.available == b.available
+}
+
+fn systems_eq(a: &[RawSystemStateSnapshot], b: &[RawSystemStateSnapshot]) -> bool {
+    a.len() == b.len() && a.iter().zip(b.iter()).all(|(av, bv)| av.id == bv.id && av.level == bv.level)
+}
+
+fn services_eq(a: &[RawServiceStateSnapshot], b: &[RawServiceStateSnapshot]) -> bool {
+    a.len() == b.len()
+        && a.iter().zip(b.iter()).all(|(av, bv)| {
+            av.id == bv.id
+                && av.desired_active == bv.desired_active
+                && av.is_active == bv.is_active
+                && av.is_paused == bv.is_paused
+                && av.pause_reason == bv.pause_reason
+                && av.priority == bv.priority
+                && av.assigned_crew == bv.assigned_crew
+        })
+}
+
+fn route_snapshots_eq(a: &RouteSnapshots, b: &RouteSnapshots) -> bool {
+    overview_eq(&a.overview, &b.overview)
+        && systems_route_eq(&a.systems, &b.systems)
+        && services_route_eq(&a.services, &b.services)
+        && planets_route_eq(&a.planets, &b.planets)
+        && prestige_route_eq(&a.prestige, &b.prestige)
+}
+
+fn overview_eq(a: &OverviewRouteSnapshot, b: &OverviewRouteSnapshot) -> bool {
+    active_planet_eq(&a.active_planet, &b.active_planet)
+        && resource_deltas_eq(&a.resource_deltas, &b.resource_deltas)
+        && warnings_eq(&a.deficit_warnings, &b.deficit_warnings)
+        && a.station_tier.current == b.station_tier.current
+        && a.station_tier.max == b.station_tier.max
+        && a.station_tier.label == b.station_tier.label
+        && a.service_utilization.active == b.service_utilization.active
+        && a.service_utilization.capacity == b.service_utilization.capacity
+        && a.service_utilization.available == b.service_utilization.available
+        && a.service_utilization.summary == b.service_utilization.summary
+        && survey_progress_eq(&a.survey_progress, &b.survey_progress)
+        && a.guidance_triggers == b.guidance_triggers
+}
+
+fn active_planet_eq(a: &ActivePlanetSnapshot, b: &ActivePlanetSnapshot) -> bool {
+    a.id == b.id
+        && a.name == b.name
+        && a.description == b.description
+        && a.modifiers.len() == b.modifiers.len()
+        && a.modifiers
+            .iter()
+            .zip(b.modifiers.iter())
+            .all(|(av, bv)| {
+                av.target == bv.target
+                    && av.label == bv.label
+                    && av.percent.to_bits() == bv.percent.to_bits()
+                    && av.effect_text == bv.effect_text
+            })
+}
+
+fn resource_deltas_eq(a: &[ResourceDeltaSnapshot], b: &[ResourceDeltaSnapshot]) -> bool {
+    a.len() == b.len()
+        && a.iter().zip(b.iter()).all(|(av, bv)| {
+            av.id == bv.id
+                && av.label == bv.label
+                && av.delta_per_second.to_bits() == bv.delta_per_second.to_bits()
+                && av.trend == bv.trend
+        })
+}
+
+fn warnings_eq(a: &[WarningSnapshot], b: &[WarningSnapshot]) -> bool {
+    a.len() == b.len()
+        && a.iter()
+            .zip(b.iter())
+            .all(|(av, bv)| av.code == bv.code && av.severity == bv.severity && av.title == bv.title && av.body == bv.body)
+}
+
+fn survey_progress_eq(a: &SurveyProgressSnapshot, b: &SurveyProgressSnapshot) -> bool {
+    a.current.to_bits() == b.current.to_bits()
+        && a.next_threshold.map(|x| x.to_bits()) == b.next_threshold.map(|x| x.to_bits())
+        && a.next_planet_id == b.next_planet_id
+        && a.next_planet_name == b.next_planet_name
+        && a.summary == b.summary
+}
+
+fn systems_route_eq(a: &SystemsRouteSnapshot, b: &SystemsRouteSnapshot) -> bool {
+    a.systems.len() == b.systems.len()
+        && a.systems
+            .iter()
+            .zip(b.systems.iter())
+            .all(|(av, bv)| {
+                av.id == bv.id
+                    && av.name == bv.name
+                    && av.description == bv.description
+                    && av.level == bv.level
+                    && av.max_level == bv.max_level
+                    && av.cap_values.len() == bv.cap_values.len()
+                    && av.cap_values
+                        .iter()
+                        .zip(bv.cap_values.iter())
+                        .all(|(acv, bcv)| {
+                            acv.key == bcv.key
+                                && acv.label == bcv.label
+                                && acv.value.to_bits() == bcv.value.to_bits()
+                                && acv.unit == bcv.unit
+                        })
+                    && av.upgrade_cost_materials == bv.upgrade_cost_materials
+                    && av.can_upgrade == bv.can_upgrade
+                    && av.upgrade_blocked_reason == bv.upgrade_blocked_reason
+            })
+}
+
+fn services_route_eq(a: &ServicesRouteSnapshot, b: &ServicesRouteSnapshot) -> bool {
+    a.services.len() == b.services.len()
+        && a.services
+            .iter()
+            .zip(b.services.iter())
+            .all(|(av, bv)| {
+                av.id == bv.id
+                    && av.name == bv.name
+                    && av.description == bv.description
+                    && av.family == bv.family
+                    && av.priority_order == bv.priority_order
+                    && av.status == bv.status
+                    && av.status_label == bv.status_label
+                    && av.desired_active == bv.desired_active
+                    && av.crew_assignment.current == bv.crew_assignment.current
+                    && av.crew_assignment.required == bv.crew_assignment.required
+                    && av.power_usage.upkeep.to_bits() == bv.power_usage.upkeep.to_bits()
+                    && av.power_usage.output.to_bits() == bv.power_usage.output.to_bits()
+                    && av.disabled_reasons == bv.disabled_reasons
+            })
+        && a.utilization.active == b.utilization.active
+        && a.utilization.capacity == b.utilization.capacity
+        && a.utilization.available == b.utilization.available
+        && a.utilization.summary == b.utilization.summary
+        && warnings_eq(&a.deficit_warnings, &b.deficit_warnings)
+}
+
+fn planets_route_eq(a: &PlanetsRouteSnapshot, b: &PlanetsRouteSnapshot) -> bool {
+    a.active_planet_id == b.active_planet_id
+        && a.planets.len() == b.planets.len()
+        && a.planets
+            .iter()
+            .zip(b.planets.iter())
+            .all(|(av, bv)| {
+                av.id == bv.id
+                    && av.name == bv.name
+                    && av.description == bv.description
+                    && av.discovered == bv.discovered
+                    && av.active == bv.active
+                    && av.selectable_for_next_run == bv.selectable_for_next_run
+                    && av.selectability_reason == bv.selectability_reason
+                    && av.modifiers.len() == bv.modifiers.len()
+                    && av.modifiers
+                        .iter()
+                        .zip(bv.modifiers.iter())
+                        .all(|(am, bm)| {
+                            am.target == bm.target
+                                && am.label == bm.label
+                                && am.percent.to_bits() == bm.percent.to_bits()
+                                && am.effect_text == bm.effect_text
+                        })
+                    && av.survey_threshold.map(|x| x.to_bits()) == bv.survey_threshold.map(|x| x.to_bits())
+                    && av.survey_progress.to_bits() == bv.survey_progress.to_bits()
+            })
+        && survey_progress_eq(&a.survey_progress, &b.survey_progress)
+}
+
+fn prestige_route_eq(a: &PrestigeRouteSnapshot, b: &PrestigeRouteSnapshot) -> bool {
+    a.eligibility.eligible == b.eligibility.eligible
+        && a.eligibility.reason_codes == b.eligibility.reason_codes
+        && a.eligibility.summary == b.eligibility.summary
+        && a.eligibility.stable_power_seconds.to_bits() == b.eligibility.stable_power_seconds.to_bits()
+        && a.eligibility.required_stable_power_seconds.to_bits() == b.eligibility.required_stable_power_seconds.to_bits()
+        && a.doctrine_fragments == b.doctrine_fragments
+        && a.unlocked_doctrines.len() == b.unlocked_doctrines.len()
+        && a.unlocked_doctrines
+            .iter()
+            .zip(b.unlocked_doctrines.iter())
+            .all(|(av, bv)| av.id == bv.id && av.name == bv.name && av.description == bv.description)
+        && a.purchase_options.len() == b.purchase_options.len()
+        && a.purchase_options
+            .iter()
+            .zip(b.purchase_options.iter())
+            .all(|(av, bv)| {
+                av.id == bv.id
+                    && av.name == bv.name
+                    && av.description == bv.description
+                    && av.cost_fragments == bv.cost_fragments
+                    && av.available == bv.available
+                    && av.blocked_reason == bv.blocked_reason
+            })
+        && a.reset_consequences.len() == b.reset_consequences.len()
+        && a.reset_consequences
+            .iter()
+            .zip(b.reset_consequences.iter())
+            .all(|(av, bv)| av.label == bv.label && av.outcome == bv.outcome && av.summary == bv.summary)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game::sim::RunState;
+    use crate::game::progression::PrestigeProfile;
+
+    fn make_test_snapshot() -> RawGameSnapshot {
+        let run_state = RunState::starter_fixture();
+        let profile = PrestigeProfile::default();
+        build_snapshot(&run_state, &profile)
+    }
+
+    #[test]
+    fn state_equals_clones_are_equal() {
+        let snapshot = make_test_snapshot();
+        let clone = snapshot.clone();
+        assert!(state_equals(&snapshot, &clone), "cloned snapshots should be equal");
+    }
+
+    #[test]
+    fn state_equals_different_integer_field() {
+        let mut snapshot1 = make_test_snapshot();
+        let mut snapshot2 = make_test_snapshot();
+        snapshot1.meta.tick_count = 100;
+        snapshot2.meta.tick_count = 200;
+        assert!(!state_equals(&snapshot1, &snapshot2), "snapshots with different tick_count should not be equal");
+    }
+
+    #[test]
+    fn state_equals_different_f32_field() {
+        let mut snapshot1 = make_test_snapshot();
+        let mut snapshot2 = make_test_snapshot();
+        snapshot1.resources.materials = 100.5;
+        snapshot2.resources.materials = 200.5;
+        assert!(!state_equals(&snapshot1, &snapshot2), "snapshots with different f32 fields should not be equal");
+    }
+
+    #[test]
+    fn state_equals_nan_same_bit_pattern() {
+        let mut snapshot1 = make_test_snapshot();
+        let mut snapshot2 = make_test_snapshot();
+        snapshot1.resources.materials = f32::NAN;
+        snapshot2.resources.materials = f32::NAN;
+        assert!(state_equals(&snapshot1, &snapshot2), "NaN values with same bit pattern should compare equal");
+    }
+
+    #[test]
+    fn state_equals_nan_different_bit_patterns() {
+        let mut snapshot1 = make_test_snapshot();
+        let mut snapshot2 = make_test_snapshot();
+        snapshot1.resources.materials = f32::NAN; // 0x7FC00000
+        snapshot2.resources.materials = f32::from_bits(0x7fc00001); // different NaN pattern
+        assert!(!state_equals(&snapshot1, &snapshot2), "NaN values with different bit patterns should not compare equal");
+    }
+
+    #[test]
+    fn state_equals_empty_vs_nonempty_vec() {
+        let mut snapshot1 = make_test_snapshot();
+        let mut snapshot2 = make_test_snapshot();
+        snapshot1.systems = vec![];
+        snapshot2.systems = vec![RawSystemStateSnapshot {
+            id: "test-system".to_string(),
+            level: 1,
+        }];
+        assert!(!state_equals(&snapshot1, &snapshot2), "snapshots with different system vec lengths should not be equal");
+    }
+
+    #[test]
+    fn state_equals_same_len_different_element() {
+        let mut snapshot1 = make_test_snapshot();
+        let mut snapshot2 = make_test_snapshot();
+        if !snapshot1.systems.is_empty() {
+            snapshot1.systems[0].level = 1;
+            snapshot2.systems[0].level = 2;
+            assert!(!state_equals(&snapshot1, &snapshot2), "snapshots with different system levels should not be equal");
+        }
+    }
+}
+
