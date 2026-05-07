@@ -46,7 +46,7 @@
       if (!result.ok) {
         // Error handling if needed; store updates via event
       }
-    } catch (e) {
+    } catch {
       // Silent catch; store updates via event
     } finally {
       acting = new Set([...acting].filter((id) => id !== serviceId));
@@ -65,7 +65,7 @@
       if (!result.ok) {
         // Error handling if needed; store updates via event
       }
-    } catch (e) {
+    } catch {
       // Silent catch; store updates via event
     } finally {
       acting = new Set([...acting].filter((id) => id !== serviceId));

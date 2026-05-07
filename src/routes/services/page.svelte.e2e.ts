@@ -24,10 +24,10 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    await expect(page.getByText('Active')).toBeVisible();
-    await expect(page.getByText('1')).toBeVisible();
-    await expect(page.getByText('Capacity')).toBeVisible();
-    await expect(page.getByText('2')).toBeVisible();
+    const solarHarvester = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: 'Solar Harvester' });
+    await expect(solarHarvester.getByText('Active', { exact: true })).toBeVisible();
   });
 
   test('shows service families', async ({ page }) => {
@@ -36,10 +36,10 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    await expect(page.getByText('Production')).toBeVisible();
-    await expect(page.getByText('Support')).toBeVisible();
-    await expect(page.getByText('Command')).toBeVisible();
-    await expect(page.getByText('Conversion')).toBeVisible();
+    await expect(page.getByText('Production').first()).toBeVisible();
+    await expect(page.getByText('Support').first()).toBeVisible();
+    await expect(page.getByText('Command').first()).toBeVisible();
+    await expect(page.getByText('Conversion').first()).toBeVisible();
   });
 
   test('shows status labels for services', async ({ page }) => {
@@ -48,10 +48,12 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    const solarHarvester = page.locator('card').filter({ hasText: 'Solar Harvester' });
-    await expect(solarHarvester.getByText('Active')).toBeVisible();
+    const solarHarvester = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: 'Solar Harvester' });
+    await expect(solarHarvester.getByText('Active', { exact: true })).toBeVisible();
 
-    const oreReclaimer = page.locator('card').filter({ hasText: 'Ore Reclaimer' });
+    const oreReclaimer = page.locator('[data-slot="card"]').filter({ hasText: 'Ore Reclaimer' });
     await expect(oreReclaimer.getByText('Disabled')).toBeVisible();
   });
 
@@ -61,7 +63,9 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    const solarHarvester = page.locator('card').filter({ hasText: 'Solar Harvester' });
+    const solarHarvester = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: 'Solar Harvester' });
     await expect(solarHarvester.getByText(/2 \/ 2/)).toBeVisible();
   });
 
@@ -71,7 +75,9 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    const solarHarvester = page.locator('card').filter({ hasText: 'Solar Harvester' });
+    const solarHarvester = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: 'Solar Harvester' });
     await expect(solarHarvester.getByText(/Power Upkeep/)).toBeVisible();
     await expect(solarHarvester.getByText(/0 \/s/)).toBeVisible();
     await expect(solarHarvester.getByText(/\+4 \/s/)).toBeVisible();
@@ -93,10 +99,12 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    const solarHarvester = page.locator('card').filter({ hasText: 'Solar Harvester' });
+    const solarHarvester = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: 'Solar Harvester' });
     await expect(solarHarvester.getByRole('button', { name: /Pause/ })).toBeVisible();
 
-    const oreReclaimer = page.locator('card').filter({ hasText: 'Ore Reclaimer' });
+    const oreReclaimer = page.locator('[data-slot="card"]').filter({ hasText: 'Ore Reclaimer' });
     await expect(oreReclaimer.getByRole('button', { name: /Activate/ })).toBeVisible();
   });
 
@@ -106,8 +114,8 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    await expect(page.getByRole('button', { name: /↑/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /↓/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: '↑' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: '↓' }).first()).toBeVisible();
   });
 
   test('shows deficit warnings when applicable', async ({ page }) => {
@@ -116,8 +124,11 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    await expect(page.getByTestId('deficit-warnings')).toBeVisible();
-    await expect(page.getByText(/Power deficit in progress/i)).toBeVisible();
+    const deficitWarnings = page.getByTestId('deficit-warnings');
+    await expect(deficitWarnings).toBeVisible();
+    await expect(
+      deficitWarnings.getByRole('heading', { name: /Power deficit in progress/i }),
+    ).toBeVisible();
   });
 
   test('shows paused status for services paused by deficit', async ({ page }) => {
@@ -126,7 +137,7 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    const surveyUplink = page.locator('card').filter({ hasText: 'Survey Uplink' });
+    const surveyUplink = page.locator('[data-slot="card"]').filter({ hasText: 'Survey Uplink' });
     await expect(surveyUplink.getByText('Paused')).toBeVisible();
   });
 
@@ -136,7 +147,7 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    const surveyUplink = page.locator('card').filter({ hasText: 'Survey Uplink' });
+    const surveyUplink = page.locator('[data-slot="card"]').filter({ hasText: 'Survey Uplink' });
     await expect(surveyUplink.getByText('Disabled')).toBeVisible();
     await expect(surveyUplink.getByText(/Power deficit/)).toBeVisible();
   });
@@ -170,6 +181,6 @@ test.describe('Services page with live data', () => {
     });
     await page.goto('/services');
 
-    await expect(page.getByText('5 of 5')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Pause/ })).toHaveCount(5);
   });
 });

@@ -32,8 +32,9 @@ test.describe('Prestige page with live data', () => {
     });
     await page.goto('/prestige');
 
-    await expect(page.getByTestId('doctrine-fragments')).toBeVisible();
-    await expect(page.getByText('0')).toBeVisible();
+    const fragments = page.getByTestId('doctrine-fragments');
+    await expect(fragments).toBeVisible();
+    await expect(fragments.getByText('0', { exact: true })).toBeVisible();
   });
 
   test('shows reset consequences when revealed', async ({ page }) => {
@@ -66,7 +67,9 @@ test.describe('Prestige page with live data', () => {
     });
     await page.goto('/prestige');
 
-    await expect(page.getByText(/Prestige is available/)).toBeVisible();
+    await expect(
+      page.getByTestId('eligibility-panel').getByText(/Prestige is available!/),
+    ).toBeVisible();
   });
 
   test('shows Begin Prestige button when eligible', async ({ page }) => {
@@ -98,9 +101,10 @@ test.describe('Prestige page with live data', () => {
     });
     await page.goto('/prestige');
 
-    await expect(page.getByTestId('unlocked-doctrines')).toBeVisible();
-    await expect(page.getByText('Efficient Shifts')).toBeVisible();
-    await expect(page.getByText('Deep Survey Protocols')).toBeVisible();
+    const unlocked = page.getByTestId('unlocked-doctrines');
+    await expect(unlocked).toBeVisible();
+    await expect(unlocked.getByRole('heading', { name: 'Efficient Shifts' })).toBeVisible();
+    await expect(unlocked.getByRole('heading', { name: 'Deep Survey Protocols' })).toBeVisible();
   });
 
   test('shows locked message when no fragments available', async ({ page }) => {

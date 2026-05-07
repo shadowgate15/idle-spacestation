@@ -26,7 +26,7 @@ export function createSessionPanelState(snapshot: GameSnapshot | null, gateway: 
   let isResetting = $state(false);
   let isConfirmingReset = $state(false);
 
-  let isBusy = $derived(isAdvancing || isResetting);
+  const isBusy = $derived(isAdvancing || isResetting);
 
   function sync(snapshot: GameSnapshot | null) {
     currentSnapshot = snapshot;

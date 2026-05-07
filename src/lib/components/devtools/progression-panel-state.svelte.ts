@@ -41,16 +41,16 @@ export function createProgressionPanelState(
 ) {
   const initialDraft = createDraft(snapshot);
   let currentSnapshot = $state<GameSnapshot | null>(snapshot);
-  let draft = $state<ProgressionDraft>(initialDraft);
+  const draft = $state<ProgressionDraft>(initialDraft);
   let lastSeededDraft = $state<ProgressionDraft>(cloneDraft(initialDraft));
   let hasSeededOnce = snapshot !== null;
   let errorMessage = $state<string | null>(null);
   let isApplying = $state(false);
 
-  let activePlanetOptions = $derived(
+  const activePlanetOptions = $derived(
     planetIds.filter((id) => draft.discoveredPlanets.includes(id)),
   );
-  let isDirty = $derived(hasProgressionDraftChanges(draft, lastSeededDraft));
+  const isDirty = $derived(hasProgressionDraftChanges(draft, lastSeededDraft));
 
   function reseedDrafts(snapshot: GameSnapshot) {
     const next = createDraft(snapshot);

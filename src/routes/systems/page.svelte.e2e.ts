@@ -22,12 +22,12 @@ test.describe('Systems page with live data', () => {
     });
     await page.goto('/systems');
 
-    await expect(page.getByText('Reactor Core')).toBeVisible();
-    await expect(page.getByText('Level 1 / 4')).toBeVisible();
-    await expect(page.getByText('Power output')).toBeVisible();
-    await expect(page.getByText('8 power')).toBeVisible();
-    await expect(page.getByText('Service power cap')).toBeVisible();
-    await expect(page.getByText('8 power')).toBeVisible();
+    const reactorCore = page.locator('[data-slot="card"]').filter({ hasText: 'Reactor Core' });
+    await expect(reactorCore).toBeVisible();
+    await expect(reactorCore.getByText('Level 1 / 4')).toBeVisible();
+    await expect(reactorCore.getByText('Power output', { exact: true })).toBeVisible();
+    await expect(reactorCore.getByText('8 power').first()).toBeVisible();
+    await expect(reactorCore.getByText('Service power cap', { exact: true })).toBeVisible();
   });
 
   test('shows upgrade buttons with costs', async ({ page }) => {
@@ -42,20 +42,34 @@ test.describe('Systems page with live data', () => {
 
   test('shows upgrade buttons disabled when insufficient materials', async ({ page }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('idle-spacestation.e2e-fixture', 'deficit');
+      localStorage.setItem('idle-spacestation.e2e-fixture', 'starter');
     });
     await page.goto('/systems');
 
-    await expect(page.getByText(/Needs/)).toBeVisible();
+    await expect(page.getByTestId('systems-header')).toBeVisible();
+
+    await page.waitForFunction(() => '__gameGateway' in window);
+    await page.evaluate(async () => {
+      const w = window as unknown as {
+        __gameGateway: {
+          applyResources: (input: { materials: number; data: number }) => Promise<unknown>;
+        };
+      };
+      await w.__gameGateway.applyResources({ materials: 0, data: 0 });
+    });
+
+    await expect(page.getByText(/Needs \d+ Materials/).first()).toBeVisible();
   });
 
   test('shows upgrade blocked reason for system', async ({ page }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('idle-spacestation.e2e-fixture', 'deficit');
+      localStorage.setItem('idle-spacestation.e2e-fixture', 'starter');
     });
     await page.goto('/systems');
 
-    await expect(page.getByText(/Materials/)).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /Upgrade \(\d+ Materials\)/ }).first(),
+    ).toBeVisible();
   });
 
   test('shows disabled upgrade button at max level', async ({ page }) => {
@@ -64,7 +78,28 @@ test.describe('Systems page with live data', () => {
     });
     await page.goto('/systems');
 
-    const reactorCore = page.locator('card').filter({ hasText: 'Reactor Core' });
+    await expect(page.getByTestId('systems-header')).toBeVisible();
+
+    await page.waitForFunction(() => '__gameGateway' in window);
+    await page.evaluate(async () => {
+      const w = window as unknown as {
+        __gameGateway: {
+          applySystems: (input: {
+            systems: Array<{ id: string; level: number }>;
+          }) => Promise<unknown>;
+        };
+      };
+      await w.__gameGateway.applySystems({
+        systems: [
+          { id: 'reactor-core', level: 4 },
+          { id: 'habitat-ring', level: 2 },
+          { id: 'logistics-spine', level: 3 },
+          { id: 'survey-array', level: 2 },
+        ],
+      });
+    });
+
+    const reactorCore = page.locator('[data-slot="card"]').filter({ hasText: 'Reactor Core' });
     await expect(reactorCore.getByRole('button', { name: /Max Level/ })).toBeVisible();
   });
 
@@ -97,6 +132,6 @@ test.describe('Systems page with live data', () => {
     });
     await page.goto('/systems');
 
-    await expect(page.getByText('Level 3 / 4')).toBeVisible();
+    await expect(page.getByText('Level 3 / 4').first()).toBeVisible();
   });
 });

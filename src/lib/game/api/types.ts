@@ -421,17 +421,17 @@ export interface DevtoolsStateSnapshot {
   snapshot: GameSnapshot;
 }
 
-export interface RawDevtoolsGetStateResponse extends RawDevtoolsStateSnapshot {}
+export type RawDevtoolsGetStateResponse = RawDevtoolsStateSnapshot;
 
-export interface DevtoolsGetStateResponse extends DevtoolsStateSnapshot {}
+export type DevtoolsGetStateResponse = DevtoolsStateSnapshot;
 
 export interface DevtoolsSetVisibilityPayload {
   visible: boolean;
 }
 
-export interface RawDevtoolsSetVisibilityResponse extends RawDevtoolsStateSnapshot {}
+export type RawDevtoolsSetVisibilityResponse = RawDevtoolsStateSnapshot;
 
-export interface DevtoolsSetVisibilityResponse extends DevtoolsStateSnapshot {}
+export type DevtoolsSetVisibilityResponse = DevtoolsStateSnapshot;
 
 export interface DevtoolsApplyResourcesPayload {
   materials: number;
@@ -536,7 +536,7 @@ export type RawDevtoolsAdvanceTicksResponse = GameActionResponse<DevtoolsAdvance
 export type GatewayDevtoolsAdvanceTicksResponse =
   GatewayActionResponse<DevtoolsAdvanceTicksRejectionCode>;
 
-export interface DevtoolsResetToStarterPayload {}
+export type DevtoolsResetToStarterPayload = Record<string, never>;
 
 export type DevtoolsResetToStarterRejectionCode = 'invalid_state';
 

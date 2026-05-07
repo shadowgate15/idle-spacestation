@@ -183,24 +183,33 @@ test.describe('Devtools overlay in preview fixture mode', () => {
     await expect(input).toBeFocused();
   });
 
-  test('polling resumes after blur', async ({ page }) => {
+  test('snapshot updates resume after blur', async ({ page }) => {
     await gotoSeededOverview(page);
 
     const input = page.getByTestId('devtools-materials-input');
     const overlay = page.getByTestId('devtools-overlay');
 
-    await input.click();
-    await page.waitForTimeout(2500);
-    const tickWhileFocused = await readDisplayedTick(overlay);
+    const tickBeforeFocus = await readDisplayedTick(overlay);
 
+    await input.click();
+    await expect(input).toBeFocused();
+
+    // Drive a snapshot update via the fixture transport while focused; the
+    // gameState defer mechanism should withhold it from the UI.
+    await advanceTicksViaFixture(page, 5);
+    await page.waitForTimeout(250);
+    const tickWhileFocused = await readDisplayedTick(overlay);
+    expect(tickWhileFocused).toBe(tickBeforeFocus);
+
+    // Blur — deferred pending snapshot should now apply.
     await input.evaluate((el) => (el as HTMLInputElement).blur());
 
     await expect
-      .poll(async () => readDisplayedTick(overlay), { timeout: 5000, intervals: [250, 500, 750] })
+      .poll(async () => readDisplayedTick(overlay), { timeout: 5000, intervals: [100, 250, 500] })
       .toBeGreaterThan(tickWhileFocused);
   });
 
-  test('polling does not pause when focus is on Apply button', async ({ page }) => {
+  test('snapshot updates do not pause when focus is on Apply button', async ({ page }) => {
     await gotoSeededOverview(page);
 
     const applyBtn = page.getByTestId('devtools-resources-apply');
@@ -211,32 +220,53 @@ test.describe('Devtools overlay in preview fixture mode', () => {
 
     const tickBefore = await readDisplayedTick(overlay);
 
+    // Drive a snapshot update — buttons should NOT defer (only editable inputs do).
+    await advanceTicksViaFixture(page, 3);
+
     await expect
-      .poll(async () => readDisplayedTick(overlay), { timeout: 5000, intervals: [250, 500, 750] })
+      .poll(async () => readDisplayedTick(overlay), { timeout: 5000, intervals: [100, 250, 500] })
       .toBeGreaterThan(tickBefore);
 
     await expect(applyBtn).toBeFocused();
   });
 
-  test('polling resumes after focused input is removed from DOM (self-heal)', async ({ page }) => {
+  test('snapshot updates resume after focused input is removed from DOM (self-heal)', async ({
+    page,
+  }) => {
     await gotoSeededOverview(page);
 
     const input = page.getByTestId('devtools-materials-input');
     const overlay = page.getByTestId('devtools-overlay');
 
     await input.click();
-    await page.waitForTimeout(1500); // confirm polling paused
-    const tickWhileRemoved = await readDisplayedTick(overlay);
+    await expect(input).toBeFocused();
 
-    // Remove the focused input from the DOM — simulates stuck focus
+    // Drive a snapshot update while focused — should be deferred.
+    await advanceTicksViaFixture(page, 4);
+    await page.waitForTimeout(250);
+    const tickWhileFocused = await readDisplayedTick(overlay);
+
+    // Remove the focused input from the DOM — simulates stuck focus.
+    // focusout fires, gameState.deferUntilBlur(false) called, pending snapshot applies.
     await input.evaluate((el) => el.remove());
 
-    // Polling should self-heal because document.activeElement falls back to <body>
     await expect
-      .poll(async () => readDisplayedTick(overlay), { timeout: 5000, intervals: [250, 500, 750] })
-      .toBeGreaterThan(tickWhileRemoved);
+      .poll(async () => readDisplayedTick(overlay), { timeout: 5000, intervals: [100, 250, 500] })
+      .toBeGreaterThan(tickWhileFocused);
   });
 });
+
+async function advanceTicksViaFixture(page: Page, count: number) {
+  await page.evaluate(async (n) => {
+    const w = window as unknown as {
+      __gameGateway?: { advanceTicks: (input: { count: number }) => Promise<unknown> };
+    };
+    if (!w.__gameGateway) {
+      throw new Error('window.__gameGateway is not available — fixture mode hook missing');
+    }
+    await w.__gameGateway.advanceTicks({ count: n });
+  }, count);
+}
 
 async function typeAcrossPollingTicks(locator: Locator, text: string) {
   // Focus, select existing value, then type per-key to span > 1 polling interval (1000ms).

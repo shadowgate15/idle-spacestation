@@ -573,15 +573,9 @@ function createRawActionSuccess(snapshot: RawGameSnapshot) {
 describe('subscribeToStateChanges', () => {
   it('gateway exposes subscribeToStateChanges method and returns an unsubscribe function', async () => {
     const mockUnlisten = vi.fn();
-    let capturedHandler: ((event: { payload: RawGameSnapshot }) => void) | undefined;
 
     vi.doMock('@tauri-apps/api/event', () => ({
-      listen: vi.fn(
-        async (_eventName: string, handler: (event: { payload: RawGameSnapshot }) => void) => {
-          capturedHandler = handler;
-          return mockUnlisten;
-        },
-      ),
+      listen: vi.fn(async () => mockUnlisten),
     }));
 
     const { createGameGateway: createGameGateway2 } = await import('./gateway');

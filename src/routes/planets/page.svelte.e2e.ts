@@ -36,10 +36,11 @@ test.describe('Planets page with live data', () => {
     });
     await page.goto('/planets');
 
-    await expect(page.getByText(/Current/)).toBeVisible();
-    await expect(page.getByText(/Next Target/)).toBeVisible();
-    await expect(page.getByText('Cinder Forge')).toBeVisible();
-    await expect(page.getByText('600')).toBeVisible();
+    const surveyProgress = page.getByTestId('survey-progress');
+    await expect(surveyProgress.getByText(/Current/).first()).toBeVisible();
+    await expect(surveyProgress.getByText(/Next Target/)).toBeVisible();
+    await expect(surveyProgress.getByText('Cinder Forge', { exact: true })).toBeVisible();
+    await expect(surveyProgress.getByText('600', { exact: true })).toBeVisible();
   });
 
   test('displays planet modifiers', async ({ page }) => {
@@ -62,6 +63,6 @@ test.describe('Planets page with live data', () => {
     await expect(page.getByTestId('planet-cinder-forge')).toBeVisible();
     await expect(page.getByTestId('planet-aurora-pier')).toBeVisible();
 
-    await expect(page.getByText('Selectable', { exact: true })).toBeVisible();
+    await expect(page.getByText('Selectable', { exact: true }).first()).toBeVisible();
   });
 });

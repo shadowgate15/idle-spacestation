@@ -20,7 +20,7 @@
     upgrading = new Set([...upgrading, systemId]);
     try {
       await gameGateway.upgradeSystem({ systemId });
-    } catch (e) {
+    } catch {
       // Error is handled by gameState
     } finally {
       upgrading = new Set([...upgrading].filter((id) => id !== systemId));

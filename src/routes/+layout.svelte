@@ -66,6 +66,14 @@
       console.error('[layout] gameState.init failed:', err);
     });
 
+    // Expose gameState + gameGateway on window in fixture mode so E2E tests
+    // can drive snapshot updates deterministically (replaces the old
+    // periodic-polling assumption now that snapshots are push-based).
+    if (isFixtureModeEnabled() && typeof window !== 'undefined') {
+      (window as unknown as Record<string, unknown>).__gameState = gameState;
+      (window as unknown as Record<string, unknown>).__gameGateway = gameGateway;
+    }
+
     function onFocusIn() {
       if (isEditableDevtoolsInputFocused()) {
         gameState.deferUntilBlur(true);

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { gameState } from '$lib/game/api/state.svelte';
-  import type { PlanetsViewModel } from '$lib/game/api/types';
 
   const planets = $derived.by(() => {
     return gameState.snapshot?.routes.planets ?? null;

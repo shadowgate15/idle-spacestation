@@ -11,14 +11,18 @@ test.describe('Overview page with live data', () => {
     await expect(page.getByText(/Station Command/)).toBeVisible();
     await expect(page.getByText('Solstice Anchor')).toBeVisible();
 
-    await expect(page.getByTestId('resource-strip')).toBeVisible();
-    await expect(page.getByText(/Power/)).toBeVisible();
-    await expect(page.getByText(/Materials/)).toBeVisible();
-    await expect(page.getByText(/Data/)).toBeVisible();
+    const resourceStrip = page.getByTestId('resource-strip');
+    await expect(resourceStrip).toBeVisible();
+    await expect(resourceStrip.getByText('Power')).toBeVisible();
+    await expect(resourceStrip.getByText('Materials')).toBeVisible();
+    await expect(resourceStrip.getByText('Data')).toBeVisible();
 
-    await expect(page.getByTestId('overview-panel')).toBeVisible();
-    await expect(page.getByText(/Tier 1/)).toBeVisible();
-    await expect(page.getByText(/Service Utilization/)).toBeVisible();
+    const overviewPanel = page.getByTestId('overview-panel');
+    await expect(overviewPanel).toBeVisible();
+    await expect(overviewPanel.getByRole('heading', { name: /Tier 1/ })).toBeVisible();
+    await expect(
+      page.getByTestId('station-stats').getByRole('heading', { name: /Service Utilization/ }),
+    ).toBeVisible();
 
     await expect(page.getByTestId('survey-panel')).toBeVisible();
   });
@@ -29,8 +33,11 @@ test.describe('Overview page with live data', () => {
     });
     await page.goto('/');
 
-    await expect(page.getByTestId('deficit-warnings')).toBeVisible();
-    await expect(page.getByText(/Power deficit in progress/i)).toBeVisible();
+    const deficitWarnings = page.getByTestId('deficit-warnings');
+    await expect(deficitWarnings).toBeVisible();
+    await expect(
+      deficitWarnings.getByRole('heading', { name: /Power deficit in progress/i }),
+    ).toBeVisible();
   });
 
   test('renders prestige-ready fixture data correctly', async ({ page }) => {
@@ -40,7 +47,9 @@ test.describe('Overview page with live data', () => {
     await page.goto('/');
 
     await expect(page.getByText(/Aurora Pier/)).toBeVisible();
-    await expect(page.getByText(/Tier 1/)).toBeVisible();
+    await expect(
+      page.getByTestId('overview-panel').getByRole('heading', { name: /Tier \d+/ }),
+    ).toBeVisible();
     await expect(page.getByTestId('survey-panel')).toBeVisible();
   });
 

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { gameState } from '$lib/game/api/state.svelte';
-  import type { PrestigeViewModel } from '$lib/game/api/types';
 
   const prestige = $derived.by(() => {
     return gameState.snapshot?.routes.prestige ?? null;

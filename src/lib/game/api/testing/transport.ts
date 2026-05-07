@@ -43,7 +43,6 @@ import {
   createFixtureState,
   currentSystemLevelValue,
   FIXTURE_STORAGE_KEY,
-  isPreviewFixtureName,
   readPreviewFixtureName,
 } from './fixtures';
 
@@ -71,15 +70,6 @@ const DEVTOOLS_SYSTEM_IDS = [
   'habitat-ring',
   'logistics-spine',
   'survey-array',
-] as const;
-
-const DEVTOOLS_SERVICE_IDS = [
-  'solar-harvester',
-  'ore-reclaimer',
-  'survey-uplink',
-  'maintenance-bay',
-  'command-relay',
-  'fabrication-loop',
 ] as const;
 
 const DEVTOOLS_PLANET_IDS = ['solstice-anchor', 'cinder-forge', 'aurora-pier'] as const;
