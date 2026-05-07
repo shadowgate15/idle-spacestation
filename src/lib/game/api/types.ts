@@ -648,4 +648,12 @@ export interface GameTransport {
     command: TCommand,
     payload: GameCommandPayloads[TCommand],
   ): Promise<GameCommandResponses[TCommand]>;
+  subscribeToStateChanges(callback: (raw: RawGameSnapshot) => void): () => void;
+}
+
+export class GameStateInitError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'GameStateInitError';
+  }
 }
