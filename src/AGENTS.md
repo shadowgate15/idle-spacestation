@@ -43,18 +43,18 @@ src/
 
 ## WHERE TO LOOK
 
-| Task                            | Location                                                      | Notes                                                                |
-| ------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------- |
-| App shell, nav, devtools mount  | `routes/+layout.svelte`, `routes/+layout.ts`, `routes/layout.css` | Polling, IPC event listeners, fixture-mode localStorage hooks       |
-| Per-route page + tests          | `routes/<name>/+page.svelte` (+ `.spec.ts`, `.e2e.ts`)        | Five game routes follow the same load → ViewModel → render shape    |
-| Frontend → Rust calls           | `lib/game/api/gateway.ts`                                     | `gameGateway` is the only legitimate `invoke` consumer              |
-| Per-route ViewModels            | `lib/game/api/adapters.ts`                                    | `adaptOverviewViewModel`, `adaptPlanetsViewModel`, etc.             |
-| Game types & rejection codes    | `lib/game/api/types.ts`                                       | Mirror Rust DTOs; rejection enums per command                        |
-| Test fixtures & mock transport  | `lib/game/api/testing/`                                       | `starter`, `deficit`, `all-planets`, `prestige-ready` fixtures       |
-| Devtools overlay & panels       | `lib/components/DevtoolsOverlay.svelte`, `lib/components/devtools/` | 6 panels: Resources, Crew, Systems, Services, Progression, Session  |
-| Shared UI primitives            | `lib/components/ui/`                                          | `button/`, `card/` (7 parts), `input/` — each with `index.ts` barrel |
-| Shared helpers                  | `lib/utils.ts`                                                | `cn()` and component-prop type helpers                               |
-| Storybook examples              | `../.storybook/`, `stories/`                                  | Template-only; not consumed by the app                               |
+| Task                           | Location                                                            | Notes                                                                |
+| ------------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| App shell, nav, devtools mount | `routes/+layout.svelte`, `routes/+layout.ts`, `routes/layout.css`   | Polling, IPC event listeners, fixture-mode localStorage hooks        |
+| Per-route page + tests         | `routes/<name>/+page.svelte` (+ `.spec.ts`, `.e2e.ts`)              | Five game routes follow the same load → ViewModel → render shape     |
+| Frontend → Rust calls          | `lib/game/api/gateway.ts`                                           | `gameGateway` is the only legitimate `invoke` consumer               |
+| Per-route ViewModels           | `lib/game/api/adapters.ts`                                          | `adaptOverviewViewModel`, `adaptPlanetsViewModel`, etc.              |
+| Game types & rejection codes   | `lib/game/api/types.ts`                                             | Mirror Rust DTOs; rejection enums per command                        |
+| Test fixtures & mock transport | `lib/game/api/testing/`                                             | `starter`, `deficit`, `all-planets`, `prestige-ready` fixtures       |
+| Devtools overlay & panels      | `lib/components/DevtoolsOverlay.svelte`, `lib/components/devtools/` | 6 panels: Resources, Crew, Systems, Services, Progression, Session   |
+| Shared UI primitives           | `lib/components/ui/`                                                | `button/`, `card/` (7 parts), `input/` — each with `index.ts` barrel |
+| Shared helpers                 | `lib/utils.ts`                                                      | `cn()` and component-prop type helpers                               |
+| Storybook examples             | `../.storybook/`, `stories/`                                        | Template-only; not consumed by the app                               |
 
 ## CONVENTIONS
 

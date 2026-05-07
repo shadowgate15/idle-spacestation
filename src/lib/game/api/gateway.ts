@@ -69,7 +69,8 @@ const tauriTransport: GameGatewayTransport = {
           ? 'game_execute_prestige'
           : command;
 
-    const args = NO_INPUT_COMMANDS.has(rustCommand) || payload === undefined ? undefined : { input: payload };
+    const args =
+      NO_INPUT_COMMANDS.has(rustCommand) || payload === undefined ? undefined : { input: payload };
 
     return tauriInvoke(rustCommand, args as InvokeArgs | undefined) as Promise<
       GameCommandResponses[typeof command]
@@ -82,7 +83,7 @@ const tauriTransport: GameGatewayTransport = {
       .then(({ listen }) =>
         listen<RawGameSnapshot>('game://state-changed', (event) => {
           if (!cancelled) callback(event.payload);
-        })
+        }),
       )
       .then((fn) => {
         if (cancelled) fn();
@@ -101,7 +102,8 @@ const tauriTransport: GameGatewayTransport = {
 export function createGameGateway(transport: GameGatewayTransport = resolveDefaultTransport()) {
   return {
     transport,
-    subscribeToStateChanges: (callback: (raw: RawGameSnapshot) => void) => transport.subscribeToStateChanges(callback),
+    subscribeToStateChanges: (callback: (raw: RawGameSnapshot) => void) =>
+      transport.subscribeToStateChanges(callback),
     getSnapshot: () => invokeSnapshot('game_get_snapshot', undefined, transport),
     upgradeSystem: (input: UpgradeSystemInput) =>
       invokeAction<'game_upgrade_system', SystemUpgradeRejectionCode>(
@@ -216,7 +218,11 @@ async function invokeDevtoolsState<
   command: TCommand,
   payload: DevtoolsCommandPayloads[TCommand],
   transport: GameGatewayTransport,
-): Promise<TCommand extends 'game_devtools_get_state' ? DevtoolsGetStateResponse : DevtoolsSetVisibilityResponse> {
+): Promise<
+  TCommand extends 'game_devtools_get_state'
+    ? DevtoolsGetStateResponse
+    : DevtoolsSetVisibilityResponse
+> {
   const response = (await (transport as DevtoolsCommandTransport).invoke(
     command,
     payload,
@@ -245,17 +251,17 @@ async function invokeAction<
   payload: (GameCommandPayloads & DevtoolsCommandPayloads)[TCommand],
   transport: GameGatewayTransport,
 ): Promise<GatewayActionResponse<TReason>> {
-  const response = (command.startsWith('game_devtools_')
-    ? await (transport as DevtoolsCommandTransport).invoke(
-        command as DevtoolsCommandName,
-        payload as DevtoolsCommandPayloads[DevtoolsCommandName],
-      )
-    : await transport.invoke(
-        command as GameCommandName,
-        payload as GameCommandPayloads[GameCommandName],
-      )) as
-    | GameCommandResponses[GameCommandName]
-    | DevtoolsCommandResponses[DevtoolsCommandName];
+  const response = (
+    command.startsWith('game_devtools_')
+      ? await (transport as DevtoolsCommandTransport).invoke(
+          command as DevtoolsCommandName,
+          payload as DevtoolsCommandPayloads[DevtoolsCommandName],
+        )
+      : await transport.invoke(
+          command as GameCommandName,
+          payload as GameCommandPayloads[GameCommandName],
+        )
+  ) as GameCommandResponses[GameCommandName] | DevtoolsCommandResponses[DevtoolsCommandName];
 
   if (!('ok' in response)) {
     throw new Error(`Command ${command} did not return an action response`);

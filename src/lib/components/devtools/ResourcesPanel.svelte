@@ -25,14 +25,17 @@
   });
 </script>
 
-<div data-testid="devtools-resources-panel" class="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
+<div
+  data-testid="devtools-resources-panel"
+  class="rounded-md border border-zinc-800 bg-zinc-950/60 p-3"
+>
   <div class="mb-3 flex items-start justify-between gap-3">
     <div>
       <h4 class="text-sm font-semibold text-zinc-100">Resources</h4>
       <p class="text-xs text-zinc-500">Stage materials and data values, then apply them.</p>
     </div>
 
-    <div class="text-right text-[0.625rem] font-mono uppercase tracking-wide text-zinc-500">
+    <div class="text-right font-mono text-[0.625rem] tracking-wide text-zinc-500 uppercase">
       <div>Power</div>
       <div>{state.snapshot ? `${state.snapshot.resources.power.available} avail` : 'offline'}</div>
     </div>
@@ -68,11 +71,11 @@
     </label>
 
     <div class="rounded-md border border-zinc-800 bg-zinc-900/60 p-2">
-      <div class="mb-2 text-[0.625rem] font-semibold uppercase tracking-wide text-zinc-500">
+      <div class="mb-2 text-[0.625rem] font-semibold tracking-wide text-zinc-500 uppercase">
         Power (read only)
       </div>
 
-      <div class="grid grid-cols-3 gap-2 text-xs font-mono text-zinc-300">
+      <div class="grid grid-cols-3 gap-2 font-mono text-xs text-zinc-300">
         <div class="grid gap-1">
           <span class="text-zinc-500">Generated</span>
           <span>{state.snapshot ? state.snapshot.resources.power.generated : '—'}</span>
@@ -92,7 +95,10 @@
   <div class="mt-3 flex items-center justify-between gap-3">
     <p
       data-testid="devtools-resources-error"
-      class={cn('min-h-4 text-xs font-medium', state.errorMessage ? 'text-amber-400' : 'text-zinc-600')}
+      class={cn(
+        'min-h-4 text-xs font-medium',
+        state.errorMessage ? 'text-amber-400' : 'text-zinc-600',
+      )}
     >
       {state.errorMessage ?? ''}
     </p>

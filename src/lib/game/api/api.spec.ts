@@ -277,7 +277,8 @@ describe('game api fixtures and adapters', () => {
         case 'game_devtools_get_state':
           return createRawDevtoolsState(rawSnapshot, false);
         case 'game_devtools_apply_resources': {
-          const resourcesPayload = payload as DevtoolsCommandPayloads['game_devtools_apply_resources'];
+          const resourcesPayload =
+            payload as DevtoolsCommandPayloads['game_devtools_apply_resources'];
           rawSnapshot = {
             ...structuredClone(rawSnapshot),
             resources: {
@@ -575,10 +576,12 @@ describe('subscribeToStateChanges', () => {
     let capturedHandler: ((event: { payload: RawGameSnapshot }) => void) | undefined;
 
     vi.doMock('@tauri-apps/api/event', () => ({
-      listen: vi.fn(async (_eventName: string, handler: (event: { payload: RawGameSnapshot }) => void) => {
-        capturedHandler = handler;
-        return mockUnlisten;
-      }),
+      listen: vi.fn(
+        async (_eventName: string, handler: (event: { payload: RawGameSnapshot }) => void) => {
+          capturedHandler = handler;
+          return mockUnlisten;
+        },
+      ),
     }));
 
     const { createGameGateway: createGameGateway2 } = await import('./gateway');
@@ -601,10 +604,12 @@ describe('subscribeToStateChanges', () => {
     let capturedHandler: ((event: { payload: RawGameSnapshot }) => void) | undefined;
 
     vi.doMock('@tauri-apps/api/event', () => ({
-      listen: vi.fn(async (_eventName: string, handler: (event: { payload: RawGameSnapshot }) => void) => {
-        capturedHandler = handler;
-        return mockUnlisten;
-      }),
+      listen: vi.fn(
+        async (_eventName: string, handler: (event: { payload: RawGameSnapshot }) => void) => {
+          capturedHandler = handler;
+          return mockUnlisten;
+        },
+      ),
     }));
 
     const mockTransport: GameGatewayTransport = {
@@ -616,7 +621,7 @@ describe('subscribeToStateChanges', () => {
           .then(({ listen }) =>
             listen<RawGameSnapshot>('game://state-changed', (event) => {
               if (!cancelled) cb(event.payload);
-            })
+            }),
           )
           .then((fn) => {
             if (cancelled) fn();

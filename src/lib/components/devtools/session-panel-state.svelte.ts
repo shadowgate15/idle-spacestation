@@ -7,8 +7,12 @@ import type {
 } from '$lib/game/api/types';
 
 type SessionGateway = {
-  advanceTicks: (input: DevtoolsAdvanceTicksPayload) => Promise<GatewayDevtoolsAdvanceTicksResponse>;
-  resetToStarter: (input: DevtoolsResetToStarterPayload) => Promise<GatewayDevtoolsResetToStarterResponse>;
+  advanceTicks: (
+    input: DevtoolsAdvanceTicksPayload,
+  ) => Promise<GatewayDevtoolsAdvanceTicksResponse>;
+  resetToStarter: (
+    input: DevtoolsResetToStarterPayload,
+  ) => Promise<GatewayDevtoolsResetToStarterResponse>;
 };
 
 const ADVANCE_TICKS_MIN = 1;

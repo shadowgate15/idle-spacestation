@@ -46,7 +46,9 @@
       />
     </label>
 
-    <div class="grid grid-cols-2 gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2 text-xs font-mono text-zinc-300">
+    <div
+      class="grid grid-cols-2 gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2 font-mono text-xs text-zinc-300"
+    >
       <div class="grid gap-1">
         <span class="text-zinc-500">Assigned</span>
         <span>{state.snapshot ? state.snapshot.resources.crew.assigned : '—'}</span>
@@ -61,7 +63,10 @@
   <div class="mt-3 flex items-center justify-between gap-3">
     <p
       data-testid="devtools-crew-error"
-      class={cn('min-h-4 text-xs font-medium', state.errorMessage ? 'text-amber-400' : 'text-zinc-600')}
+      class={cn(
+        'min-h-4 text-xs font-medium',
+        state.errorMessage ? 'text-amber-400' : 'text-zinc-600',
+      )}
     >
       {state.errorMessage ?? ''}
     </p>

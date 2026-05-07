@@ -37,15 +37,20 @@
   }
 </script>
 
-<div data-testid="devtools-progression-panel" class="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
+<div
+  data-testid="devtools-progression-panel"
+  class="rounded-md border border-zinc-800 bg-zinc-950/60 p-3"
+>
   <div class="mb-3">
     <h4 class="text-sm font-semibold text-zinc-100">Progression</h4>
-    <p class="text-xs text-zinc-500">Stage doctrine and exploration progression changes, then apply them together.</p>
+    <p class="text-xs text-zinc-500">
+      Stage doctrine and exploration progression changes, then apply them together.
+    </p>
   </div>
 
   <div class="grid gap-3">
     <div class="grid gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2">
-      <div class="text-[0.625rem] font-mono uppercase tracking-wide text-zinc-500">
+      <div class="font-mono text-[0.625rem] tracking-wide text-zinc-500 uppercase">
         Current fragments: {state.snapshot?.run.doctrineFragments ?? '—'}
       </div>
 
@@ -67,7 +72,7 @@
     <div class="grid gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2">
       <div>
         <div class="text-xs font-semibold text-zinc-200">Unlocked doctrines</div>
-        <div class="text-[0.625rem] font-mono uppercase tracking-wide text-zinc-500">
+        <div class="font-mono text-[0.625rem] tracking-wide text-zinc-500 uppercase">
           Current: {state.snapshot?.run.doctrineIds.join(', ') || 'none'}
         </div>
       </div>
@@ -92,7 +97,7 @@
     <div class="grid gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2">
       <div>
         <div class="text-xs font-semibold text-zinc-200">Discovered planets</div>
-        <div class="text-[0.625rem] font-mono uppercase tracking-wide text-zinc-500">
+        <div class="font-mono text-[0.625rem] tracking-wide text-zinc-500 uppercase">
           Current: {state.snapshot?.run.discoveredPlanetIds.join(', ') || 'none'}
         </div>
       </div>
@@ -115,7 +120,7 @@
     </div>
 
     <div class="grid gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2">
-      <div class="text-[0.625rem] font-mono uppercase tracking-wide text-zinc-500">
+      <div class="font-mono text-[0.625rem] tracking-wide text-zinc-500 uppercase">
         Current active planet: {state.snapshot?.run.activePlanetId ?? '—'}
       </div>
 
@@ -127,7 +132,7 @@
           onchange={(event) => state.setActivePlanet(event.currentTarget.value as PlanetId)}
           disabled={state.isApplying}
           class={cn(
-            'flex h-7 w-full min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 font-mono text-sm text-zinc-100 outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-xs/relaxed dark:bg-input/30',
+            'flex h-7 w-full min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 font-mono text-sm text-zinc-100 transition-colors outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-xs/relaxed dark:bg-input/30',
           )}
         >
           {#each state.activePlanetOptions as planetId (planetId)}
@@ -138,7 +143,7 @@
     </div>
 
     <div class="grid gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2">
-      <div class="text-[0.625rem] font-mono uppercase tracking-wide text-zinc-500">
+      <div class="font-mono text-[0.625rem] tracking-wide text-zinc-500 uppercase">
         Current survey progress: {state.snapshot?.run.surveyProgress ?? '—'}
       </div>
 
@@ -162,7 +167,10 @@
   <div class="mt-3 flex items-center justify-between gap-3">
     <p
       data-testid="devtools-progression-error"
-      class={cn('min-h-4 text-xs font-medium', state.errorMessage ? 'text-amber-400' : 'text-zinc-600')}
+      class={cn(
+        'min-h-4 text-xs font-medium',
+        state.errorMessage ? 'text-amber-400' : 'text-zinc-600',
+      )}
     >
       {state.errorMessage ?? ''}
     </p>

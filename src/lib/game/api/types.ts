@@ -440,13 +440,11 @@ export interface DevtoolsApplyResourcesPayload {
 
 export type DevtoolsApplyResourcesRejectionCode = 'invalid_range' | 'invalid_state';
 
-export type RawDevtoolsApplyResourcesResponse = GameActionResponse<
-  DevtoolsApplyResourcesRejectionCode
->;
+export type RawDevtoolsApplyResourcesResponse =
+  GameActionResponse<DevtoolsApplyResourcesRejectionCode>;
 
-export type GatewayDevtoolsApplyResourcesResponse = GatewayActionResponse<
-  DevtoolsApplyResourcesRejectionCode
->;
+export type GatewayDevtoolsApplyResourcesResponse =
+  GatewayActionResponse<DevtoolsApplyResourcesRejectionCode>;
 
 export interface DevtoolsApplyCrewPayload {
   crewTotal: number;
@@ -459,9 +457,8 @@ export type DevtoolsApplyCrewRejectionCode =
 
 export type RawDevtoolsApplyCrewResponse = GameActionResponse<DevtoolsApplyCrewRejectionCode>;
 
-export type GatewayDevtoolsApplyCrewResponse = GatewayActionResponse<
-  DevtoolsApplyCrewRejectionCode
->;
+export type GatewayDevtoolsApplyCrewResponse =
+  GatewayActionResponse<DevtoolsApplyCrewRejectionCode>;
 
 export interface DevtoolsApplySystemsEntryPayload {
   id: SystemId;
@@ -478,13 +475,10 @@ export type DevtoolsApplySystemsRejectionCode =
   | 'constraint_violation'
   | 'invalid_state';
 
-export type RawDevtoolsApplySystemsResponse = GameActionResponse<
-  DevtoolsApplySystemsRejectionCode
->;
+export type RawDevtoolsApplySystemsResponse = GameActionResponse<DevtoolsApplySystemsRejectionCode>;
 
-export type GatewayDevtoolsApplySystemsResponse = GatewayActionResponse<
-  DevtoolsApplySystemsRejectionCode
->;
+export type GatewayDevtoolsApplySystemsResponse =
+  GatewayActionResponse<DevtoolsApplySystemsRejectionCode>;
 
 export interface DevtoolsApplyServicesEntryPayload {
   id: ServiceId;
@@ -503,13 +497,11 @@ export type DevtoolsApplyServicesRejectionCode =
   | 'constraint_violation'
   | 'invalid_state';
 
-export type RawDevtoolsApplyServicesResponse = GameActionResponse<
-  DevtoolsApplyServicesRejectionCode
->;
+export type RawDevtoolsApplyServicesResponse =
+  GameActionResponse<DevtoolsApplyServicesRejectionCode>;
 
-export type GatewayDevtoolsApplyServicesResponse = GatewayActionResponse<
-  DevtoolsApplyServicesRejectionCode
->;
+export type GatewayDevtoolsApplyServicesResponse =
+  GatewayActionResponse<DevtoolsApplyServicesRejectionCode>;
 
 export type DevtoolsProgressionSurveyProgressPayload = Partial<Record<PlanetId, number>>;
 
@@ -527,13 +519,11 @@ export type DevtoolsApplyProgressionRejectionCode =
   | 'constraint_violation'
   | 'invalid_state';
 
-export type RawDevtoolsApplyProgressionResponse = GameActionResponse<
-  DevtoolsApplyProgressionRejectionCode
->;
+export type RawDevtoolsApplyProgressionResponse =
+  GameActionResponse<DevtoolsApplyProgressionRejectionCode>;
 
-export type GatewayDevtoolsApplyProgressionResponse = GatewayActionResponse<
-  DevtoolsApplyProgressionRejectionCode
->;
+export type GatewayDevtoolsApplyProgressionResponse =
+  GatewayActionResponse<DevtoolsApplyProgressionRejectionCode>;
 
 export interface DevtoolsAdvanceTicksPayload {
   count: number;
@@ -541,25 +531,20 @@ export interface DevtoolsAdvanceTicksPayload {
 
 export type DevtoolsAdvanceTicksRejectionCode = 'invalid_range' | 'invalid_state';
 
-export type RawDevtoolsAdvanceTicksResponse = GameActionResponse<
-  DevtoolsAdvanceTicksRejectionCode
->;
+export type RawDevtoolsAdvanceTicksResponse = GameActionResponse<DevtoolsAdvanceTicksRejectionCode>;
 
-export type GatewayDevtoolsAdvanceTicksResponse = GatewayActionResponse<
-  DevtoolsAdvanceTicksRejectionCode
->;
+export type GatewayDevtoolsAdvanceTicksResponse =
+  GatewayActionResponse<DevtoolsAdvanceTicksRejectionCode>;
 
 export interface DevtoolsResetToStarterPayload {}
 
 export type DevtoolsResetToStarterRejectionCode = 'invalid_state';
 
-export type RawDevtoolsResetToStarterResponse = GameActionResponse<
-  DevtoolsResetToStarterRejectionCode
->;
+export type RawDevtoolsResetToStarterResponse =
+  GameActionResponse<DevtoolsResetToStarterRejectionCode>;
 
-export type GatewayDevtoolsResetToStarterResponse = GatewayActionResponse<
-  DevtoolsResetToStarterRejectionCode
->;
+export type GatewayDevtoolsResetToStarterResponse =
+  GatewayActionResponse<DevtoolsResetToStarterRejectionCode>;
 
 export interface DevtoolsCommandPayloads {
   game_devtools_get_state: undefined;

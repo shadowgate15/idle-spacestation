@@ -210,8 +210,8 @@ export function createFixtureTransport(fixtureName: PreviewFixtureName): Preview
             devtoolsVisible,
           ) as FixtureCommandResponses[TCommand];
         case 'game_devtools_set_visibility':
-          devtoolsVisible =
-            (payload as DevtoolsCommandPayloads['game_devtools_set_visibility']).visible;
+          devtoolsVisible = (payload as DevtoolsCommandPayloads['game_devtools_set_visibility'])
+            .visible;
           return buildDevtoolsVisibilityResponse(
             snapshot(),
             devtoolsVisible,
@@ -226,29 +226,17 @@ export function createFixtureTransport(fixtureName: PreviewFixtureName): Preview
           return result as FixtureCommandResponses[TCommand];
         }
         case 'game_devtools_apply_crew': {
-          const result = applyCrew(
-            state,
-            fixtureName,
-            payload as DevtoolsApplyCrewPayload,
-          );
+          const result = applyCrew(state, fixtureName, payload as DevtoolsApplyCrewPayload);
           notify();
           return result as FixtureCommandResponses[TCommand];
         }
         case 'game_devtools_apply_systems': {
-          const result = applySystems(
-            state,
-            fixtureName,
-            payload as DevtoolsApplySystemsPayload,
-          );
+          const result = applySystems(state, fixtureName, payload as DevtoolsApplySystemsPayload);
           notify();
           return result as FixtureCommandResponses[TCommand];
         }
         case 'game_devtools_apply_services': {
-          const result = applyServices(
-            state,
-            fixtureName,
-            payload as DevtoolsApplyServicesPayload,
-          );
+          const result = applyServices(state, fixtureName, payload as DevtoolsApplyServicesPayload);
           notify();
           return result as FixtureCommandResponses[TCommand];
         }
@@ -262,11 +250,7 @@ export function createFixtureTransport(fixtureName: PreviewFixtureName): Preview
           return result as FixtureCommandResponses[TCommand];
         }
         case 'game_devtools_advance_ticks': {
-          const result = advanceTicks(
-            state,
-            fixtureName,
-            payload as DevtoolsAdvanceTicksPayload,
-          );
+          const result = advanceTicks(state, fixtureName, payload as DevtoolsAdvanceTicksPayload);
           notify();
           return result as FixtureCommandResponses[TCommand];
         }
@@ -912,13 +896,12 @@ function replaceFixtureState(target: PreviewFixtureState, next: PreviewFixtureSt
   target.services = next.services.map((service) => ({ ...service }));
 }
 
-function sortByOrder<T extends string>(
-  values: readonly T[],
-  order: readonly T[],
-): T[] {
+function sortByOrder<T extends string>(values: readonly T[], order: readonly T[]): T[] {
   const orderIndex = new Map(order.map((value, index) => [value, index]));
   return [...values].sort(
-    (left, right) => (orderIndex.get(left) ?? Number.MAX_SAFE_INTEGER) - (orderIndex.get(right) ?? Number.MAX_SAFE_INTEGER),
+    (left, right) =>
+      (orderIndex.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (orderIndex.get(right) ?? Number.MAX_SAFE_INTEGER),
   );
 }
 

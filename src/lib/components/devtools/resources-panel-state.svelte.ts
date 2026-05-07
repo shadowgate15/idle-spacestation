@@ -1,7 +1,10 @@
 import type { GameSnapshot, GatewayDevtoolsApplyResourcesResponse } from '$lib/game/api/types';
 
 type ResourcesGateway = {
-  applyResources: (input: { materials: number; data: number }) => Promise<GatewayDevtoolsApplyResourcesResponse>;
+  applyResources: (input: {
+    materials: number;
+    data: number;
+  }) => Promise<GatewayDevtoolsApplyResourcesResponse>;
 };
 
 const MATERIALS_MIN = 0;
@@ -9,7 +12,10 @@ const MATERIALS_MAX = 99999;
 const DATA_MIN = 0;
 const DATA_MAX = 99999;
 
-export function createResourcesPanelState(snapshot: GameSnapshot | null, gateway: ResourcesGateway) {
+export function createResourcesPanelState(
+  snapshot: GameSnapshot | null,
+  gateway: ResourcesGateway,
+) {
   let currentSnapshot = $state<GameSnapshot | null>(snapshot);
   let materialsDraft = $state<number | undefined>(snapshot?.resources.materials ?? 0);
   let dataDraft = $state<number | undefined>(snapshot?.resources.data ?? 0);
@@ -19,9 +25,7 @@ export function createResourcesPanelState(snapshot: GameSnapshot | null, gateway
   let errorMessage = $state<string | null>(null);
   let isApplying = $state(false);
 
-  const isDirty = $derived(
-    materialsDraft !== lastSeededMaterials || dataDraft !== lastSeededData,
-  );
+  const isDirty = $derived(materialsDraft !== lastSeededMaterials || dataDraft !== lastSeededData);
 
   function reseedDrafts(next: GameSnapshot) {
     materialsDraft = next.resources.materials;

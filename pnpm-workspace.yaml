@@ -1,5 +1,5 @@
 allowBuilds:
-  "@hugeicons/svelte": true
+  '@hugeicons/svelte': true
   esbuild: true
 onlyBuiltDependencies:
   - esbuild

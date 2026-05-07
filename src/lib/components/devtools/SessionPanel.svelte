@@ -26,15 +26,20 @@
   });
 </script>
 
-<div data-testid="devtools-session-panel" class="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
+<div
+  data-testid="devtools-session-panel"
+  class="rounded-md border border-zinc-800 bg-zinc-950/60 p-3"
+>
   <div class="mb-3">
     <h4 class="text-sm font-semibold text-zinc-100">Session</h4>
-    <p class="text-xs text-zinc-500">Advance the active session or reset back to the starter state.</p>
+    <p class="text-xs text-zinc-500">
+      Advance the active session or reset back to the starter state.
+    </p>
   </div>
 
   <div class="grid gap-3">
     <div class="grid gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2">
-      <div class="text-[0.625rem] font-mono uppercase tracking-wide text-zinc-500">
+      <div class="font-mono text-[0.625rem] tracking-wide text-zinc-500 uppercase">
         Current tick: {state.snapshot?.meta.tickCount ?? '—'}
       </div>
 
@@ -67,7 +72,9 @@
 
     <div class="grid gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2">
       <div class="text-xs font-semibold text-zinc-200">Reset to starter</div>
-      <div class="text-[0.625rem] font-mono uppercase tracking-wide text-zinc-500">Restore the baseline starter run.</div>
+      <div class="font-mono text-[0.625rem] tracking-wide text-zinc-500 uppercase">
+        Restore the baseline starter run.
+      </div>
 
       {#if state.isConfirmingReset}
         <div class="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
@@ -81,7 +88,12 @@
           >
             {state.isResetting ? 'Resetting…' : 'Confirm reset'}
           </Button>
-          <Button size="sm" variant="ghost" onclick={() => state.cancelResetConfirmation()} disabled={state.isBusy}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onclick={() => state.cancelResetConfirmation()}
+            disabled={state.isBusy}
+          >
             Cancel
           </Button>
         </div>
@@ -104,7 +116,10 @@
   <div class="mt-3">
     <p
       data-testid="devtools-session-error"
-      class={cn('min-h-4 text-xs font-medium', state.errorMessage ? 'text-amber-400' : 'text-zinc-600')}
+      class={cn(
+        'min-h-4 text-xs font-medium',
+        state.errorMessage ? 'text-amber-400' : 'text-zinc-600',
+      )}
     >
       {state.errorMessage ?? ''}
     </p>

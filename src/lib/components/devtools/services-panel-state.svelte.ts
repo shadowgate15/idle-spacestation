@@ -6,7 +6,9 @@ import type {
 } from '$lib/game/api/types';
 
 type ServicesGateway = {
-  applyServices: (input: DevtoolsApplyServicesPayload) => Promise<GatewayDevtoolsApplyServicesResponse>;
+  applyServices: (
+    input: DevtoolsApplyServicesPayload,
+  ) => Promise<GatewayDevtoolsApplyServicesResponse>;
 };
 
 type ServiceDraft = {
@@ -142,7 +144,8 @@ function hasValidDrafts(drafts: ServiceDraft[]) {
 
   return drafts.every(
     ({ assignedCrew, priority }) =>
-      isAtLeast(assignedCrew, ASSIGNED_CREW_MIN) && isInRange(priority, 1, Math.max(serviceCount, 1)),
+      isAtLeast(assignedCrew, ASSIGNED_CREW_MIN) &&
+      isInRange(priority, 1, Math.max(serviceCount, 1)),
   );
 }
 

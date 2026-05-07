@@ -45,19 +45,19 @@ src-tauri/
 
 ## WHERE TO LOOK
 
-| Task                                | Location                                       | Notes                                                                     |
-| ----------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------- |
-| App entrypoint                      | `src/main.rs`                                  | Calls `idle_spacestation_lib::run()`; preserves Windows subsystem guard   |
-| Tauri commands & builder            | `src/lib.rs`                                   | All `#[tauri::command]` fns + `run()` with split debug/release handler   |
-| Shared backend state                | `src/lib.rs` (`GameState`, `DevtoolsState`)    | `Mutex<(RunState, PrestigeProfile, u32 session_ticks)>` + debug overlay  |
-| Simulation tick                     | `src/game/sim/tick.rs`                         | Six-phase loop; called every 250 ms by the background thread             |
-| Game data tables                    | `src/game/content/*.rs`                        | `SYSTEMS`, `SERVICES`, `PLANETS`, `DOCTRINES`, `RESOURCES` constants     |
-| Prestige rules                      | `src/game/progression/prestige.rs`             | Tier calc, `PrestigeEligibility`, `execute_prestige`, stable-power timer |
-| IPC DTOs                            | `src/game/snapshot.rs`                         | `RawGameSnapshot`, `ActionResponse`, `SaveLoadResponse`, route views     |
-| Tauri runtime config                | `tauri.conf.json`                              | Dev/build delegate to pnpm; window 800×600; `withGlobalTauri: true`      |
-| Capabilities / permissions          | `capabilities/default.json`                    | Permits `core:default`, `opener:default`, `mcp-bridge:default`           |
-| Cargo deps                          | `Cargo.toml`                                   | `tauri 2`, `tauri-plugin-opener 2`, `tauri-plugin-mcp-bridge 0.11`       |
-| Build hook                          | `build.rs`                                     | Thin `tauri_build::build()`                                               |
+| Task                       | Location                                    | Notes                                                                    |
+| -------------------------- | ------------------------------------------- | ------------------------------------------------------------------------ |
+| App entrypoint             | `src/main.rs`                               | Calls `idle_spacestation_lib::run()`; preserves Windows subsystem guard  |
+| Tauri commands & builder   | `src/lib.rs`                                | All `#[tauri::command]` fns + `run()` with split debug/release handler   |
+| Shared backend state       | `src/lib.rs` (`GameState`, `DevtoolsState`) | `Mutex<(RunState, PrestigeProfile, u32 session_ticks)>` + debug overlay  |
+| Simulation tick            | `src/game/sim/tick.rs`                      | Six-phase loop; called every 250 ms by the background thread             |
+| Game data tables           | `src/game/content/*.rs`                     | `SYSTEMS`, `SERVICES`, `PLANETS`, `DOCTRINES`, `RESOURCES` constants     |
+| Prestige rules             | `src/game/progression/prestige.rs`          | Tier calc, `PrestigeEligibility`, `execute_prestige`, stable-power timer |
+| IPC DTOs                   | `src/game/snapshot.rs`                      | `RawGameSnapshot`, `ActionResponse`, `SaveLoadResponse`, route views     |
+| Tauri runtime config       | `tauri.conf.json`                           | Dev/build delegate to pnpm; window 800×600; `withGlobalTauri: true`      |
+| Capabilities / permissions | `capabilities/default.json`                 | Permits `core:default`, `opener:default`, `mcp-bridge:default`           |
+| Cargo deps                 | `Cargo.toml`                                | `tauri 2`, `tauri-plugin-opener 2`, `tauri-plugin-mcp-bridge 0.11`       |
+| Build hook                 | `build.rs`                                  | Thin `tauri_build::build()`                                              |
 
 ## TAURI COMMAND SURFACE
 

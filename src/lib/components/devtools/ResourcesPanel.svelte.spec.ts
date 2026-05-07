@@ -54,7 +54,9 @@ describe('ResourcesPanel', () => {
     try {
       await expect.element(page.getByTestId('devtools-materials-input')).toHaveValue(42);
       await expect.element(page.getByTestId('devtools-data-input')).toHaveValue(17);
-      await expect.element(page.getByText(`${snapshot.resources.power.available} avail`)).toBeInTheDocument();
+      await expect
+        .element(page.getByText(`${snapshot.resources.power.available} avail`))
+        .toBeInTheDocument();
       await expect.element(page.getByText('Power (read only)')).toBeInTheDocument();
     } finally {
       await view.unmount();
@@ -97,7 +99,9 @@ describe('ResourcesPanel', () => {
 
     try {
       await page.getByTestId('devtools-resources-apply').click();
-      await expect.element(page.getByTestId('devtools-resources-error')).toHaveTextContent('invalid_state');
+      await expect
+        .element(page.getByTestId('devtools-resources-error'))
+        .toHaveTextContent('invalid_state');
     } finally {
       await view.unmount();
     }
@@ -198,7 +202,9 @@ describe('ResourcesPanel', () => {
 
       await expect.element(page.getByTestId('devtools-materials-input')).toHaveValue(120);
       await expect.element(page.getByTestId('devtools-data-input')).toHaveValue(50);
-      await expect.element(page.getByTestId('devtools-resources-error')).toHaveTextContent('invalid_range');
+      await expect
+        .element(page.getByTestId('devtools-resources-error'))
+        .toHaveTextContent('invalid_range');
     } finally {
       await view.unmount();
     }

@@ -42,7 +42,9 @@
   {/if}
 
   <section data-testid="devtools-resources-section">
-    <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Resources & Crew</h3>
+    <h3 class="mb-2 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
+      Resources & Crew
+    </h3>
     <div class="grid gap-3">
       <ResourcesPanel {snapshot} {gateway} />
       <CrewPanel {snapshot} {gateway} />
@@ -50,22 +52,22 @@
   </section>
 
   <section data-testid="devtools-systems-section">
-    <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Systems</h3>
+    <h3 class="mb-2 text-xs font-semibold tracking-wider text-zinc-400 uppercase">Systems</h3>
     <SystemsPanel {snapshot} {gateway} />
   </section>
 
   <section data-testid="devtools-services-section">
-    <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Services</h3>
+    <h3 class="mb-2 text-xs font-semibold tracking-wider text-zinc-400 uppercase">Services</h3>
     <ServicesPanel {snapshot} {gateway} />
   </section>
 
   <section data-testid="devtools-progression-section">
-    <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Progression</h3>
+    <h3 class="mb-2 text-xs font-semibold tracking-wider text-zinc-400 uppercase">Progression</h3>
     <ProgressionPanel {snapshot} {gateway} />
   </section>
 
   <section data-testid="devtools-session-section">
-    <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Session</h3>
+    <h3 class="mb-2 text-xs font-semibold tracking-wider text-zinc-400 uppercase">Session</h3>
     <SessionPanel {snapshot} {gateway} />
   </section>
 </div>

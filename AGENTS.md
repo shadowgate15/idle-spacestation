@@ -34,21 +34,21 @@ The repo is no longer a thin template; treat the existing patterns as load-beari
 
 ## WHERE TO LOOK
 
-| Task                          | Location                                                          | Notes                                                                              |
-| ----------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Frontend route/layout work    | `src/routes/`                                                     | SPA routes: `/`, `/systems`, `/services`, `/planets`, `/prestige`, `/demo`         |
-| Game state & commands (FE)    | `src/lib/game/api/`                                               | `gateway.ts`, `adapters.ts`, `types.ts` (651 lines), `testing/` fixtures+transport |
-| Devtools overlay & panels     | `src/lib/components/DevtoolsOverlay.svelte`, `…/devtools/`        | 6 panels, each `Panel.svelte` + `panel-state.svelte.ts` + tests                    |
-| Shared UI primitives          | `src/lib/components/ui/`                                          | shadcn-svelte primitives: `button/`, `card/` (7 parts), `input/`                   |
-| Shared frontend helpers       | `src/lib/utils.ts`                                                | `cn()` plus `WithoutChild`, `WithoutChildren`, `WithElementRef` type helpers       |
-| Rust commands & state         | `src-tauri/src/lib.rs`                                            | 1711 lines: 19 `#[tauri::command]` fns, `GameState` mutex, tick thread, plugin reg |
-| Game simulation core          | `src-tauri/src/game/sim/`                                         | `state.rs`, `tick.rs` (6-phase loop), `deficit.rs`                                 |
-| Game content (static data)    | `src-tauri/src/game/content/`                                     | `systems.rs`, `services.rs`, `planets.rs`, `doctrines.rs`, `resources.rs`          |
-| Progression & prestige        | `src-tauri/src/game/progression/`                                 | `prestige.rs` (PrestigeProfile), `doctrines.rs`, `survey.rs`                       |
-| Persistence (scaffolded)      | `src-tauri/src/game/persistence/`                                 | `SaveManager`, versioned `SaveData`, recovery; not wired into commands yet         |
-| IPC DTO layer                 | `src-tauri/src/game/snapshot.rs`                                  | 1214 lines of camelCase serde DTOs returned to the frontend                        |
-| Tauri runtime config          | `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json`| Window 800×600, `withGlobalTauri: true`, `csp: null`, opener + mcp-bridge perms    |
-| Dev/build/test commands       | `package.json`, `playwright.config.ts`, `vite.config.js`          | pnpm-driven; vitest config embedded in `vite.config.js`                            |
+| Task                       | Location                                                           | Notes                                                                              |
+| -------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| Frontend route/layout work | `src/routes/`                                                      | SPA routes: `/`, `/systems`, `/services`, `/planets`, `/prestige`, `/demo`         |
+| Game state & commands (FE) | `src/lib/game/api/`                                                | `gateway.ts`, `adapters.ts`, `types.ts` (651 lines), `testing/` fixtures+transport |
+| Devtools overlay & panels  | `src/lib/components/DevtoolsOverlay.svelte`, `…/devtools/`         | 6 panels, each `Panel.svelte` + `panel-state.svelte.ts` + tests                    |
+| Shared UI primitives       | `src/lib/components/ui/`                                           | shadcn-svelte primitives: `button/`, `card/` (7 parts), `input/`                   |
+| Shared frontend helpers    | `src/lib/utils.ts`                                                 | `cn()` plus `WithoutChild`, `WithoutChildren`, `WithElementRef` type helpers       |
+| Rust commands & state      | `src-tauri/src/lib.rs`                                             | 1711 lines: 19 `#[tauri::command]` fns, `GameState` mutex, tick thread, plugin reg |
+| Game simulation core       | `src-tauri/src/game/sim/`                                          | `state.rs`, `tick.rs` (6-phase loop), `deficit.rs`                                 |
+| Game content (static data) | `src-tauri/src/game/content/`                                      | `systems.rs`, `services.rs`, `planets.rs`, `doctrines.rs`, `resources.rs`          |
+| Progression & prestige     | `src-tauri/src/game/progression/`                                  | `prestige.rs` (PrestigeProfile), `doctrines.rs`, `survey.rs`                       |
+| Persistence (scaffolded)   | `src-tauri/src/game/persistence/`                                  | `SaveManager`, versioned `SaveData`, recovery; not wired into commands yet         |
+| IPC DTO layer              | `src-tauri/src/game/snapshot.rs`                                   | 1214 lines of camelCase serde DTOs returned to the frontend                        |
+| Tauri runtime config       | `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json` | Window 800×600, `withGlobalTauri: true`, `csp: null`, opener + mcp-bridge perms    |
+| Dev/build/test commands    | `package.json`, `playwright.config.ts`, `vite.config.js`           | pnpm-driven; vitest config embedded in `vite.config.js`                            |
 
 ## CONVENTIONS
 

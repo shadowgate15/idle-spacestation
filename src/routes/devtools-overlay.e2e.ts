@@ -68,7 +68,9 @@ test.describe('Devtools overlay in preview fixture mode', () => {
     await page.getByTestId('devtools-advance-ticks-input').fill('5');
     await page.getByTestId('devtools-advance-ticks-btn').click();
 
-    await expect(page.getByTestId('devtools-session-panel').getByText(/Current tick: \d+/)).toBeVisible();
+    await expect(
+      page.getByTestId('devtools-session-panel').getByText(/Current tick: \d+/),
+    ).toBeVisible();
     await expect(page.getByTestId('devtools-session-error')).toHaveText('');
   });
 
@@ -87,7 +89,9 @@ test.describe('Devtools overlay in preview fixture mode', () => {
   test('resources panel inputs have numeric starter values', async ({ page }) => {
     await gotoSeededOverview(page);
 
-    await expect(inputNumericValue(page.getByTestId('devtools-materials-input'))).resolves.toBe(true);
+    await expect(inputNumericValue(page.getByTestId('devtools-materials-input'))).resolves.toBe(
+      true,
+    );
     await expect(inputNumericValue(page.getByTestId('devtools-data-input'))).resolves.toBe(true);
   });
 
@@ -119,7 +123,9 @@ test.describe('Devtools overlay in preview fixture mode', () => {
     await expect(input).toBeFocused();
   });
 
-  test('typing crew total across polling ticks preserves keystrokes and focus', async ({ page }) => {
+  test('typing crew total across polling ticks preserves keystrokes and focus', async ({
+    page,
+  }) => {
     await gotoSeededOverview(page);
 
     const input = page.getByTestId('devtools-crew-total-input');
@@ -129,7 +135,9 @@ test.describe('Devtools overlay in preview fixture mode', () => {
     await expect(input).toBeFocused();
   });
 
-  test('typing system level across polling ticks preserves keystrokes and focus', async ({ page }) => {
+  test('typing system level across polling ticks preserves keystrokes and focus', async ({
+    page,
+  }) => {
     await gotoSeededOverview(page);
 
     const input = page.getByTestId('devtools-system-reactor-core-level');
@@ -139,7 +147,9 @@ test.describe('Devtools overlay in preview fixture mode', () => {
     await expect(input).toHaveValue('11111111111');
   });
 
-  test('typing assigned crew across polling ticks preserves keystrokes and focus', async ({ page }) => {
+  test('typing assigned crew across polling ticks preserves keystrokes and focus', async ({
+    page,
+  }) => {
     await gotoSeededOverview(page);
 
     const input = page.getByTestId('devtools-service-solar-harvester-crew');
@@ -149,7 +159,9 @@ test.describe('Devtools overlay in preview fixture mode', () => {
     await expect(input).toBeFocused();
   });
 
-  test('typing doctrine fragments across polling ticks preserves keystrokes and focus', async ({ page }) => {
+  test('typing doctrine fragments across polling ticks preserves keystrokes and focus', async ({
+    page,
+  }) => {
     await gotoSeededOverview(page);
 
     const input = page.getByTestId('devtools-doctrine-fragments-input');
@@ -159,7 +171,9 @@ test.describe('Devtools overlay in preview fixture mode', () => {
     await expect(input).toBeFocused();
   });
 
-  test('typing advance ticks across polling ticks preserves keystrokes and focus', async ({ page }) => {
+  test('typing advance ticks across polling ticks preserves keystrokes and focus', async ({
+    page,
+  }) => {
     await gotoSeededOverview(page);
 
     const input = page.getByTestId('devtools-advance-ticks-input');

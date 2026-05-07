@@ -7,7 +7,9 @@ import type {
 } from '$lib/game/api/types';
 
 type ProgressionGateway = {
-  applyProgression: (input: DevtoolsApplyProgressionPayload) => Promise<GatewayDevtoolsApplyProgressionResponse>;
+  applyProgression: (
+    input: DevtoolsApplyProgressionPayload,
+  ) => Promise<GatewayDevtoolsApplyProgressionResponse>;
 };
 
 type ProgressionDraft = {
@@ -33,7 +35,10 @@ const SURVEY_PROGRESS_THRESHOLDS: Record<Exclude<PlanetId, typeof STARTER_PLANET
   'aurora-pier': 1400,
 };
 
-export function createProgressionPanelState(snapshot: GameSnapshot | null, gateway: ProgressionGateway) {
+export function createProgressionPanelState(
+  snapshot: GameSnapshot | null,
+  gateway: ProgressionGateway,
+) {
   const initialDraft = createDraft(snapshot);
   let currentSnapshot = $state<GameSnapshot | null>(snapshot);
   let draft = $state<ProgressionDraft>(initialDraft);
@@ -42,7 +47,9 @@ export function createProgressionPanelState(snapshot: GameSnapshot | null, gatew
   let errorMessage = $state<string | null>(null);
   let isApplying = $state(false);
 
-  let activePlanetOptions = $derived(planetIds.filter((id) => draft.discoveredPlanets.includes(id)));
+  let activePlanetOptions = $derived(
+    planetIds.filter((id) => draft.discoveredPlanets.includes(id)),
+  );
   let isDirty = $derived(hasProgressionDraftChanges(draft, lastSeededDraft));
 
   function reseedDrafts(snapshot: GameSnapshot) {
@@ -75,7 +82,9 @@ export function createProgressionPanelState(snapshot: GameSnapshot | null, gatew
 
   function toggleUnlockedDoctrine(id: DoctrineId, checked: boolean) {
     draft.unlockedDoctrines = normalizeDoctrineIds(
-      checked ? [...draft.unlockedDoctrines, id] : draft.unlockedDoctrines.filter((currentId) => currentId !== id),
+      checked
+        ? [...draft.unlockedDoctrines, id]
+        : draft.unlockedDoctrines.filter((currentId) => currentId !== id),
     );
   }
 
@@ -85,7 +94,9 @@ export function createProgressionPanelState(snapshot: GameSnapshot | null, gatew
     }
 
     draft.discoveredPlanets = normalizePlanetIds(
-      checked ? [...draft.discoveredPlanets, id] : draft.discoveredPlanets.filter((currentId) => currentId !== id),
+      checked
+        ? [...draft.discoveredPlanets, id]
+        : draft.discoveredPlanets.filter((currentId) => currentId !== id),
     );
 
     if (!draft.discoveredPlanets.includes(draft.activePlanet)) {
@@ -162,10 +173,12 @@ export function createProgressionPanelState(snapshot: GameSnapshot | null, gatew
 }
 
 function createDraft(snapshot: GameSnapshot | null): ProgressionDraft {
-  const discoveredPlanets = normalizePlanetIds(snapshot?.run.discoveredPlanetIds ?? [STARTER_PLANET_ID]);
+  const discoveredPlanets = normalizePlanetIds(
+    snapshot?.run.discoveredPlanetIds ?? [STARTER_PLANET_ID],
+  );
   const activePlanet = discoveredPlanets.includes(snapshot?.run.activePlanetId ?? STARTER_PLANET_ID)
     ? (snapshot?.run.activePlanetId ?? STARTER_PLANET_ID)
-    : discoveredPlanets[0] ?? STARTER_PLANET_ID;
+    : (discoveredPlanets[0] ?? STARTER_PLANET_ID);
 
   return {
     doctrineFragments: snapshot?.run.doctrineFragments ?? 0,
@@ -191,7 +204,8 @@ function deriveSurveyProgressDraft(snapshot: GameSnapshot | null, activePlanet: 
     return 0;
   }
 
-  const threshold = SURVEY_PROGRESS_THRESHOLDS[activePlanet as Exclude<PlanetId, typeof STARTER_PLANET_ID>];
+  const threshold =
+    SURVEY_PROGRESS_THRESHOLDS[activePlanet as Exclude<PlanetId, typeof STARTER_PLANET_ID>];
   if (!threshold) {
     return 0;
   }

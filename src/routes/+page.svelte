@@ -2,10 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { gameState } from '$lib/game/api/state.svelte';
-  import type {
-    ResourceDeltaSnapshot,
-    WarningSnapshot,
-  } from '$lib/game/api/types';
+  import type { ResourceDeltaSnapshot, WarningSnapshot } from '$lib/game/api/types';
 
   type AppRoute = '/' | '/systems' | '/services' | '/planets' | '/prestige';
 
@@ -105,7 +102,9 @@
         </div>
         <div class="flex flex-col">
           <dt class="text-xs tracking-wide text-muted-foreground uppercase">Data</dt>
-          <dd class="text-lg font-bold text-foreground">{Math.floor(gameState.snapshot.resources.data)}</dd>
+          <dd class="text-lg font-bold text-foreground">
+            {Math.floor(gameState.snapshot.resources.data)}
+          </dd>
         </div>
         <div class="flex flex-col">
           <dt class="text-xs tracking-wide text-muted-foreground uppercase">Crew</dt>

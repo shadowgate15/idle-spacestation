@@ -6,7 +6,9 @@ import type {
 } from '$lib/game/api/types';
 
 type SystemsGateway = {
-  applySystems: (input: DevtoolsApplySystemsPayload) => Promise<GatewayDevtoolsApplySystemsResponse>;
+  applySystems: (
+    input: DevtoolsApplySystemsPayload,
+  ) => Promise<GatewayDevtoolsApplySystemsResponse>;
 };
 
 type SystemDraft = {
@@ -113,9 +115,7 @@ function hasSystemDraftChanges(drafts: SystemDraft[], lastSeededDrafts: SystemDr
   return drafts.some((draft, index) => {
     const lastSeededDraft = lastSeededDrafts[index];
     return (
-      !lastSeededDraft ||
-      lastSeededDraft.id !== draft.id ||
-      lastSeededDraft.level !== draft.level
+      !lastSeededDraft || lastSeededDraft.id !== draft.id || lastSeededDraft.level !== draft.level
     );
   });
 }

@@ -33,10 +33,15 @@
   }
 </script>
 
-<div data-testid="devtools-services-panel" class="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
+<div
+  data-testid="devtools-services-panel"
+  class="rounded-md border border-zinc-800 bg-zinc-950/60 p-3"
+>
   <div class="mb-3">
     <h4 class="text-sm font-semibold text-zinc-100">Services</h4>
-    <p class="text-xs text-zinc-500">Stage service activation, staffing, and ordering, then apply the full set.</p>
+    <p class="text-xs text-zinc-500">
+      Stage service activation, staffing, and ordering, then apply the full set.
+    </p>
   </div>
 
   {#if state.drafts.length > 0}
@@ -48,10 +53,16 @@
           <div class="flex items-start justify-between gap-3">
             <div>
               <div class="text-xs font-semibold text-zinc-200">{serviceDraft.id}</div>
-              <div class="mt-1 grid gap-0.5 text-[0.625rem] font-mono uppercase tracking-wide text-zinc-500">
+              <div
+                class="mt-1 grid gap-0.5 font-mono text-[0.625rem] tracking-wide text-zinc-500 uppercase"
+              >
                 <div>Active: {currentService ? String(currentService.isActive) : '—'}</div>
                 <div>Paused: {currentService ? String(currentService.isPaused) : '—'}</div>
-                <div>Pause reason: {currentService ? formatPauseReason(currentService.pauseReason) : '—'}</div>
+                <div>
+                  Pause reason: {currentService
+                    ? formatPauseReason(currentService.pauseReason)
+                    : '—'}
+                </div>
               </div>
             </div>
           </div>
@@ -105,7 +116,10 @@
   <div class="mt-3 flex items-center justify-between gap-3">
     <p
       data-testid="devtools-services-error"
-      class={cn('min-h-4 text-xs font-medium', state.errorMessage ? 'text-amber-400' : 'text-zinc-600')}
+      class={cn(
+        'min-h-4 text-xs font-medium',
+        state.errorMessage ? 'text-amber-400' : 'text-zinc-600',
+      )}
     >
       {state.errorMessage ?? ''}
     </p>

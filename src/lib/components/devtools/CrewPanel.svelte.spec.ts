@@ -55,8 +55,12 @@ describe('CrewPanel', () => {
 
     try {
       await expect.element(page.getByTestId('devtools-crew-total-input')).toHaveValue(9);
-      await expect.element(page.getByText(String(snapshot.resources.crew.assigned))).toBeInTheDocument();
-      await expect.element(page.getByText(String(snapshot.resources.crew.available))).toBeInTheDocument();
+      await expect
+        .element(page.getByText(String(snapshot.resources.crew.assigned)))
+        .toBeInTheDocument();
+      await expect
+        .element(page.getByText(String(snapshot.resources.crew.available)))
+        .toBeInTheDocument();
     } finally {
       await view.unmount();
     }
@@ -77,7 +81,9 @@ describe('CrewPanel', () => {
 
       expect(gateway.applyCrew).toHaveBeenCalledWith({ crewTotal: 14 });
       await expect.element(page.getByTestId('devtools-crew-total-input')).toHaveValue(14);
-      await expect.element(page.getByText(String(responseSnapshot.resources.crew.available))).toBeInTheDocument();
+      await expect
+        .element(page.getByText(String(responseSnapshot.resources.crew.available)))
+        .toBeInTheDocument();
     } finally {
       await view.unmount();
     }
@@ -97,7 +103,9 @@ describe('CrewPanel', () => {
 
     try {
       await page.getByTestId('devtools-crew-apply').click();
-      await expect.element(page.getByTestId('devtools-crew-error')).toHaveTextContent('constraint_violation');
+      await expect
+        .element(page.getByTestId('devtools-crew-error'))
+        .toHaveTextContent('constraint_violation');
     } finally {
       await view.unmount();
     }
@@ -169,7 +177,9 @@ describe('CrewPanel', () => {
       await page.getByTestId('devtools-crew-apply').click();
 
       await expect.element(page.getByTestId('devtools-crew-total-input')).toHaveValue(6);
-      await expect.element(page.getByTestId('devtools-crew-error')).toHaveTextContent('constraint_violation');
+      await expect
+        .element(page.getByTestId('devtools-crew-error'))
+        .toHaveTextContent('constraint_violation');
     } finally {
       await view.unmount();
     }
