@@ -11,6 +11,7 @@ The Rust side is the idle-game simulation engine plus the Tauri command surface 
 
 ```text
 src-tauri/
+├── idle-spacestation-bit-eq-derive/ # In-repo proc-macro crate for BitEq/BitHash derives
 ├── src/
 │   ├── main.rs               # Windows-subsystem guarded entrypoint → idle_spacestation_lib::run()
 │   ├── lib.rs                # ~150 lines: state structs, commit_and_emit, all_commands!, Tauri builder, tick thread
@@ -24,8 +25,9 @@ src-tauri/
 │   │   ├── snapshot_cmds.rs  # Snapshot, save/load stubs, survey handler
 │   │   └── devtools/         # Debug-only devtools inputs, handlers, state helpers, apply helpers
 │   └── game/
-│       ├── mod.rs            # Re-exports: content, persistence, progression, snapshot, sim
-│       ├── snapshot.rs       # 1480 lines: serde DTOs (camelCase) + state_equals() bit-stable diffing
+│       ├── mod.rs            # Re-exports: bit_eq, content, persistence, progression, snapshot, sim
+│       ├── bit_eq.rs         # BitEq/BitHash traits; floats compare/hash by raw bit pattern
+│       ├── snapshot.rs       # ~1240 lines: serde DTOs (camelCase) + derived state_equals() bit-stable diffing
 │       ├── sim/
 │       │   ├── mod.rs
 │       │   ├── state.rs      # RunState, StationState, ResourceState, ServiceState, SystemState
@@ -65,11 +67,11 @@ src-tauri/
 | Devtools overlay state     | `src/lib.rs` (`DevtoolsState`), `src/commands/devtools/`  | Visibility flag, emitted via `devtools:visibility-changed` event               |
 | Runtime projection helpers | `src/runtime.rs`                                          | Recomputes crew/power/service derived runtime fields after command mutations   |
 | State-change emit          | `src/lib.rs` (`commit_and_emit`)                          | Single helper that diffs + emits `game://state-changed`; called by every mutator and the tick loop |
-| State diff (bit-stable)    | `src/game/snapshot.rs` (`state_equals`)                   | Uses `f32::to_bits()` so NaN bit patterns + FP rounding are deterministic      |
+| State diff/hash derives    | `src/game/bit_eq.rs`, `idle-spacestation-bit-eq-derive/`  | `BitEq`/`BitHash` compare/hash floats by `to_bits()`; derive macros expand field-by-field |
+| Snapshot DTOs              | `src/game/snapshot.rs`                                    | `RawGameSnapshot`, `ActionResponse`, route views; DTOs derive `BitEq` for diffing |
 | Simulation tick            | `src/game/sim/tick.rs`                                    | Six-phase loop; called every 250 ms by the background thread                   |
 | Game data tables           | `src/game/content/*.rs`                                   | `SYSTEMS`, `SERVICES`, `PLANETS`, `DOCTRINES`, `RESOURCES` constants           |
 | Prestige rules             | `src/game/progression/prestige.rs`                        | Tier calc, `PrestigeEligibility`, `execute_prestige`, stable-power timer       |
-| IPC DTOs                   | `src/game/snapshot.rs`                                    | `RawGameSnapshot`, `ActionResponse`, `SaveLoadResponse`, route views           |
 | Tauri runtime config       | `tauri.conf.json`                                         | Dev/build delegate to pnpm; window 800×600; `withGlobalTauri: true`            |
 | Capabilities / permissions | `capabilities/default.json`                               | Permits `core:default`, `opener:default`, `mcp-bridge:default`                 |
 | Cargo deps                 | `Cargo.toml`                                              | `tauri 2`, `tauri-plugin-opener 2`, `tauri-plugin-mcp-bridge 0.11`             |
@@ -129,7 +131,8 @@ The frontend gateway (`src/lib/game/api/gateway.ts`) issues two of these command
 - The pattern inside a mutator is: lock `GameState`, mutate `RunState`/`PrestigeProfile`, build the response snapshot, **drop the lock**, then call `commit_and_emit(&app, &run, &profile, &last_emitted)` and return the response.
 - Serde DTOs in `snapshot.rs` use `#[serde(rename_all = "camelCase")]` so the wire shape matches the TypeScript types in `src/lib/game/api/types.ts`.
 - The simulation owns mutation; `#[tauri::command]` functions take the lock briefly, mutate, and produce a fresh snapshot. Don't perform long-running work while holding `GameState`'s `Mutex`, and don't hold it across `commit_and_emit`.
-- `state_equals` (in `snapshot.rs`) is the source of truth for "did anything change?". It uses `f32::to_bits()` for every f32 field (so NaN-vs-NaN compares equal and rounding noise is deterministic) and standard `==` for integers, strings, booleans, and enums. Use these helpers — never roll your own raw-`==` float comparison for snapshot diffing.
+- **State equality**: `state_equals` is auto-derived via `#[derive(BitEq)]` from `idle-spacestation-bit-eq-derive`; the `BitEq` trait lives in `src/game/bit_eq.rs`. Adding a field to a snapshot DTO is picked up by the derive automatically, and f32/f64 fields compare via `to_bits()` so NaN semantics remain bit-stable.
+- **State hashing**: `RunState`, `StationState`, `ResourceState`, `ServiceState`, and `SystemState` derive `BitHash`; `RunState::state_hash()` delegates to the trait. Use `#[bit_hash(order = N)]` only when legacy/stability-sensitive field order matters, and `#[bit_hash(sort)]` for order-insensitive string vecs that previously used sorted clones.
 - **Canonical-helper rule**: shared physics helpers live in `src/game/sim/tick.rs` and are re-exported via `src/game/sim/mod.rs`. `lib.rs`/`runtime.rs`/`snapshot.rs` MUST import from there; do not re-implement.
 - Plugins:
   - `tauri-plugin-opener` is registered in all builds.
@@ -144,7 +147,7 @@ The frontend gateway (`src/lib/game/api/gateway.ts`) issues two of these command
 - Do not add a new mutating command without calling `commit_and_emit(&app, &run, &profile, &last_emitted)` after the mutation. Skipping it leaves the frontend stale until the next tick fires the event for unrelated reasons.
 - Do not emit `game://state-changed` directly via `app.emit(...)`. The diff cache + lock order live inside `commit_and_emit`; bypassing it produces spurious events and risks deadlocks.
 - Do not invert the lock order. Always drop the `GameState` lock before calling `commit_and_emit` (which acquires `LastEmittedSnapshot`). Holding both simultaneously can deadlock against the tick thread.
-- Do not compare snapshot floats with raw `==`. Use `f32::to_bits()` (or the helpers in `snapshot.rs`) so NaN bit patterns and FP rounding stay deterministic across diffs.
+- Do not compare snapshot floats with raw `==`. Use `BitEq`/`BitHash` derives or the trait impls in `src/game/bit_eq.rs` so NaN bit patterns and FP rounding stay deterministic across diffs.
 - Do not remove the Windows release guard in `src/main.rs`.
 - Do not hold `GameState`'s `Mutex` across an `await` or any I/O.
 - Do not change `RunState` or `PrestigeProfile` field shapes without bumping the `SAVE_VERSION` and adding a migration in `persistence/migration.rs` — even though save/load aren't wired yet, the on-disk format is the contract.
@@ -159,7 +162,7 @@ The frontend gateway (`src/lib/game/api/gateway.ts`) issues two of these command
 - The MCP bridge plugin enables IDE/agent inspection of the running game state while developing; releases never ship with it.
 - The 6-phase tick (alloc → activate → produce → upkeep → deficit → survey) is the load-bearing simulation contract. Cross-phase ordering matters for power deficit and autosave bookkeeping.
 - Push-based state distribution: the tick loop and every mutating command share a single emit path (`commit_and_emit`) backed by a `LastEmittedSnapshot` diff cache. The frontend listens once via `gameGateway.subscribeToStateChanges()` and never polls.
-- `state_equals` uses `f32::to_bits()` rather than raw `==` so NaN-vs-NaN comparisons resolve to "equal" when the bit patterns match, and floating-point rounding noise doesn't fire spurious events. Tests in `snapshot.rs` (`#[cfg(test)] mod state_equals_tests`) lock that contract in.
+- `state_equals` delegates to derived `BitEq`, which uses `f32::to_bits()` rather than raw `==` so NaN-vs-NaN comparisons resolve to "equal" when the bit patterns match, and floating-point rounding noise doesn't fire spurious events. Tests in `snapshot.rs` lock that contract in.
 
 ## NOTES
 

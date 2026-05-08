@@ -3,8 +3,13 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
+use idle_spacestation_bit_eq_derive::BitHash;
+
+use crate::game::bit_eq::BitHash as _;
 use crate::game::content::doctrines::HARDENED_RELAYS_ID;
-use crate::game::content::planets::{planet_by_id, planet_by_id_required, AURORA_PIER_ID, CINDER_FORGE_ID, SOLSTICE_ANCHOR_ID};
+use crate::game::content::planets::{
+    planet_by_id, planet_by_id_required, AURORA_PIER_ID, CINDER_FORGE_ID, SOLSTICE_ANCHOR_ID,
+};
 use crate::game::content::services::{
     ServiceDefinition, COMMAND_RELAY_ID, FABRICATION_LOOP_ID, MAINTENANCE_BAY_ID, ORE_RECLAIMER_ID,
     SERVICES, SOLAR_HARVESTER_ID, SURVEY_UPLINK_ID,
@@ -27,6 +32,12 @@ pub enum ServicePauseReason {
     PowerCap,
 }
 
+impl crate::game::bit_eq::BitHash for ServicePauseReason {
+    fn bit_hash<H: Hasher>(&self, state: &mut H) {
+        self.hash(state);
+    }
+}
+
 impl ServicePauseReason {
     pub(crate) fn code(&self) -> &'static str {
         match self {
@@ -38,32 +49,49 @@ impl ServicePauseReason {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(BitHash, Debug, Clone, PartialEq)]
 pub struct RunState {
+    #[bit_hash(order = 0)]
     pub tick_count: u64,
+    #[bit_hash(order = 7)]
     pub station: StationState,
+    #[bit_hash(order = 13)]
     pub resources: ResourceState,
+    #[bit_hash(order = 20)]
     pub services: Vec<ServiceState>,
+    #[bit_hash(order = 19)]
     pub systems: Vec<SystemState>,
+    #[bit_hash(order = 5)]
     pub consecutive_stable_power_ticks: u32,
+    #[bit_hash(order = 6)]
     pub lifetime_data_produced: u64,
+    #[bit_hash(order = 1)]
     pub autosave_due: bool,
+    #[bit_hash(order = 2)]
     pub autosave_count: u32,
+    #[bit_hash(order = 3)]
     pub last_autosave_tick: Option<u64>,
+    #[bit_hash(order = 4)]
     pub prestige_eligible: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(BitHash, Debug, Clone, PartialEq)]
 pub struct StationState {
+    #[bit_hash(order = 0)]
     pub active_planet_id: String,
+    #[bit_hash(order = 1, sort)]
     pub discovered_planet_ids: Vec<String>,
+    #[bit_hash(order = 2, sort)]
     pub doctrine_ids: Vec<String>,
+    #[bit_hash(order = 3)]
     pub doctrine_fragments: u32,
+    #[bit_hash(order = 5)]
     pub survey_progress: f32,
+    #[bit_hash(order = 4)]
     pub station_tier: u8,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(BitHash, Debug, Clone, PartialEq)]
 pub struct ResourceState {
     pub power_generated: f32,
     pub power_reserved: f32,
@@ -75,7 +103,7 @@ pub struct ResourceState {
     pub crew_available: u8,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(BitHash, Debug, Clone, PartialEq)]
 pub struct ServiceState {
     pub service_id: String,
     pub desired_active: bool,
@@ -86,7 +114,7 @@ pub struct ServiceState {
     pub assigned_crew: u8,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(BitHash, Debug, Clone, PartialEq, Eq)]
 pub struct SystemState {
     pub system_id: String,
     pub level: u8,
@@ -190,46 +218,7 @@ impl RunState {
 
     pub fn state_hash(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
-
-        self.tick_count.hash(&mut hasher);
-        self.autosave_due.hash(&mut hasher);
-        self.autosave_count.hash(&mut hasher);
-        self.last_autosave_tick.hash(&mut hasher);
-        self.prestige_eligible.hash(&mut hasher);
-        self.consecutive_stable_power_ticks.hash(&mut hasher);
-        self.lifetime_data_produced.hash(&mut hasher);
-
-        self.station.active_planet_id.hash(&mut hasher);
-        sorted_clone(&self.station.discovered_planet_ids).hash(&mut hasher);
-        sorted_clone(&self.station.doctrine_ids).hash(&mut hasher);
-        self.station.doctrine_fragments.hash(&mut hasher);
-        self.station.station_tier.hash(&mut hasher);
-        self.station.survey_progress.to_bits().hash(&mut hasher);
-
-        self.resources.power_generated.to_bits().hash(&mut hasher);
-        self.resources.power_reserved.to_bits().hash(&mut hasher);
-        self.resources.power_available.to_bits().hash(&mut hasher);
-        self.resources.materials.to_bits().hash(&mut hasher);
-        self.resources.data.to_bits().hash(&mut hasher);
-        self.resources.crew_total.hash(&mut hasher);
-        self.resources.crew_assigned.hash(&mut hasher);
-        self.resources.crew_available.hash(&mut hasher);
-
-        for system in &self.systems {
-            system.system_id.hash(&mut hasher);
-            system.level.hash(&mut hasher);
-        }
-
-        for service in &self.services {
-            service.service_id.hash(&mut hasher);
-            service.desired_active.hash(&mut hasher);
-            service.is_active.hash(&mut hasher);
-            service.is_paused.hash(&mut hasher);
-            service.pause_reason.hash(&mut hasher);
-            service.priority.hash(&mut hasher);
-            service.assigned_crew.hash(&mut hasher);
-        }
-
+        self.bit_hash(&mut hasher);
         hasher.finish()
     }
 
@@ -246,9 +235,7 @@ impl RunState {
 
 impl StationState {
     pub fn has_discovered(&self, planet_id: &str) -> bool {
-        self.discovered_planet_ids
-            .iter()
-            .any(|id| id == planet_id)
+        self.discovered_planet_ids.iter().any(|id| id == planet_id)
     }
 }
 
@@ -305,12 +292,6 @@ impl SystemState {
     }
 }
 
-fn sorted_clone(values: &[String]) -> Vec<String> {
-    let mut sorted = values.to_vec();
-    sorted.sort();
-    sorted
-}
-
 pub fn catalog_service_order(service_id: &str) -> usize {
     SERVICES
         .iter()
@@ -338,7 +319,9 @@ mod tests {
     #[test]
     fn station_has_discovered_returns_true_when_discovered() {
         let mut run = RunState::starter_fixture();
-        run.station.discovered_planet_ids.push(CINDER_FORGE_ID.to_string());
+        run.station
+            .discovered_planet_ids
+            .push(CINDER_FORGE_ID.to_string());
         assert!(run.station.has_discovered(CINDER_FORGE_ID));
     }
 }

@@ -1,9 +1,11 @@
+use idle_spacestation_bit_eq_derive::BitEq;
 use serde::Serialize;
 
+use crate::game::bit_eq::BitEq as _;
 use crate::game::content::doctrines::{doctrine_by_id, DOCTRINES};
 use crate::game::content::planets::{
-    planet_by_id_required, survey_threshold, PlanetDefinition, AURORA_PIER_ID, CINDER_FORGE_ID, PLANETS,
-    SOLSTICE_ANCHOR_ID,
+    planet_by_id_required, survey_threshold, PlanetDefinition, AURORA_PIER_ID, CINDER_FORGE_ID,
+    PLANETS, SOLSTICE_ANCHOR_ID,
 };
 use crate::game::content::services::SURVEY_UPLINK_ID;
 use crate::game::content::systems::{
@@ -11,20 +13,17 @@ use crate::game::content::systems::{
     SURVEY_ARRAY_ID, SYSTEMS,
 };
 use crate::game::progression::{
-    calculate_station_tier, evaluate_prestige_eligibility, PrestigeIneligibleReason, PrestigeProfile,
-    POWER_STABILITY_TICKS_REQUIRED,
+    calculate_station_tier, evaluate_prestige_eligibility, PrestigeIneligibleReason,
+    PrestigeProfile, POWER_STABILITY_TICKS_REQUIRED,
 };
+use crate::game::sim::state::{HOUSEKEEPING_POWER_PER_SECOND, SECONDS_PER_TICK};
 use crate::game::sim::{
     effective_crew_capacity, effective_data_output_multiplier,
     effective_materials_output_multiplier, effective_service_power_upkeep,
     effective_survey_output_multiplier, RunState, ServicePauseReason,
 };
-use crate::game::sim::state::{
-    HOUSEKEEPING_POWER_PER_SECOND,
-    SECONDS_PER_TICK,
-};
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionResponse {
     pub ok: bool,
@@ -33,7 +32,7 @@ pub struct ActionResponse {
     pub reason_code: Option<String>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveLoadResponse {
     pub ok: bool,
@@ -41,7 +40,7 @@ pub struct SaveLoadResponse {
     pub snapshot: RawGameSnapshot,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawGameSnapshot {
     pub meta: SnapshotMeta,
@@ -52,7 +51,7 @@ pub struct RawGameSnapshot {
     pub route_snapshots: RouteSnapshots,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapshotMeta {
     pub source: String,
@@ -60,7 +59,7 @@ pub struct SnapshotMeta {
     pub tick_count: u64,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunSnapshot {
     pub active_planet_id: String,
@@ -72,7 +71,7 @@ pub struct RunSnapshot {
     pub stable_power_seconds: f32,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourcesSnapshot {
     pub power: PowerSnapshot,
@@ -81,7 +80,7 @@ pub struct ResourcesSnapshot {
     pub crew: CrewSnapshot,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PowerSnapshot {
     pub generated: f32,
@@ -89,7 +88,7 @@ pub struct PowerSnapshot {
     pub available: f32,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CrewSnapshot {
     pub total: u8,
@@ -97,14 +96,14 @@ pub struct CrewSnapshot {
     pub available: u8,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawSystemStateSnapshot {
     pub id: String,
     pub level: u8,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawServiceStateSnapshot {
     pub id: String,
@@ -116,7 +115,7 @@ pub struct RawServiceStateSnapshot {
     pub assigned_crew: u8,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteSnapshots {
     pub overview: OverviewRouteSnapshot,
@@ -126,7 +125,7 @@ pub struct RouteSnapshots {
     pub prestige: PrestigeRouteSnapshot,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OverviewRouteSnapshot {
     pub active_planet: ActivePlanetSnapshot,
@@ -138,7 +137,7 @@ pub struct OverviewRouteSnapshot {
     pub guidance_triggers: Vec<String>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActivePlanetSnapshot {
     pub id: String,
@@ -147,7 +146,7 @@ pub struct ActivePlanetSnapshot {
     pub modifiers: Vec<PlanetModifierSnapshot>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanetModifierSnapshot {
     pub target: String,
@@ -156,7 +155,7 @@ pub struct PlanetModifierSnapshot {
     pub effect_text: String,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceDeltaSnapshot {
     pub id: String,
@@ -165,7 +164,7 @@ pub struct ResourceDeltaSnapshot {
     pub trend: String,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WarningSnapshot {
     pub code: String,
@@ -174,7 +173,7 @@ pub struct WarningSnapshot {
     pub body: String,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StationTierSnapshot {
     pub current: u8,
@@ -182,7 +181,7 @@ pub struct StationTierSnapshot {
     pub label: String,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceUtilizationSnapshot {
     pub active: usize,
@@ -191,7 +190,7 @@ pub struct ServiceUtilizationSnapshot {
     pub summary: String,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SurveyProgressSnapshot {
     pub current: f32,
@@ -201,13 +200,13 @@ pub struct SurveyProgressSnapshot {
     pub summary: String,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemsRouteSnapshot {
     pub systems: Vec<SystemRouteEntrySnapshot>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemRouteEntrySnapshot {
     pub id: String,
@@ -221,7 +220,7 @@ pub struct SystemRouteEntrySnapshot {
     pub upgrade_blocked_reason: Option<String>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemCapSnapshot {
     pub key: String,
@@ -230,7 +229,7 @@ pub struct SystemCapSnapshot {
     pub unit: String,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServicesRouteSnapshot {
     pub services: Vec<ServiceRouteEntrySnapshot>,
@@ -238,7 +237,7 @@ pub struct ServicesRouteSnapshot {
     pub deficit_warnings: Vec<WarningSnapshot>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceRouteEntrySnapshot {
     pub id: String,
@@ -254,21 +253,21 @@ pub struct ServiceRouteEntrySnapshot {
     pub disabled_reasons: Vec<String>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceCrewAssignmentSnapshot {
     pub current: u8,
     pub required: u8,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServicePowerUsageSnapshot {
     pub upkeep: f32,
     pub output: f32,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanetsRouteSnapshot {
     pub active_planet_id: String,
@@ -276,7 +275,7 @@ pub struct PlanetsRouteSnapshot {
     pub survey_progress: SurveyProgressSnapshot,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanetRouteEntrySnapshot {
     pub id: String,
@@ -291,7 +290,7 @@ pub struct PlanetRouteEntrySnapshot {
     pub survey_progress: f32,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrestigeRouteSnapshot {
     pub eligibility: PrestigeEligibilitySnapshot,
@@ -301,7 +300,7 @@ pub struct PrestigeRouteSnapshot {
     pub reset_consequences: Vec<ResetConsequenceSnapshot>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrestigeEligibilitySnapshot {
     pub eligible: bool,
@@ -311,7 +310,7 @@ pub struct PrestigeEligibilitySnapshot {
     pub required_stable_power_seconds: f32,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DoctrineSnapshot {
     pub id: String,
@@ -319,7 +318,7 @@ pub struct DoctrineSnapshot {
     pub description: String,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DoctrinePurchaseOptionSnapshot {
     pub id: String,
@@ -330,7 +329,7 @@ pub struct DoctrinePurchaseOptionSnapshot {
     pub blocked_reason: Option<String>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(BitEq, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResetConsequenceSnapshot {
     pub label: String,
@@ -342,12 +341,20 @@ pub fn build_snapshot(run_state: &RunState, profile: &PrestigeProfile) -> RawGam
     let station_tier = calculate_station_tier(run_state);
     let stable_power_seconds = stable_power_seconds(run_state.consecutive_stable_power_ticks);
     let doctrine_ids = sorted_unique(
-        run_state.station.doctrine_ids.iter().cloned()
-            .chain(profile.doctrine_ids.iter().cloned())
+        run_state
+            .station
+            .doctrine_ids
+            .iter()
+            .cloned()
+            .chain(profile.doctrine_ids.iter().cloned()),
     );
     let discovered_planet_ids = sorted_unique(
-        run_state.station.discovered_planet_ids.iter().cloned()
-            .chain(profile.discovered_planet_ids.iter().cloned())
+        run_state
+            .station
+            .discovered_planet_ids
+            .iter()
+            .cloned()
+            .chain(profile.discovered_planet_ids.iter().cloned()),
     );
     let deficit_warnings = build_deficit_warnings(run_state);
     let service_utilization = build_service_utilization(run_state);
@@ -434,8 +441,7 @@ fn build_overview_route(
     survey_progress: SurveyProgressSnapshot,
     prestige_eligible: bool,
 ) -> OverviewRouteSnapshot {
-    let active_planet = run_state
-        .active_planet_definition();
+    let active_planet = run_state.active_planet_definition();
     let mut guidance_triggers = vec!["review-station-status".to_string()];
 
     if !deficit_warnings.is_empty() {
@@ -564,7 +570,10 @@ fn build_planets_route(
 ) -> PlanetsRouteSnapshot {
     PlanetsRouteSnapshot {
         active_planet_id: run_state.station.active_planet_id.clone(),
-        planets: PLANETS.iter().map(|planet| build_planet_entry(run_state, planet)).collect(),
+        planets: PLANETS
+            .iter()
+            .map(|planet| build_planet_entry(run_state, planet))
+            .collect(),
         survey_progress,
     }
 }
@@ -607,7 +616,8 @@ fn build_prestige_route(
                 name: doctrine.label.to_string(),
                 description: doctrine.description.to_string(),
                 cost_fragments: 1,
-                available: !doctrine_ids.iter().any(|owned| owned == doctrine.id) && doctrine_fragments > 0,
+                available: !doctrine_ids.iter().any(|owned| owned == doctrine.id)
+                    && doctrine_fragments > 0,
                 blocked_reason: if doctrine_ids.iter().any(|owned| owned == doctrine.id) {
                     Some("already-unlocked".to_string())
                 } else if doctrine_fragments == 0 {
@@ -636,7 +646,8 @@ fn build_prestige_route(
             ResetConsequenceSnapshot {
                 label: "Lifetime stats".to_string(),
                 outcome: "retain".to_string(),
-                summary: "Lifetime ticks, prestiges, and best pace remain in the profile.".to_string(),
+                summary: "Lifetime ticks, prestiges, and best pace remain in the profile."
+                    .to_string(),
             },
             ResetConsequenceSnapshot {
                 label: "Materials and Data".to_string(),
@@ -734,7 +745,14 @@ fn build_system_entry(run_state: &RunState, system_id: &str) -> SystemRouteEntry
         }
     };
 
-    build_system_route_entry(run_state, system_id, level, max_level, upgrade_cost, cap_values)
+    build_system_route_entry(
+        run_state,
+        system_id,
+        level,
+        max_level,
+        upgrade_cost,
+        cap_values,
+    )
 }
 
 fn build_system_route_entry(
@@ -798,7 +816,9 @@ fn build_planet_entry(run_state: &RunState, planet: &PlanetDefinition) -> Planet
     }
 }
 
-fn build_planet_modifier(modifier: &crate::game::content::planets::PlanetModifier) -> PlanetModifierSnapshot {
+fn build_planet_modifier(
+    modifier: &crate::game::content::planets::PlanetModifier,
+) -> PlanetModifierSnapshot {
     let label = modifier.target.label();
 
     PlanetModifierSnapshot {
@@ -810,19 +830,27 @@ fn build_planet_modifier(modifier: &crate::game::content::planets::PlanetModifie
 }
 
 fn build_resource_deltas(run_state: &RunState) -> Vec<ResourceDeltaSnapshot> {
-    let active_services: Vec<_> = run_state.services.iter().filter(|service| service.is_active).collect();
+    let active_services: Vec<_> = run_state
+        .services
+        .iter()
+        .filter(|service| service.is_active)
+        .collect();
     let materials_delta_per_second: f32 = active_services
         .iter()
         .map(|service| {
             let definition = service.definition();
-            let materials_output = definition.materials_output * effective_materials_output_multiplier(run_state);
-            let materials_input = definition.materials_upkeep + (-definition.materials_input).max(0.0);
+            let materials_output =
+                definition.materials_output * effective_materials_output_multiplier(run_state);
+            let materials_input =
+                definition.materials_upkeep + (-definition.materials_input).max(0.0);
             materials_output - materials_input
         })
         .sum();
     let data_delta_per_second: f32 = active_services
         .iter()
-        .map(|service| service.definition().data_output * effective_data_output_multiplier(run_state))
+        .map(|service| {
+            service.definition().data_output * effective_data_output_multiplier(run_state)
+        })
         .sum();
     let survey_delta_per_second: f32 = active_services
         .iter()
@@ -886,7 +914,11 @@ fn build_deficit_warnings(run_state: &RunState) -> Vec<WarningSnapshot> {
 }
 
 fn build_service_utilization(run_state: &RunState) -> ServiceUtilizationSnapshot {
-    let active = run_state.services.iter().filter(|service| service.is_active).count();
+    let active = run_state
+        .services
+        .iter()
+        .filter(|service| service.is_active)
+        .count();
     let capacity = logistics_active_service_slots(run_state) as usize;
 
     ServiceUtilizationSnapshot {
@@ -917,8 +949,7 @@ fn build_survey_progress(run_state: &RunState) -> SurveyProgressSnapshot {
             summary: "All survey targets discovered.".to_string(),
         },
         Some(next_planet_id) => {
-            let next_planet_definition =
-                planet_by_id_required(next_planet_id);
+            let next_planet_definition = planet_by_id_required(next_planet_id);
             let next_threshold = survey_threshold(next_planet_id);
 
             SurveyProgressSnapshot {
@@ -937,12 +968,17 @@ fn build_survey_progress(run_state: &RunState) -> SurveyProgressSnapshot {
 }
 
 fn build_prestige_reason_codes(run_state: &RunState) -> Vec<String> {
-    let eligibility = evaluate_prestige_eligibility(run_state, run_state.consecutive_stable_power_ticks);
+    let eligibility =
+        evaluate_prestige_eligibility(run_state, run_state.consecutive_stable_power_ticks);
     let station_tier = calculate_station_tier(run_state);
     let mut reason_codes = Vec::new();
 
     if station_tier < 4 {
-        reason_codes.push(PrestigeIneligibleReason::StationTierBelowFour.code().to_string());
+        reason_codes.push(
+            PrestigeIneligibleReason::StationTierBelowFour
+                .code()
+                .to_string(),
+        );
     }
     if run_state
         .station
@@ -952,11 +988,19 @@ fn build_prestige_reason_codes(run_state: &RunState) -> Vec<String> {
         .count()
         < 2
     {
-        reason_codes.push(PrestigeIneligibleReason::NeedsTwoNonStarterPlanets.code().to_string());
+        reason_codes.push(
+            PrestigeIneligibleReason::NeedsTwoNonStarterPlanets
+                .code()
+                .to_string(),
+        );
     }
     if !eligibility.eligible {
         if let Some(PrestigeIneligibleReason::UnstableNetPower) = eligibility.reason {
-            reason_codes.push(PrestigeIneligibleReason::UnstableNetPower.code().to_string());
+            reason_codes.push(
+                PrestigeIneligibleReason::UnstableNetPower
+                    .code()
+                    .to_string(),
+            );
         }
     }
 
@@ -1035,11 +1079,12 @@ fn round2(value: f32) -> f32 {
 }
 
 fn logistics_active_service_slots(run_state: &RunState) -> u8 {
-    match system_by_id_required(LOGISTICS_SPINE_ID)
-        .progression
-    {
+    match system_by_id_required(LOGISTICS_SPINE_ID).progression {
         SystemProgression::LogisticsSpine(levels) => {
-            let level = run_state.system_level(LOGISTICS_SPINE_ID).unwrap_or(1).clamp(1, levels.len() as u8);
+            let level = run_state
+                .system_level(LOGISTICS_SPINE_ID)
+                .unwrap_or(1)
+                .clamp(1, levels.len() as u8);
             levels[(level - 1) as usize].active_service_slots
         }
         _ => unreachable!("logistics-spine progression must use logistics levels"),
@@ -1050,239 +1095,7 @@ fn logistics_active_service_slots(run_state: &RunState) -> u8 {
 /// Uses `f32::to_bits()` for float comparisons (handles NaN consistently by bit pattern).
 /// Uses standard `==` for integers, strings, booleans, and enums.
 pub fn state_equals(a: &RawGameSnapshot, b: &RawGameSnapshot) -> bool {
-    meta_eq(&a.meta, &b.meta)
-        && run_eq(&a.run, &b.run)
-        && resources_eq(&a.resources, &b.resources)
-        && systems_eq(&a.systems, &b.systems)
-        && services_eq(&a.services, &b.services)
-        && route_snapshots_eq(&a.route_snapshots, &b.route_snapshots)
-}
-
-fn meta_eq(a: &SnapshotMeta, b: &SnapshotMeta) -> bool {
-    a.source == b.source && a.fixture_name == b.fixture_name && a.tick_count == b.tick_count
-}
-
-fn run_eq(a: &RunSnapshot, b: &RunSnapshot) -> bool {
-    a.active_planet_id == b.active_planet_id
-        && a.discovered_planet_ids == b.discovered_planet_ids
-        && a.doctrine_ids == b.doctrine_ids
-        && a.doctrine_fragments == b.doctrine_fragments
-        && a.survey_progress.to_bits() == b.survey_progress.to_bits()
-        && a.station_tier == b.station_tier
-        && a.stable_power_seconds.to_bits() == b.stable_power_seconds.to_bits()
-}
-
-fn resources_eq(a: &ResourcesSnapshot, b: &ResourcesSnapshot) -> bool {
-    power_eq(&a.power, &b.power)
-        && a.materials.to_bits() == b.materials.to_bits()
-        && a.data.to_bits() == b.data.to_bits()
-        && crew_eq(&a.crew, &b.crew)
-}
-
-fn power_eq(a: &PowerSnapshot, b: &PowerSnapshot) -> bool {
-    a.generated.to_bits() == b.generated.to_bits()
-        && a.reserved.to_bits() == b.reserved.to_bits()
-        && a.available.to_bits() == b.available.to_bits()
-}
-
-fn crew_eq(a: &CrewSnapshot, b: &CrewSnapshot) -> bool {
-    a.total == b.total && a.assigned == b.assigned && a.available == b.available
-}
-
-fn systems_eq(a: &[RawSystemStateSnapshot], b: &[RawSystemStateSnapshot]) -> bool {
-    a.len() == b.len() && a.iter().zip(b.iter()).all(|(av, bv)| av.id == bv.id && av.level == bv.level)
-}
-
-fn services_eq(a: &[RawServiceStateSnapshot], b: &[RawServiceStateSnapshot]) -> bool {
-    a.len() == b.len()
-        && a.iter().zip(b.iter()).all(|(av, bv)| {
-            av.id == bv.id
-                && av.desired_active == bv.desired_active
-                && av.is_active == bv.is_active
-                && av.is_paused == bv.is_paused
-                && av.pause_reason == bv.pause_reason
-                && av.priority == bv.priority
-                && av.assigned_crew == bv.assigned_crew
-        })
-}
-
-fn route_snapshots_eq(a: &RouteSnapshots, b: &RouteSnapshots) -> bool {
-    overview_eq(&a.overview, &b.overview)
-        && systems_route_eq(&a.systems, &b.systems)
-        && services_route_eq(&a.services, &b.services)
-        && planets_route_eq(&a.planets, &b.planets)
-        && prestige_route_eq(&a.prestige, &b.prestige)
-}
-
-fn overview_eq(a: &OverviewRouteSnapshot, b: &OverviewRouteSnapshot) -> bool {
-    active_planet_eq(&a.active_planet, &b.active_planet)
-        && resource_deltas_eq(&a.resource_deltas, &b.resource_deltas)
-        && warnings_eq(&a.deficit_warnings, &b.deficit_warnings)
-        && a.station_tier.current == b.station_tier.current
-        && a.station_tier.max == b.station_tier.max
-        && a.station_tier.label == b.station_tier.label
-        && a.service_utilization.active == b.service_utilization.active
-        && a.service_utilization.capacity == b.service_utilization.capacity
-        && a.service_utilization.available == b.service_utilization.available
-        && a.service_utilization.summary == b.service_utilization.summary
-        && survey_progress_eq(&a.survey_progress, &b.survey_progress)
-        && a.guidance_triggers == b.guidance_triggers
-}
-
-fn active_planet_eq(a: &ActivePlanetSnapshot, b: &ActivePlanetSnapshot) -> bool {
-    a.id == b.id
-        && a.name == b.name
-        && a.description == b.description
-        && a.modifiers.len() == b.modifiers.len()
-        && a.modifiers
-            .iter()
-            .zip(b.modifiers.iter())
-            .all(|(av, bv)| {
-                av.target == bv.target
-                    && av.label == bv.label
-                    && av.percent.to_bits() == bv.percent.to_bits()
-                    && av.effect_text == bv.effect_text
-            })
-}
-
-fn resource_deltas_eq(a: &[ResourceDeltaSnapshot], b: &[ResourceDeltaSnapshot]) -> bool {
-    a.len() == b.len()
-        && a.iter().zip(b.iter()).all(|(av, bv)| {
-            av.id == bv.id
-                && av.label == bv.label
-                && av.delta_per_second.to_bits() == bv.delta_per_second.to_bits()
-                && av.trend == bv.trend
-        })
-}
-
-fn warnings_eq(a: &[WarningSnapshot], b: &[WarningSnapshot]) -> bool {
-    a.len() == b.len()
-        && a.iter()
-            .zip(b.iter())
-            .all(|(av, bv)| av.code == bv.code && av.severity == bv.severity && av.title == bv.title && av.body == bv.body)
-}
-
-fn survey_progress_eq(a: &SurveyProgressSnapshot, b: &SurveyProgressSnapshot) -> bool {
-    a.current.to_bits() == b.current.to_bits()
-        && a.next_threshold.map(|x| x.to_bits()) == b.next_threshold.map(|x| x.to_bits())
-        && a.next_planet_id == b.next_planet_id
-        && a.next_planet_name == b.next_planet_name
-        && a.summary == b.summary
-}
-
-fn systems_route_eq(a: &SystemsRouteSnapshot, b: &SystemsRouteSnapshot) -> bool {
-    a.systems.len() == b.systems.len()
-        && a.systems
-            .iter()
-            .zip(b.systems.iter())
-            .all(|(av, bv)| {
-                av.id == bv.id
-                    && av.name == bv.name
-                    && av.description == bv.description
-                    && av.level == bv.level
-                    && av.max_level == bv.max_level
-                    && av.cap_values.len() == bv.cap_values.len()
-                    && av.cap_values
-                        .iter()
-                        .zip(bv.cap_values.iter())
-                        .all(|(acv, bcv)| {
-                            acv.key == bcv.key
-                                && acv.label == bcv.label
-                                && acv.value.to_bits() == bcv.value.to_bits()
-                                && acv.unit == bcv.unit
-                        })
-                    && av.upgrade_cost_materials == bv.upgrade_cost_materials
-                    && av.can_upgrade == bv.can_upgrade
-                    && av.upgrade_blocked_reason == bv.upgrade_blocked_reason
-            })
-}
-
-fn services_route_eq(a: &ServicesRouteSnapshot, b: &ServicesRouteSnapshot) -> bool {
-    a.services.len() == b.services.len()
-        && a.services
-            .iter()
-            .zip(b.services.iter())
-            .all(|(av, bv)| {
-                av.id == bv.id
-                    && av.name == bv.name
-                    && av.description == bv.description
-                    && av.family == bv.family
-                    && av.priority_order == bv.priority_order
-                    && av.status == bv.status
-                    && av.status_label == bv.status_label
-                    && av.desired_active == bv.desired_active
-                    && av.crew_assignment.current == bv.crew_assignment.current
-                    && av.crew_assignment.required == bv.crew_assignment.required
-                    && av.power_usage.upkeep.to_bits() == bv.power_usage.upkeep.to_bits()
-                    && av.power_usage.output.to_bits() == bv.power_usage.output.to_bits()
-                    && av.disabled_reasons == bv.disabled_reasons
-            })
-        && a.utilization.active == b.utilization.active
-        && a.utilization.capacity == b.utilization.capacity
-        && a.utilization.available == b.utilization.available
-        && a.utilization.summary == b.utilization.summary
-        && warnings_eq(&a.deficit_warnings, &b.deficit_warnings)
-}
-
-fn planets_route_eq(a: &PlanetsRouteSnapshot, b: &PlanetsRouteSnapshot) -> bool {
-    a.active_planet_id == b.active_planet_id
-        && a.planets.len() == b.planets.len()
-        && a.planets
-            .iter()
-            .zip(b.planets.iter())
-            .all(|(av, bv)| {
-                av.id == bv.id
-                    && av.name == bv.name
-                    && av.description == bv.description
-                    && av.discovered == bv.discovered
-                    && av.active == bv.active
-                    && av.selectable_for_next_run == bv.selectable_for_next_run
-                    && av.selectability_reason == bv.selectability_reason
-                    && av.modifiers.len() == bv.modifiers.len()
-                    && av.modifiers
-                        .iter()
-                        .zip(bv.modifiers.iter())
-                        .all(|(am, bm)| {
-                            am.target == bm.target
-                                && am.label == bm.label
-                                && am.percent.to_bits() == bm.percent.to_bits()
-                                && am.effect_text == bm.effect_text
-                        })
-                    && av.survey_threshold.map(|x| x.to_bits()) == bv.survey_threshold.map(|x| x.to_bits())
-                    && av.survey_progress.to_bits() == bv.survey_progress.to_bits()
-            })
-        && survey_progress_eq(&a.survey_progress, &b.survey_progress)
-}
-
-fn prestige_route_eq(a: &PrestigeRouteSnapshot, b: &PrestigeRouteSnapshot) -> bool {
-    a.eligibility.eligible == b.eligibility.eligible
-        && a.eligibility.reason_codes == b.eligibility.reason_codes
-        && a.eligibility.summary == b.eligibility.summary
-        && a.eligibility.stable_power_seconds.to_bits() == b.eligibility.stable_power_seconds.to_bits()
-        && a.eligibility.required_stable_power_seconds.to_bits() == b.eligibility.required_stable_power_seconds.to_bits()
-        && a.doctrine_fragments == b.doctrine_fragments
-        && a.unlocked_doctrines.len() == b.unlocked_doctrines.len()
-        && a.unlocked_doctrines
-            .iter()
-            .zip(b.unlocked_doctrines.iter())
-            .all(|(av, bv)| av.id == bv.id && av.name == bv.name && av.description == bv.description)
-        && a.purchase_options.len() == b.purchase_options.len()
-        && a.purchase_options
-            .iter()
-            .zip(b.purchase_options.iter())
-            .all(|(av, bv)| {
-                av.id == bv.id
-                    && av.name == bv.name
-                    && av.description == bv.description
-                    && av.cost_fragments == bv.cost_fragments
-                    && av.available == bv.available
-                    && av.blocked_reason == bv.blocked_reason
-            })
-        && a.reset_consequences.len() == b.reset_consequences.len()
-        && a.reset_consequences
-            .iter()
-            .zip(b.reset_consequences.iter())
-            .all(|(av, bv)| av.label == bv.label && av.outcome == bv.outcome && av.summary == bv.summary)
+    a.bit_eq(b)
 }
 
 #[cfg(test)]
@@ -1301,7 +1114,10 @@ mod tests {
     fn state_equals_clones_are_equal() {
         let snapshot = make_test_snapshot();
         let clone = snapshot.clone();
-        assert!(state_equals(&snapshot, &clone), "cloned snapshots should be equal");
+        assert!(
+            state_equals(&snapshot, &clone),
+            "cloned snapshots should be equal"
+        );
     }
 
     #[test]
@@ -1310,7 +1126,10 @@ mod tests {
         let mut snapshot2 = make_test_snapshot();
         snapshot1.meta.tick_count = 100;
         snapshot2.meta.tick_count = 200;
-        assert!(!state_equals(&snapshot1, &snapshot2), "snapshots with different tick_count should not be equal");
+        assert!(
+            !state_equals(&snapshot1, &snapshot2),
+            "snapshots with different tick_count should not be equal"
+        );
     }
 
     #[test]
@@ -1319,7 +1138,10 @@ mod tests {
         let mut snapshot2 = make_test_snapshot();
         snapshot1.resources.materials = 100.5;
         snapshot2.resources.materials = 200.5;
-        assert!(!state_equals(&snapshot1, &snapshot2), "snapshots with different f32 fields should not be equal");
+        assert!(
+            !state_equals(&snapshot1, &snapshot2),
+            "snapshots with different f32 fields should not be equal"
+        );
     }
 
     #[test]
@@ -1328,7 +1150,10 @@ mod tests {
         let mut snapshot2 = make_test_snapshot();
         snapshot1.resources.materials = f32::NAN;
         snapshot2.resources.materials = f32::NAN;
-        assert!(state_equals(&snapshot1, &snapshot2), "NaN values with same bit pattern should compare equal");
+        assert!(
+            state_equals(&snapshot1, &snapshot2),
+            "NaN values with same bit pattern should compare equal"
+        );
     }
 
     #[test]
@@ -1337,7 +1162,10 @@ mod tests {
         let mut snapshot2 = make_test_snapshot();
         snapshot1.resources.materials = f32::NAN; // 0x7FC00000
         snapshot2.resources.materials = f32::from_bits(0x7fc00001); // different NaN pattern
-        assert!(!state_equals(&snapshot1, &snapshot2), "NaN values with different bit patterns should not compare equal");
+        assert!(
+            !state_equals(&snapshot1, &snapshot2),
+            "NaN values with different bit patterns should not compare equal"
+        );
     }
 
     #[test]
@@ -1349,7 +1177,10 @@ mod tests {
             id: "test-system".to_string(),
             level: 1,
         }];
-        assert!(!state_equals(&snapshot1, &snapshot2), "snapshots with different system vec lengths should not be equal");
+        assert!(
+            !state_equals(&snapshot1, &snapshot2),
+            "snapshots with different system vec lengths should not be equal"
+        );
     }
 
     #[test]
@@ -1359,7 +1190,10 @@ mod tests {
         if !snapshot1.systems.is_empty() {
             snapshot1.systems[0].level = 1;
             snapshot2.systems[0].level = 2;
-            assert!(!state_equals(&snapshot1, &snapshot2), "snapshots with different system levels should not be equal");
+            assert!(
+                !state_equals(&snapshot1, &snapshot2),
+                "snapshots with different system levels should not be equal"
+            );
         }
     }
 
@@ -1387,10 +1221,24 @@ mod tests {
         }
     }
 
-    fn find_system<'a>(
-        snapshot: &'a RawGameSnapshot,
-        id: &str,
-    ) -> &'a SystemRouteEntrySnapshot {
+    #[test]
+    fn shadow_state_equals_matches_legacy_for_100_ticks() {
+        let mut run = RunState::starter_fixture();
+        let profile = PrestigeProfile::default();
+        let mut prev = build_snapshot(&run, &profile);
+
+        for i in 0..100 {
+            tick(&mut run);
+            let next = build_snapshot(&run, &profile);
+
+            assert!(next.bit_eq(&next), "tick {i}: snapshot must equal itself");
+            let _ = next.bit_eq(&prev);
+
+            prev = next;
+        }
+    }
+
+    fn find_system<'a>(snapshot: &'a RawGameSnapshot, id: &str) -> &'a SystemRouteEntrySnapshot {
         snapshot
             .route_snapshots
             .systems
