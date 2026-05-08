@@ -44,7 +44,7 @@ describe('useSnapshotSync', () => {
     // reactive reads are isolated from this effect.
     const internalReads: number[] = [];
     const state = {
-      sync: vi.fn((_s: GameSnapshot | null) => {
+      sync: vi.fn(() => {
         // Simulate reactive read inside sync — should NOT re-track outer effect.
         internalReads.push(internalReads.length);
       }),

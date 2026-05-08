@@ -28,7 +28,7 @@ import {
   starter,
 } from './testing';
 
-const _: GameGateway = gameGateway;
+gameGateway satisfies GameGateway;
 
 describe('game api fixtures and adapters', () => {
   it('sends camelCase payloads for service activation commands', async () => {

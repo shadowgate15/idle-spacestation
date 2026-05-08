@@ -1,3 +1,4 @@
+import { isInRange } from '$lib/utils';
 import type {
   DevtoolsAdvanceTicksPayload,
   DevtoolsResetToStarterPayload,
@@ -121,8 +122,4 @@ export function createSessionPanelState(snapshot: GameSnapshot | null, gateway: 
     advance,
     confirmReset,
   };
-}
-
-function isInRange(value: number | undefined, min: number, max: number): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
 }
