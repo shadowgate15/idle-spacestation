@@ -5,6 +5,8 @@ import type {
   GatewayDevtoolsApplyProgressionResponse,
   PlanetId,
 } from '$lib/game/api/types';
+import { DOCTRINE_IDS, PLANET_IDS } from '$lib/game/api/types';
+import { isAtLeast, isInRange } from '$lib/utils';
 
 type ProgressionGateway = {
   applyProgression: (
@@ -20,16 +22,12 @@ type ProgressionDraft = {
   surveyProgress: number | undefined;
 };
 
-export const doctrineIds: DoctrineId[] = [
-  'efficient-shifts',
-  'deep-survey-protocols',
-  'hardened-relays',
-  'frontier-charters',
-];
-
-export const planetIds: PlanetId[] = ['solstice-anchor', 'cinder-forge', 'aurora-pier'];
+// Re-export canonical const tuples with legacy names for ProgressionPanel.svelte compatibility
+export const doctrineIds = DOCTRINE_IDS;
+export const planetIds = PLANET_IDS;
 
 const STARTER_PLANET_ID: PlanetId = 'solstice-anchor';
+// TODO(planets): read from snapshot when reliably populated; mirrors src-tauri/src/game/content/planets.rs
 const SURVEY_PROGRESS_THRESHOLDS: Record<Exclude<PlanetId, typeof STARTER_PLANET_ID>, number> = {
   'cinder-forge': 600,
   'aurora-pier': 1400,
@@ -262,12 +260,4 @@ function normalizePlanetIds(ids: PlanetId[]) {
 
 function hasSameIds<T extends string>(left: T[], right: T[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function isAtLeast(value: number | undefined, min: number): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= min;
-}
-
-function isInRange(value: number | undefined, min: number, max: number): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
 }

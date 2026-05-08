@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { adaptGameSnapshot } from '$lib/game/api';
 import { createFixtureTransport } from '$lib/game/api/testing/transport';
 import type { DoctrineId, GameSnapshot, PlanetId } from '$lib/game/api/types';
-import { createProgressionPanelState } from './progression-panel-state.svelte';
+import { PLANET_IDS } from '$lib/game/api/types';
+import { createProgressionPanelState, planetIds } from './progression-panel-state.svelte';
 
 const baseSnapshot = adaptGameSnapshot(createFixtureTransport('starter').getSnapshot());
 
@@ -196,5 +197,24 @@ describe('createProgressionPanelState', () => {
     expect(state.draft.discoveredPlanets).toEqual(nextSnapshot.run.discoveredPlanetIds);
     expect(state.draft.activePlanet).toBe(nextSnapshot.run.activePlanetId);
     expect(state.draft.surveyProgress).toBeCloseTo(1260 / 1400);
+  });
+
+  it('uses canonical PLANET_IDS from types', () => {
+    expect(planetIds).toEqual(PLANET_IDS);
+  });
+
+  it('validates all canonical planet IDs for discovery', () => {
+    const snapshot = createSnapshot();
+    const state = createProgressionPanelState(snapshot, {
+      applyProgression: vi.fn(),
+    });
+
+    PLANET_IDS.forEach((planetId) => {
+      expect(() => {
+        state.toggleDiscoveredPlanet(planetId, true);
+      }).not.toThrow();
+
+      expect(state.draft.discoveredPlanets).toContain(planetId);
+    });
   });
 });
