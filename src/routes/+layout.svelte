@@ -59,21 +59,15 @@
     }
   }
 
-  onMount(() => {
-    devtoolsDestroyed = false;
+  // Expose gameState + gameGateway on window in fixture mode so E2E tests
+  // can drive snapshot updates deterministically (replaces the old
+  // periodic-polling assumption now that snapshots are push-based).
+  function exposeFixtureGlobals(): void {
+    window.__gameState = gameState;
+    window.__gameGateway = gameGateway;
+  }
 
-    void gameState.init().catch((err) => {
-      console.error('[layout] gameState.init failed:', err);
-    });
-
-    // Expose gameState + gameGateway on window in fixture mode so E2E tests
-    // can drive snapshot updates deterministically (replaces the old
-    // periodic-polling assumption now that snapshots are push-based).
-    if (isFixtureModeEnabled() && typeof window !== 'undefined') {
-      (window as unknown as Record<string, unknown>).__gameState = gameState;
-      (window as unknown as Record<string, unknown>).__gameGateway = gameGateway;
-    }
-
+  function setupFocusDeferral(): () => void {
     function onFocusIn() {
       if (isEditableDevtoolsInputFocused()) {
         gameState.deferUntilBlur(true);
@@ -86,14 +80,74 @@
     }
     document.addEventListener('focusin', onFocusIn);
     document.addEventListener('focusout', onFocusOut);
+    return () => {
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('focusout', onFocusOut);
+    };
+  }
 
+  async function setupDevtoolsVisibility(
+    localOverride: boolean,
+  ): Promise<() => void | Promise<void>> {
+    const isFixtureMode = isFixtureModeEnabled();
+    let unlisten: (() => void | Promise<void>) | null = null;
+
+    try {
+      const { listen } = await import('@tauri-apps/api/event');
+      unlisten = await listen<{ visible: boolean }>('devtools:visibility-changed', (event) => {
+        if (devtoolsDestroyed) return;
+
+        devtoolsVisible = event.payload.visible;
+        // Only persist visibility to localStorage in fixture mode so that
+        // page reloads during E2E tests restore the overlay state.
+        if (isFixtureMode) {
+          setDevtoolsLocalOverride(event.payload.visible);
+        }
+      });
+    } catch {
+      // not in Tauri
+    }
+
+    try {
+      const state = await gameGateway.getDevtoolsState();
+      if (!devtoolsDestroyed) {
+        devtoolsVisible = localOverride || state.visible;
+        if (isFixtureMode) {
+          setDevtoolsLocalOverride(devtoolsVisible);
+        }
+      }
+    } catch {
+      if (localOverride && !devtoolsDestroyed) {
+        devtoolsVisible = true;
+        if (isFixtureMode) {
+          setDevtoolsLocalOverride(true);
+        }
+      }
+    }
+
+    return () => {
+      void unlisten?.();
+    };
+  }
+
+  onMount(() => {
+    devtoolsDestroyed = false;
+
+    void gameState.init().catch((err) => {
+      console.error('[layout] gameState.init failed:', err);
+    });
+
+    if (isFixtureModeEnabled() && typeof window !== 'undefined') {
+      exposeFixtureGlobals();
+    }
+
+    const cleanupFocus = setupFocusDeferral();
     const isFixtureMode = isFixtureModeEnabled();
 
     if (!IS_DEBUG && !isFixtureMode) {
       return () => {
         devtoolsDestroyed = true;
-        document.removeEventListener('focusin', onFocusIn);
-        document.removeEventListener('focusout', onFocusOut);
+        cleanupFocus();
         gameState.dispose();
       };
     }
@@ -103,51 +157,17 @@
     // localStorage there would let a developer bypass the Debug menu toggle.
     const localOverride =
       isFixtureMode && window.localStorage.getItem(DEVTOOLS_STORAGE_KEY) === 'true';
-    let unlisten: (() => void | Promise<void>) | null = null;
+    let cleanupDevtools: (() => void | Promise<void>) | null = null;
 
-    const initialize = async () => {
-      try {
-        const { listen } = await import('@tauri-apps/api/event');
-        unlisten = await listen<{ visible: boolean }>('devtools:visibility-changed', (event) => {
-          if (devtoolsDestroyed) return;
-
-          devtoolsVisible = event.payload.visible;
-          // Only persist visibility to localStorage in fixture mode so that
-          // page reloads during E2E tests restore the overlay state.
-          if (isFixtureMode) {
-            setDevtoolsLocalOverride(event.payload.visible);
-          }
-        });
-      } catch {
-        // not in Tauri
-      }
-
-      try {
-        const state = await gameGateway.getDevtoolsState();
-        if (devtoolsDestroyed) return;
-
-        devtoolsVisible = localOverride || state.visible;
-        if (isFixtureMode) {
-          setDevtoolsLocalOverride(devtoolsVisible);
-        }
-      } catch {
-        if (localOverride && !devtoolsDestroyed) {
-          devtoolsVisible = true;
-          if (isFixtureMode) {
-            setDevtoolsLocalOverride(true);
-          }
-        }
-      }
-    };
-
-    void initialize();
+    void setupDevtoolsVisibility(localOverride).then((cleanup) => {
+      cleanupDevtools = cleanup;
+    });
 
     return () => {
       devtoolsDestroyed = true;
-      document.removeEventListener('focusin', onFocusIn);
-      document.removeEventListener('focusout', onFocusOut);
+      cleanupFocus();
       gameState.dispose();
-      void unlisten?.();
+      void cleanupDevtools?.();
     };
   });
 </script>
