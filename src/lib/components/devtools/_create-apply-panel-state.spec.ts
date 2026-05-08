@@ -33,9 +33,9 @@ function createDeferred<T>() {
 
 function createResourcePanelState(
   initialSnapshot: GameSnapshot | null,
-  applyToGateway = vi.fn<
-    (draft: ResourceDraft) => Promise<ApplyResponse>
-  >().mockResolvedValue({ ok: true, snapshot: createSnapshot(1, 2) }),
+  applyToGateway = vi
+    .fn<(draft: ResourceDraft) => Promise<ApplyResponse>>()
+    .mockResolvedValue({ ok: true, snapshot: createSnapshot(1, 2) }),
 ) {
   return {
     applyToGateway,
@@ -111,7 +111,9 @@ describe('createApplyPanelState', () => {
 
   it('sets isApplying during a valid gateway call and clears it in finally', async () => {
     const deferred = createDeferred<ApplyResponse>();
-    const applyToGateway = vi.fn<(draft: ResourceDraft) => Promise<ApplyResponse>>(() => deferred.promise);
+    const applyToGateway = vi.fn<(draft: ResourceDraft) => Promise<ApplyResponse>>(
+      () => deferred.promise,
+    );
     const { state } = createResourcePanelState(createSnapshot(3, 5), applyToGateway);
 
     state.draft.materials = 8;
@@ -127,9 +129,9 @@ describe('createApplyPanelState', () => {
   });
 
   it('clears isApplying when a valid gateway call rejects', async () => {
-    const applyToGateway = vi.fn<(draft: ResourceDraft) => Promise<ApplyResponse>>().mockRejectedValue(
-      new Error('network failed'),
-    );
+    const applyToGateway = vi
+      .fn<(draft: ResourceDraft) => Promise<ApplyResponse>>()
+      .mockRejectedValue(new Error('network failed'));
     const { state } = createResourcePanelState(createSnapshot(3, 5), applyToGateway);
 
     state.draft.data = 8;

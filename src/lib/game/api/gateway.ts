@@ -120,10 +120,8 @@ export function createGameGateway(transport: GameGatewayTransport = resolveDefau
 
   return {
     transport,
-    subscribeToStateChanges: (
-      cb: (raw: RawGameSnapshot) => void,
-      onError?: (err: Error) => void,
-    ) => transport.subscribeToStateChanges(cb, onError),
+    subscribeToStateChanges: (cb: (raw: RawGameSnapshot) => void, onError?: (err: Error) => void) =>
+      transport.subscribeToStateChanges(cb, onError),
     getSnapshot: () => invokeSnapshot('game_get_snapshot', undefined, transport),
     requestSave: () => invokeSaveLike('game_request_save', undefined, transport),
     requestLoad: () => invokeLoadLike('game_request_load', undefined, transport),
@@ -144,7 +142,9 @@ export function createGameGateway(transport: GameGatewayTransport = resolveDefau
     purchaseDoctrine: action<'game_purchase_doctrine', DoctrinePurchaseRejectionCode>(
       'game_purchase_doctrine',
     ),
-    confirmPrestige: action<'game_confirm_prestige', PrestigeRejectionCode>('game_confirm_prestige'),
+    confirmPrestige: action<'game_confirm_prestige', PrestigeRejectionCode>(
+      'game_confirm_prestige',
+    ),
     applyResources: action<'game_devtools_apply_resources', DevtoolsApplyResourcesRejectionCode>(
       'game_devtools_apply_resources',
     ),

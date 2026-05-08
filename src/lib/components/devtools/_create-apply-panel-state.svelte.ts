@@ -48,12 +48,7 @@ export function createApplyPanelState<TDraft, TResponse extends ApplyResponse>(
       return;
     }
 
-    if (
-      draft !== null &&
-      typeof draft === 'object' &&
-      seed !== null &&
-      typeof seed === 'object'
-    ) {
+    if (draft !== null && typeof draft === 'object' && seed !== null && typeof seed === 'object') {
       const target = draft as Record<string, unknown>;
       const source = seed as Record<string, unknown>;
       for (const key of Object.keys(target)) {

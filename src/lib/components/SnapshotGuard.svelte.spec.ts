@@ -88,8 +88,6 @@ describe('SnapshotGuard', () => {
     }
   });
 
-
-
   it('renders the children snippet with a non-null snapshot when ready', async () => {
     mockIPC(
       (cmd) => {
@@ -175,7 +173,12 @@ describe('SnapshotGuard', () => {
     const tickCount = String(gameState.snapshot!.meta.tickCount);
 
     const children = createRawSnippet(
-      (snapshot: () => { routes: { overview: { activePlanet: { name: string } } }; meta: { tickCount: number } }) => ({
+      (
+        snapshot: () => {
+          routes: { overview: { activePlanet: { name: string } } };
+          meta: { tickCount: number };
+        },
+      ) => ({
         render: () => {
           const snap = snapshot();
           return `<div data-testid="snapshot-readout">${snap.routes.overview.activePlanet.name}|${snap.meta.tickCount}</div>`;

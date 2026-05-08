@@ -18,12 +18,7 @@
 <script lang="ts">
   import { cn } from '$lib/utils.js';
 
-  let {
-    label,
-    value,
-    variant = 'default',
-    class: className,
-  }: StatTileProps = $props();
+  let { label, value, variant = 'default', class: className }: StatTileProps = $props();
 
   const valueClass = $derived(VALUE_VARIANT_CLASS[variant]);
 </script>

@@ -59,23 +59,23 @@ src-tauri/
 
 ## WHERE TO LOOK
 
-| Task                       | Location                                                  | Notes                                                                          |
-| -------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| App entrypoint             | `src/main.rs`                                             | Calls `idle_spacestation_lib::run()`; preserves Windows subsystem guard        |
-| Tauri commands & builder   | `src/lib.rs`, `src/commands/**`                           | `run()` + single `all_commands!` macro in `lib.rs`; handlers split by domain under `commands/` |
-| Shared backend state       | `src/lib.rs` (`GameState`, `LastEmittedSnapshot`)         | `Mutex<(RunState, PrestigeProfile, u32 session_ticks)>` + last-emitted cache   |
-| Devtools overlay state     | `src/lib.rs` (`DevtoolsState`), `src/commands/devtools/`  | Visibility flag, emitted via `devtools:visibility-changed` event               |
-| Runtime projection helpers | `src/runtime.rs`                                          | Recomputes crew/power/service derived runtime fields after command mutations   |
-| State-change emit          | `src/lib.rs` (`commit_and_emit`)                          | Single helper that diffs + emits `game://state-changed`; called by every mutator and the tick loop |
-| State diff/hash derives    | `src/game/bit_eq.rs`, `idle-spacestation-bit-eq-derive/`  | `BitEq`/`BitHash` compare/hash floats by `to_bits()`; derive macros expand field-by-field |
-| Snapshot DTOs              | `src/game/snapshot.rs`                                    | `RawGameSnapshot`, `ActionResponse`, route views; DTOs derive `BitEq` for diffing |
-| Simulation tick            | `src/game/sim/tick.rs`                                    | Six-phase loop; called every 250 ms by the background thread                   |
-| Game data tables           | `src/game/content/*.rs`                                   | `SYSTEMS`, `SERVICES`, `PLANETS`, `DOCTRINES`, `RESOURCES` constants           |
-| Prestige rules             | `src/game/progression/prestige.rs`                        | Tier calc, `PrestigeEligibility`, `execute_prestige`, stable-power timer       |
-| Tauri runtime config       | `tauri.conf.json`                                         | Dev/build delegate to pnpm; window 800×600; `withGlobalTauri: true`            |
-| Capabilities / permissions | `capabilities/default.json`                               | Permits `core:default`, `opener:default`, `mcp-bridge:default`                 |
-| Cargo deps                 | `Cargo.toml`                                              | `tauri 2`, `tauri-plugin-opener 2`, `tauri-plugin-mcp-bridge 0.11`             |
-| Build hook                 | `build.rs`                                                | Thin `tauri_build::build()`                                                    |
+| Task                       | Location                                                 | Notes                                                                                              |
+| -------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| App entrypoint             | `src/main.rs`                                            | Calls `idle_spacestation_lib::run()`; preserves Windows subsystem guard                            |
+| Tauri commands & builder   | `src/lib.rs`, `src/commands/**`                          | `run()` + single `all_commands!` macro in `lib.rs`; handlers split by domain under `commands/`     |
+| Shared backend state       | `src/lib.rs` (`GameState`, `LastEmittedSnapshot`)        | `Mutex<(RunState, PrestigeProfile, u32 session_ticks)>` + last-emitted cache                       |
+| Devtools overlay state     | `src/lib.rs` (`DevtoolsState`), `src/commands/devtools/` | Visibility flag, emitted via `devtools:visibility-changed` event                                   |
+| Runtime projection helpers | `src/runtime.rs`                                         | Recomputes crew/power/service derived runtime fields after command mutations                       |
+| State-change emit          | `src/lib.rs` (`commit_and_emit`)                         | Single helper that diffs + emits `game://state-changed`; called by every mutator and the tick loop |
+| State diff/hash derives    | `src/game/bit_eq.rs`, `idle-spacestation-bit-eq-derive/` | `BitEq`/`BitHash` compare/hash floats by `to_bits()`; derive macros expand field-by-field          |
+| Snapshot DTOs              | `src/game/snapshot.rs`                                   | `RawGameSnapshot`, `ActionResponse`, route views; DTOs derive `BitEq` for diffing                  |
+| Simulation tick            | `src/game/sim/tick.rs`                                   | Six-phase loop; called every 250 ms by the background thread                                       |
+| Game data tables           | `src/game/content/*.rs`                                  | `SYSTEMS`, `SERVICES`, `PLANETS`, `DOCTRINES`, `RESOURCES` constants                               |
+| Prestige rules             | `src/game/progression/prestige.rs`                       | Tier calc, `PrestigeEligibility`, `execute_prestige`, stable-power timer                           |
+| Tauri runtime config       | `tauri.conf.json`                                        | Dev/build delegate to pnpm; window 800×600; `withGlobalTauri: true`                                |
+| Capabilities / permissions | `capabilities/default.json`                              | Permits `core:default`, `opener:default`, `mcp-bridge:default`                                     |
+| Cargo deps                 | `Cargo.toml`                                             | `tauri 2`, `tauri-plugin-opener 2`, `tauri-plugin-mcp-bridge 0.11`                                 |
+| Build hook                 | `build.rs`                                               | Thin `tauri_build::build()`                                                                        |
 
 ## TAURI COMMAND SURFACE
 

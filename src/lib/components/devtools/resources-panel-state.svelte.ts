@@ -35,8 +35,7 @@ export function createResourcesPanelState(
       isValid: (d) =>
         isInRange(d.materials, MATERIALS_MIN, MATERIALS_MAX) &&
         isInRange(d.data, DATA_MIN, DATA_MAX),
-      applyToGateway: (d) =>
-        gateway.applyResources({ materials: d.materials!, data: d.data! }),
+      applyToGateway: (d) => gateway.applyResources({ materials: d.materials!, data: d.data! }),
       reseedOnFailure: true,
     },
   );
