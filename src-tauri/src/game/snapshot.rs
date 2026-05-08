@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::game::content::doctrines::{doctrine_by_id, DOCTRINES};
 use crate::game::content::planets::{
-    planet_by_id, PlanetDefinition, PlanetModifierTarget, AURORA_PIER_ID, CINDER_FORGE_ID, PLANETS,
+    planet_by_id, planet_by_id_required, PlanetDefinition, PlanetModifierTarget, AURORA_PIER_ID, CINDER_FORGE_ID, PLANETS,
     SOLSTICE_ANCHOR_ID,
 };
 use crate::game::content::services::{service_by_id, service_by_id_required, ServiceCategory, SURVEY_UPLINK_ID};
@@ -941,7 +941,7 @@ fn build_survey_progress(run_state: &RunState) -> SurveyProgressSnapshot {
         },
         Some(next_planet_id) => {
             let next_planet_definition =
-                planet_by_id(next_planet_id).expect("next survey target must exist in catalog");
+                planet_by_id_required(next_planet_id);
             let next_threshold = survey_threshold(next_planet_id);
 
             SurveyProgressSnapshot {
@@ -1185,8 +1185,7 @@ fn effective_crew_capacity(run_state: &RunState, base_capacity: u8) -> u8 {
 }
 
 fn logistics_active_service_slots(run_state: &RunState) -> u8 {
-    match system_by_id(LOGISTICS_SPINE_ID)
-        .expect("logistics-spine system must exist")
+    match system_by_id_required(LOGISTICS_SPINE_ID)
         .progression
     {
         SystemProgression::LogisticsSpine(levels) => {
@@ -1198,8 +1197,7 @@ fn logistics_active_service_slots(run_state: &RunState) -> u8 {
 }
 
 fn survey_array_level(run_state: &RunState) -> (f32, f32) {
-    match system_by_id(SURVEY_ARRAY_ID)
-        .expect("survey-array system must exist")
+    match system_by_id_required(SURVEY_ARRAY_ID)
         .progression
     {
         SystemProgression::SurveyArray(levels) => {
