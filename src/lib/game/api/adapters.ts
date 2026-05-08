@@ -9,39 +9,16 @@ import type {
   SystemsViewModel,
 } from './types';
 
-export function adaptOverviewViewModel(snapshot: RawGameSnapshot): OverviewViewModel {
-  return structuredClone(snapshot.routeSnapshots.overview);
-}
-
-export function adaptSystemsViewModel(snapshot: RawGameSnapshot): SystemsViewModel {
-  return structuredClone(snapshot.routeSnapshots.systems);
-}
-
-export function adaptServicesViewModel(snapshot: RawGameSnapshot): ServicesViewModel {
-  return structuredClone(snapshot.routeSnapshots.services);
-}
-
-export function adaptPlanetsViewModel(snapshot: RawGameSnapshot): PlanetsViewModel {
-  return structuredClone(snapshot.routeSnapshots.planets);
-}
-
-export function adaptPrestigeViewModel(snapshot: RawGameSnapshot): PrestigeViewModel {
-  return structuredClone(snapshot.routeSnapshots.prestige);
-}
-
-export function adaptGameViewModels(snapshot: RawGameSnapshot): GameViewModels {
-  return {
-    overview: adaptOverviewViewModel(snapshot),
-    systems: adaptSystemsViewModel(snapshot),
-    services: adaptServicesViewModel(snapshot),
-    planets: adaptPlanetsViewModel(snapshot),
-    prestige: adaptPrestigeViewModel(snapshot),
-  };
-}
+const ROUTE_KEYS = ['overview', 'systems', 'services', 'planets', 'prestige'] as const;
 
 export function adaptGameSnapshot(snapshot: RawGameSnapshot): GameSnapshot {
-  return {
-    ...structuredClone(snapshot),
-    routes: adaptGameViewModels(snapshot),
-  };
+  const cloned = structuredClone(snapshot);
+  const routes = Object.fromEntries(ROUTE_KEYS.map((k) => [k, cloned.routeSnapshots[k]])) as unknown as GameViewModels;
+  return { ...cloned, routes };
 }
+
+export const adaptOverviewViewModel = (s: RawGameSnapshot): OverviewViewModel => adaptGameSnapshot(s).routes.overview;
+export const adaptSystemsViewModel = (s: RawGameSnapshot): SystemsViewModel => adaptGameSnapshot(s).routes.systems;
+export const adaptServicesViewModel = (s: RawGameSnapshot): ServicesViewModel => adaptGameSnapshot(s).routes.services;
+export const adaptPlanetsViewModel = (s: RawGameSnapshot): PlanetsViewModel => adaptGameSnapshot(s).routes.planets;
+export const adaptPrestigeViewModel = (s: RawGameSnapshot): PrestigeViewModel => adaptGameSnapshot(s).routes.prestige;

@@ -2,7 +2,6 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import {
   adaptGameSnapshot,
-  adaptGameViewModels,
   createGameGateway,
   gameGateway,
   previewFixtureNames,
@@ -338,16 +337,46 @@ describe('game api fixtures and adapters', () => {
     );
 
     const adaptedSnapshot = adaptGameSnapshot(rawSnapshot);
-    const adaptedViewModels = adaptGameViewModels(rawSnapshot);
 
     expect(adaptedSnapshot.routes).toEqual(rawSnapshot.routeSnapshots);
-    expect(adaptedViewModels).toEqual(rawSnapshot.routeSnapshots);
     expect(adaptedSnapshot.routes).not.toBe(rawSnapshot.routeSnapshots);
     expect(adaptedSnapshot.routes.overview).not.toBe(rawSnapshot.routeSnapshots.overview);
     expect(adaptedSnapshot.routes.systems).not.toBe(rawSnapshot.routeSnapshots.systems);
     expect(adaptedSnapshot.routes.services).not.toBe(rawSnapshot.routeSnapshots.services);
     expect(adaptedSnapshot.routes.planets).not.toBe(rawSnapshot.routeSnapshots.planets);
     expect(adaptedSnapshot.routes.prestige).not.toBe(rawSnapshot.routeSnapshots.prestige);
+  });
+
+  it('calls structuredClone exactly once per adaptGameSnapshot invocation', () => {
+    const rawSnapshot = buildSnapshotFromFixtureState(createFixtureState('starter'), 'starter');
+    const spy = vi.spyOn(globalThis, 'structuredClone');
+    try {
+      adaptGameSnapshot(rawSnapshot);
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('produces routes equivalent to direct routeSnapshots access', () => {
+    const rawSnapshot = buildSnapshotFromFixtureState(createFixtureState('starter'), 'starter');
+    const adapted = adaptGameSnapshot(rawSnapshot);
+
+    expect(JSON.stringify(adapted.routes.overview)).toBe(
+      JSON.stringify(rawSnapshot.routeSnapshots.overview),
+    );
+    expect(JSON.stringify(adapted.routes.systems)).toBe(
+      JSON.stringify(rawSnapshot.routeSnapshots.systems),
+    );
+    expect(JSON.stringify(adapted.routes.services)).toBe(
+      JSON.stringify(rawSnapshot.routeSnapshots.services),
+    );
+    expect(JSON.stringify(adapted.routes.planets)).toBe(
+      JSON.stringify(rawSnapshot.routeSnapshots.planets),
+    );
+    expect(JSON.stringify(adapted.routes.prestige)).toBe(
+      JSON.stringify(rawSnapshot.routeSnapshots.prestige),
+    );
   });
 
   it('matches the exact starter fresh-profile seed contract', async () => {

@@ -1,6 +1,5 @@
 export {
   adaptGameSnapshot,
-  adaptGameViewModels,
   adaptOverviewViewModel,
   adaptPlanetsViewModel,
   adaptPrestigeViewModel,
