@@ -32,6 +32,8 @@
 //! and embeds the `#[cfg(debug_assertions)]` markers inline so production and
 //! devtools commands never drift apart across two `generate_handler![]` calls.
 
+#![warn(missing_docs)]
+
 mod commands;
 mod game;
 mod runtime;

@@ -12,6 +12,8 @@
 //! See also `idle_spacestation_lib::game::bit_eq::BitEq`, the trait derived for
 //! the main crate's snapshot DTOs.
 
+#![warn(missing_docs)]
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput, Fields};
