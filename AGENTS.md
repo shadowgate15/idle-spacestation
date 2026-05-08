@@ -79,17 +79,17 @@ Before declaring a task complete, decide whether your changes invalidate any AGE
 | Devtools overlay & panels  | `src/lib/components/DevtoolsOverlay.svelte`, `…/devtools/`         | 6 panels, each `Panel.svelte` + `panel-state.svelte.ts` + tests; `sync(snapshot)`    |
 | Shared UI primitives       | `src/lib/components/ui/`                                           | shadcn-svelte primitives: `button/`, `card/` (7 parts), `input/`                     |
 | Shared frontend helpers    | `src/lib/utils.ts`                                                 | `cn()` plus `WithoutChild`, `WithoutChildren`, `WithElementRef` type helpers         |
-| Rust commands & state      | `src-tauri/src/lib.rs`                                             | 247 lines: builder, `GameState`, `LastEmittedSnapshot`, `commit_and_emit`, tick      |
+| Rust commands & state      | `src-tauri/src/lib.rs`                                             | 405 lines: builder, `GameState`, `LastEmittedSnapshot`, `commit_and_emit`, tick      |
 | Event emission helper      | `src-tauri/src/lib.rs` (`commit_and_emit`)                         | Fires `game://state-changed` only when `state_equals()` reports a diff               |
-| Tauri command handlers     | `src-tauri/src/commands/`                                          | Production handlers split by domain: `service.rs` (310), `system.rs`, `progression.rs`, `snapshot_cmds.rs`, plus shared `inputs.rs` + `action_response()` helper in `mod.rs` |
-| Devtools command handlers  | `src-tauri/src/commands/devtools/`                                 | Debug-only: `mod.rs` (208), `handlers.rs` (132), `apply.rs` (659), `inputs.rs` (77); gated by `#[cfg(debug_assertions)]` |
-| Runtime projection helpers | `src-tauri/src/runtime.rs`                                         | 116 lines: `refresh_runtime_state`, crew/power capacity, projected_power_after_toggle |
-| BitEq/BitHash proc-macros  | `src-tauri/idle-spacestation-bit-eq-derive/src/lib.rs`             | 130 lines: in-repo proc-macro crate; expands `#[derive(BitEq)]` / `#[derive(BitHash)]` field-by-field with `#[bit_hash(order = N)]` and `#[bit_hash(sort)]` attrs |
-| Game simulation core       | `src-tauri/src/game/sim/`                                          | `state.rs` (326), `tick.rs` (562, 6-phase loop), `deficit.rs`                        |
+| Tauri command handlers     | `src-tauri/src/commands/`                                          | Production handlers split by domain: `service.rs` (367), `system.rs`, `progression.rs`, `snapshot_cmds.rs`, plus shared `inputs.rs` + `action_response()` helper in `mod.rs` |
+| Devtools command handlers  | `src-tauri/src/commands/devtools/`                                 | Debug-only: `mod.rs` (373), `handlers.rs` (319), `apply.rs` (822), `inputs.rs` (142); gated by `#[cfg(debug_assertions)]` |
+| Runtime projection helpers | `src-tauri/src/runtime.rs`                                         | 190 lines: `refresh_runtime_state`, crew/power capacity, projected_power_after_toggle |
+| BitEq/BitHash proc-macros  | `src-tauri/idle-spacestation-bit-eq-derive/src/lib.rs`             | 256 lines: in-repo proc-macro crate; expands `#[derive(BitEq)]` / `#[derive(BitHash)]` field-by-field with `#[bit_hash(order = N)]` and `#[bit_hash(sort)]` attrs |
+| Game simulation core       | `src-tauri/src/game/sim/`                                          | `state.rs` (416), `tick.rs` (720, 6-phase loop), `deficit.rs`                        |
 | Game content (static data) | `src-tauri/src/game/content/`                                      | `systems.rs`, `services.rs`, `planets.rs`, `doctrines.rs`, `resources.rs`            |
-| Progression & prestige     | `src-tauri/src/game/progression/`                                  | `prestige.rs` (450, PrestigeProfile), `doctrines.rs`, `survey.rs`                    |
+| Progression & prestige     | `src-tauri/src/game/progression/`                                  | `prestige.rs` (697, PrestigeProfile), `doctrines.rs`, `survey.rs`                    |
 | Persistence (scaffolded)   | `src-tauri/src/game/persistence/`                                  | `SaveManager`, versioned `SaveData`, recovery; not wired into commands yet           |
-| IPC DTO + state diff       | `src-tauri/src/game/snapshot.rs`                                   | 1303 lines: camelCase serde DTOs + `state_equals()` (derived `BitEq`, uses `f32::to_bits()`) |
+| IPC DTO + state diff       | `src-tauri/src/game/snapshot.rs`                                   | 1502 lines: camelCase serde DTOs + `state_equals()` (derived `BitEq`, uses `f32::to_bits()`) |
 | Tauri runtime config       | `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json` | Window 800×600, `withGlobalTauri: true`, `csp: null`, opener + mcp-bridge perms      |
 | Dev/build/test commands    | `package.json`, `playwright.config.ts`, `vite.config.js`           | pnpm-driven; vitest config embedded in `vite.config.js`                              |
 

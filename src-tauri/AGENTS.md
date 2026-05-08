@@ -1,11 +1,11 @@
 # TAURI / RUST KNOWLEDGE BASE
 
 **Generated:** 2026-05-08
-**Commit:** 2243bda
+**Commit:** f4e433a
 
 ## OVERVIEW
 
-The Rust side is the idle-game simulation engine plus the Tauri command surface that the SvelteKit SPA talks to. It is **not** template-tiny: `src/lib.rs` is 247 lines of canonical state, emit, command registration, and builder glue; command handlers live under `src/commands/` (production) and `src/commands/devtools/` (debug-only), runtime projection helpers live in `src/runtime.rs` (116 lines), and the full backend is split into a `game/` module covering simulation, content, progression, persistence, and IPC DTOs. A background thread drives the simulation tick at ~250 ms cadence, mutating shared state held under a `Mutex` and surfaced to the frontend via 19 `#[tauri::command]` functions (10 production, 9 debug-only). State changes are pushed to the SPA via a single `game://state-changed` Tauri event; every mutating command and the tick loop itself funnel through a `commit_and_emit()` helper that diffs against a `LastEmittedSnapshot` cache and only fires the event when state actually changed.
+The Rust side is the idle-game simulation engine plus the Tauri command surface that the SvelteKit SPA talks to. It is **not** template-tiny: `src/lib.rs` is 405 lines of canonical state, emit, command registration, and builder glue (including rustdoc); command handlers live under `src/commands/` (production) and `src/commands/devtools/` (debug-only), runtime projection helpers live in `src/runtime.rs` (190 lines), and the full backend is split into a `game/` module covering simulation, content, progression, persistence, and IPC DTOs. A background thread drives the simulation tick at ~250 ms cadence, mutating shared state held under a `Mutex` and surfaced to the frontend via 19 `#[tauri::command]` functions (10 production, 9 debug-only). State changes are pushed to the SPA via a single `game://state-changed` Tauri event; every mutating command and the tick loop itself funnel through a `commit_and_emit()` helper that diffs against a `LastEmittedSnapshot` cache and only fires the event when state actually changed.
 
 ## STRUCTURE
 
@@ -13,25 +13,25 @@ The Rust side is the idle-game simulation engine plus the Tauri command surface 
 src-tauri/
 ├── idle-spacestation-bit-eq-derive/ # In-repo proc-macro crate for BitEq/BitHash derives
 ├── src/
-│   ├── main.rs               # 6 lines: Windows-subsystem guarded entrypoint → idle_spacestation_lib::run()
-│   ├── lib.rs                # 247 lines: state structs, commit_and_emit, all_commands!, Tauri builder, tick thread
-│   ├── runtime.rs            # 116 lines: runtime projection helpers (crew/power/service slots, refresh_runtime_state, projected_power_after_toggle)
+│   ├── main.rs               # 32 lines: Windows-subsystem guarded entrypoint → idle_spacestation_lib::run()
+│   ├── lib.rs                # 405 lines: state structs, commit_and_emit, all_commands!, Tauri builder, tick thread
+│   ├── runtime.rs            # 190 lines: runtime projection helpers (crew/power/service slots, refresh_runtime_state, projected_power_after_toggle)
 │   ├── commands/
-│   │   ├── mod.rs            # 36 lines: command re-exports + action_response helper
-│   │   ├── inputs.rs         # 71 lines: production command input DTOs
-│   │   ├── service.rs        # 310 lines: service activation, crew assignment, priority handlers
-│   │   ├── system.rs         # 46 lines: system upgrade handler
-│   │   ├── progression.rs    # 70 lines: doctrine purchase + prestige handlers
-│   │   ├── snapshot_cmds.rs  # 67 lines: snapshot, save/load stubs, survey handler
-│   │   └── devtools/         # Debug-only: mod.rs (208), handlers.rs (132), apply.rs (659), inputs.rs (77)
+│   │   ├── mod.rs            # 61 lines: command re-exports + action_response helper
+│   │   ├── inputs.rs         # 102 lines: production command input DTOs
+│   │   ├── service.rs        # 367 lines: service activation, crew assignment, priority handlers
+│   │   ├── system.rs         # 74 lines: system upgrade handler
+│   │   ├── progression.rs    # 127 lines: doctrine purchase + prestige handlers
+│   │   ├── snapshot_cmds.rs  # 125 lines: snapshot, save/load stubs, survey handler
+│   │   └── devtools/         # Debug-only: mod.rs (373), handlers.rs (319), apply.rs (822), inputs.rs (142)
 │   └── game/
 │       ├── mod.rs            # Re-exports: bit_eq, content, persistence, progression, snapshot, sim
-│       ├── bit_eq.rs         # 96 lines: BitEq/BitHash traits; floats compare/hash by raw bit pattern
-│       ├── snapshot.rs       # 1303 lines: serde DTOs (camelCase) + derived state_equals() bit-stable diffing
+│       ├── bit_eq.rs         # 115 lines: BitEq/BitHash traits; floats compare/hash by raw bit pattern
+│       ├── snapshot.rs       # 1502 lines: serde DTOs (camelCase) + derived state_equals() bit-stable diffing
 │       ├── sim/
 │       │   ├── mod.rs
-│       │   ├── state.rs      # RunState, StationState, ResourceState, ServiceState, SystemState
-│       │   ├── tick.rs       # 6-phase tick loop (alloc, activation, production, upkeep, deficit, survey)
+│       │   ├── state.rs      # 416 lines: RunState, StationState, ResourceState, ServiceState, SystemState
+│       │   ├── tick.rs       # 720 lines: 6-phase tick loop (alloc, activation, production, upkeep, deficit, survey)
 │       │   └── deficit.rs    # Power-deficit shutdown ordering
 │       ├── content/          # Static game data
 │       │   ├── systems.rs    # Reactor / habitat / logistics / survey systems with per-level stats
@@ -40,12 +40,12 @@ src-tauri/
 │       │   ├── doctrines.rs  # Doctrine effects
 │       │   └── resources.rs  # Resource metadata
 │       ├── progression/
-│       │   ├── prestige.rs   # PrestigeProfile, station-tier calc, eligibility, execute_prestige
+│       │   ├── prestige.rs   # 697 lines: PrestigeProfile, station-tier calc, eligibility, execute_prestige
 │       │   ├── doctrines.rs  # Doctrine purchase + effect application
 │       │   └── survey.rs     # Planet survey accumulation/unlocks
 │       └── persistence/      # Scaffolded; not yet wired into the live save commands
-│           ├── mod.rs        # SaveManager, SaveTrigger
-│           ├── save.rs       # SaveData, SaveSettings, ProfileState (versioned)
+│           ├── mod.rs        # 517 lines: SaveManager, SaveTrigger
+│           ├── save.rs       # 535 lines: SaveData, SaveSettings, ProfileState (versioned)
 │           ├── recovery.rs   # Corruption recovery, FreshProfileReason, SaveLoadOutcome
 │           └── migration.rs  # Version migration helpers
 ├── icons/                    # Bundle assets
