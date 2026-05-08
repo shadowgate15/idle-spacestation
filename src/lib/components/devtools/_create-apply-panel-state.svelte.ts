@@ -17,6 +17,8 @@ export interface ApplyPanelStateOptions<TDraft, TResponse extends ApplyResponse>
   isValid: (draft: TDraft) => boolean;
   /** Call the gateway with the current draft */
   applyToGateway: (draft: TDraft) => Promise<TResponse>;
+  /** When true, also reseed drafts from response.snapshot on failure (default: false) */
+  reseedOnFailure?: boolean;
 }
 
 export function createApplyPanelState<TDraft, TResponse extends ApplyResponse>(
@@ -34,8 +36,34 @@ export function createApplyPanelState<TDraft, TResponse extends ApplyResponse>(
   const isDirty = $derived(options.isDirty(draft, lastSeededDraft));
 
   function reseedDrafts(snapshot: GameSnapshot) {
-    draft = options.seedDraft(snapshot);
+    const seed = options.seedDraft(snapshot);
+    applySeedToDraft(seed);
     lastSeededDraft = options.cloneDraft(draft);
+  }
+
+  function applySeedToDraft(seed: TDraft) {
+    if (Array.isArray(draft) && Array.isArray(seed)) {
+      const target = draft as unknown[];
+      target.splice(0, target.length, ...(seed as unknown[]));
+      return;
+    }
+
+    if (
+      draft !== null &&
+      typeof draft === 'object' &&
+      seed !== null &&
+      typeof seed === 'object'
+    ) {
+      const target = draft as Record<string, unknown>;
+      const source = seed as Record<string, unknown>;
+      for (const key of Object.keys(target)) {
+        if (!(key in source)) delete target[key];
+      }
+      Object.assign(target, source);
+      return;
+    }
+
+    draft = seed;
   }
 
   function sync(snapshot: GameSnapshot | null) {
@@ -67,6 +95,9 @@ export function createApplyPanelState<TDraft, TResponse extends ApplyResponse>(
         return;
       }
 
+      if (options.reseedOnFailure) {
+        reseedDrafts(response.snapshot);
+      }
       errorMessage = response.reasonCode ?? null;
     } finally {
       isApplying = false;

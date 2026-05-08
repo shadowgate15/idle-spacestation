@@ -1,87 +1,48 @@
 import type { GameSnapshot, GatewayDevtoolsApplyCrewResponse } from '$lib/game/api/types';
+import { isInRange } from '$lib/utils';
+import { createApplyPanelState } from './_create-apply-panel-state.svelte';
 
 type CrewGateway = {
   applyCrew: (input: { crewTotal: number }) => Promise<GatewayDevtoolsApplyCrewResponse>;
+};
+
+type CrewDraft = {
+  crewTotal: number | undefined;
 };
 
 const CREW_MIN = 0;
 const CREW_MAX = 999;
 
 export function createCrewPanelState(snapshot: GameSnapshot | null, gateway: CrewGateway) {
-  let currentSnapshot = $state<GameSnapshot | null>(snapshot);
-  let crewTotalDraft = $state<number | undefined>(snapshot?.resources.crew.total ?? 0);
-  let lastSeededCrewTotal = $state<number>(snapshot?.resources.crew.total ?? 0);
-  let hasSeededOnce = snapshot !== null;
-  let errorMessage = $state<string | null>(null);
-  let isApplying = $state(false);
-
-  const isDirty = $derived(crewTotalDraft !== lastSeededCrewTotal);
-
-  function reseedDrafts(next: GameSnapshot) {
-    crewTotalDraft = next.resources.crew.total;
-    lastSeededCrewTotal = next.resources.crew.total;
-  }
-
-  function sync(snapshot: GameSnapshot | null) {
-    currentSnapshot = snapshot;
-
-    if (!hasSeededOnce && snapshot !== null) {
-      reseedDrafts(snapshot);
-      errorMessage = null;
-      hasSeededOnce = true;
-    }
-  }
-
-  async function apply() {
-    if (!isInRange(crewTotalDraft, CREW_MIN, CREW_MAX)) {
-      errorMessage = 'invalid_range';
-      if (currentSnapshot) {
-        reseedDrafts(currentSnapshot);
-      }
-      return;
-    }
-
-    isApplying = true;
-    errorMessage = null;
-
-    try {
-      const response = await gateway.applyCrew({ crewTotal: crewTotalDraft });
-
-      currentSnapshot = response.snapshot;
-      reseedDrafts(response.snapshot);
-
-      if (!response.ok) {
-        errorMessage = response.reasonCode;
-      }
-    } finally {
-      isApplying = false;
-    }
-  }
+  const base = createApplyPanelState<CrewDraft, GatewayDevtoolsApplyCrewResponse>(snapshot, {
+    seedDraft: (s) => ({ crewTotal: s?.resources.crew.total ?? 0 }),
+    cloneDraft: (d) => ({ ...d }),
+    isDirty: (d, b) => d.crewTotal !== b.crewTotal,
+    isValid: (d) => isInRange(d.crewTotal, CREW_MIN, CREW_MAX),
+    applyToGateway: (d) => gateway.applyCrew({ crewTotal: d.crewTotal! }),
+    reseedOnFailure: true,
+  });
 
   return {
     get snapshot() {
-      return currentSnapshot;
+      return base.snapshot;
     },
     get crewTotalDraft() {
-      return crewTotalDraft;
+      return base.draft.crewTotal;
     },
     set crewTotalDraft(value: number | undefined) {
-      crewTotalDraft = value;
+      base.draft.crewTotal = value;
     },
     get errorMessage() {
-      return errorMessage;
+      return base.errorMessage;
     },
     get isApplying() {
-      return isApplying;
+      return base.isApplying;
     },
     get isDirty() {
-      return isDirty;
+      return base.isDirty;
     },
-    sync,
-    apply,
+    sync: base.sync,
+    apply: base.apply,
   };
-}
-
-function isInRange(value: number | undefined, min: number, max: number): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
 }
