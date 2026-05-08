@@ -1,6 +1,6 @@
 use crate::commands::action_response;
 use crate::commands::inputs::UpgradeSystemInput;
-use crate::game::content::systems::{system_by_id_required, SystemProgression};
+use crate::game::content::systems::system_by_id_required;
 use crate::game::snapshot::ActionResponse;
 use crate::runtime::refresh_runtime_state;
 use crate::{commit_and_emit, GameState, LastEmittedSnapshot};
@@ -25,20 +25,9 @@ pub fn game_upgrade_system(
     };
 
     let current_level = guard.run.systems[system_index].level;
-    let upgrade_cost = match system_by_id_required(&input.system_id).progression {
-        SystemProgression::ReactorCore(levels) => {
-            levels[(current_level - 1) as usize].upgrade_cost_materials
-        }
-        SystemProgression::HabitatRing(levels) => {
-            levels[(current_level - 1) as usize].upgrade_cost_materials
-        }
-        SystemProgression::LogisticsSpine(levels) => {
-            levels[(current_level - 1) as usize].upgrade_cost_materials
-        }
-        SystemProgression::SurveyArray(levels) => {
-            levels[(current_level - 1) as usize].upgrade_cost_materials
-        }
-    };
+    let upgrade_cost = system_by_id_required(&input.system_id)
+        .progression
+        .upgrade_cost_at(current_level);
 
     let upgrade_cost = match upgrade_cost {
         Some(cost) => cost,

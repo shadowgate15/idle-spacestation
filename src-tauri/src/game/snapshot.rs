@@ -660,11 +660,13 @@ fn build_prestige_route(
 fn build_system_entry(run_state: &RunState, system_id: &str) -> SystemRouteEntrySnapshot {
     let system = system_by_id_required(system_id);
     let level = run_state.system_level(system_id).unwrap_or(1);
+    let max_level = system.progression.max_level();
+    let upgrade_cost = system.progression.upgrade_cost_at(level);
 
-    match system.progression {
+    let cap_values = match system.progression {
         SystemProgression::ReactorCore(levels) => {
             let current = levels[(level.saturating_sub(1)) as usize];
-            let cap_values = vec![
+            vec![
                 SystemCapSnapshot {
                     key: "power-output".to_string(),
                     label: "Power output".to_string(),
@@ -677,20 +679,11 @@ fn build_system_entry(run_state: &RunState, system_id: &str) -> SystemRouteEntry
                     value: current.service_power_cap as f32,
                     unit: "power".to_string(),
                 },
-            ];
-
-            build_system_route_entry(
-                run_state,
-                system_id,
-                level,
-                levels.len() as u8,
-                current.upgrade_cost_materials,
-                cap_values,
-            )
+            ]
         }
         SystemProgression::HabitatRing(levels) => {
             let current = levels[(level.saturating_sub(1)) as usize];
-            let cap_values = vec![
+            vec![
                 SystemCapSnapshot {
                     key: "crew-capacity".to_string(),
                     label: "Crew capacity".to_string(),
@@ -703,20 +696,11 @@ fn build_system_entry(run_state: &RunState, system_id: &str) -> SystemRouteEntry
                     value: current.recovery_ceiling_per_minute,
                     unit: "crew/min".to_string(),
                 },
-            ];
-
-            build_system_route_entry(
-                run_state,
-                system_id,
-                level,
-                levels.len() as u8,
-                current.upgrade_cost_materials,
-                cap_values,
-            )
+            ]
         }
         SystemProgression::LogisticsSpine(levels) => {
             let current = levels[(level.saturating_sub(1)) as usize];
-            let cap_values = vec![
+            vec![
                 SystemCapSnapshot {
                     key: "active-service-slots".to_string(),
                     label: "Active service slots".to_string(),
@@ -729,20 +713,11 @@ fn build_system_entry(run_state: &RunState, system_id: &str) -> SystemRouteEntry
                     value: current.materials_capacity as f32,
                     unit: "materials".to_string(),
                 },
-            ];
-
-            build_system_route_entry(
-                run_state,
-                system_id,
-                level,
-                levels.len() as u8,
-                current.upgrade_cost_materials,
-                cap_values,
-            )
+            ]
         }
         SystemProgression::SurveyArray(levels) => {
             let current = levels[(level.saturating_sub(1)) as usize];
-            let cap_values = vec![
+            vec![
                 SystemCapSnapshot {
                     key: "data-multiplier".to_string(),
                     label: "Data multiplier".to_string(),
@@ -755,18 +730,11 @@ fn build_system_entry(run_state: &RunState, system_id: &str) -> SystemRouteEntry
                     value: current.survey_multiplier,
                     unit: "x".to_string(),
                 },
-            ];
-
-            build_system_route_entry(
-                run_state,
-                system_id,
-                level,
-                levels.len() as u8,
-                current.upgrade_cost_materials,
-                cap_values,
-            )
+            ]
         }
-    }
+    };
+
+    build_system_route_entry(run_state, system_id, level, max_level, upgrade_cost, cap_values)
 }
 
 fn build_system_route_entry(
@@ -1417,5 +1385,71 @@ mod tests {
                 "snapshot diverges at tick {i}"
             );
         }
+    }
+
+    fn find_system<'a>(
+        snapshot: &'a RawGameSnapshot,
+        id: &str,
+    ) -> &'a SystemRouteEntrySnapshot {
+        snapshot
+            .route_snapshots
+            .systems
+            .systems
+            .iter()
+            .find(|s| s.id == id)
+            .unwrap_or_else(|| panic!("system {id} must exist in snapshot"))
+    }
+
+    #[test]
+    fn build_system_entry_wire_shape_unchanged() {
+        let snapshot = make_test_snapshot();
+
+        let reactor = find_system(&snapshot, "reactor-core");
+        assert_eq!(reactor.level, 1);
+        assert_eq!(reactor.max_level, 4);
+        assert_eq!(reactor.cap_values.len(), 2);
+        assert_eq!(reactor.cap_values[0].key, "power-output");
+        assert_eq!(reactor.cap_values[0].label, "Power output");
+        assert_eq!(reactor.cap_values[0].unit, "power");
+        assert_eq!(reactor.cap_values[1].key, "service-power-cap");
+        assert_eq!(reactor.cap_values[1].label, "Service power cap");
+        assert_eq!(reactor.cap_values[1].unit, "power");
+        assert_eq!(reactor.upgrade_cost_materials, Some(40));
+
+        let habitat = find_system(&snapshot, "habitat-ring");
+        assert_eq!(habitat.level, 1);
+        assert_eq!(habitat.max_level, 4);
+        assert_eq!(habitat.cap_values.len(), 2);
+        assert_eq!(habitat.cap_values[0].key, "crew-capacity");
+        assert_eq!(habitat.cap_values[0].label, "Crew capacity");
+        assert_eq!(habitat.cap_values[0].unit, "crew");
+        assert_eq!(habitat.cap_values[1].key, "crew-recovery");
+        assert_eq!(habitat.cap_values[1].label, "Crew recovery ceiling");
+        assert_eq!(habitat.cap_values[1].unit, "crew/min");
+        assert_eq!(habitat.upgrade_cost_materials, Some(35));
+
+        let logistics = find_system(&snapshot, "logistics-spine");
+        assert_eq!(logistics.level, 1);
+        assert_eq!(logistics.max_level, 4);
+        assert_eq!(logistics.cap_values.len(), 2);
+        assert_eq!(logistics.cap_values[0].key, "active-service-slots");
+        assert_eq!(logistics.cap_values[0].label, "Active service slots");
+        assert_eq!(logistics.cap_values[0].unit, "slots");
+        assert_eq!(logistics.cap_values[1].key, "materials-capacity");
+        assert_eq!(logistics.cap_values[1].label, "Materials capacity");
+        assert_eq!(logistics.cap_values[1].unit, "materials");
+        assert_eq!(logistics.upgrade_cost_materials, Some(30));
+
+        let survey = find_system(&snapshot, "survey-array");
+        assert_eq!(survey.level, 1);
+        assert_eq!(survey.max_level, 4);
+        assert_eq!(survey.cap_values.len(), 2);
+        assert_eq!(survey.cap_values[0].key, "data-multiplier");
+        assert_eq!(survey.cap_values[0].label, "Data multiplier");
+        assert_eq!(survey.cap_values[0].unit, "x");
+        assert_eq!(survey.cap_values[1].key, "survey-multiplier");
+        assert_eq!(survey.cap_values[1].label, "Survey multiplier");
+        assert_eq!(survey.cap_values[1].unit, "x");
+        assert_eq!(survey.upgrade_cost_materials, Some(50));
     }
 }

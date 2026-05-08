@@ -4,7 +4,7 @@ use crate::commands::devtools::inputs::{
 use crate::game::content::doctrines::doctrine_by_id;
 use crate::game::content::planets::{planet_by_id, SOLSTICE_ANCHOR_ID};
 use crate::game::content::services::service_by_id;
-use crate::game::content::systems::{SystemProgression, SYSTEMS};
+use crate::game::content::systems::system_by_id;
 use crate::game::progression::PrestigeProfile;
 use crate::game::sim::{tick, RunState};
 use crate::runtime::habitat_crew_capacity;
@@ -55,15 +55,7 @@ pub(crate) fn apply_devtools_crew_total(run_state: &mut RunState, crew_total: u8
 }
 
 pub(crate) fn system_max_level(system_id: &str) -> Option<u8> {
-    SYSTEMS
-        .iter()
-        .find(|system| system.id == system_id)
-        .map(|system| match system.progression {
-            SystemProgression::ReactorCore(levels) => levels.len() as u8,
-            SystemProgression::HabitatRing(levels) => levels.len() as u8,
-            SystemProgression::LogisticsSpine(levels) => levels.len() as u8,
-            SystemProgression::SurveyArray(levels) => levels.len() as u8,
-        })
+    system_by_id(system_id).map(|system| system.progression.max_level())
 }
 
 pub(crate) fn apply_devtools_system_levels(

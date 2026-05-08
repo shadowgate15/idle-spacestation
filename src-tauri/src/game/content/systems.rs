@@ -39,6 +39,30 @@ pub enum SystemProgression {
     SurveyArray(&'static [SurveyArrayLevel]),
 }
 
+impl SystemProgression {
+    /// Returns the maximum level for this progression (i.e. the number of defined levels).
+    pub fn max_level(&self) -> u8 {
+        match self {
+            Self::ReactorCore(levels) => levels.len() as u8,
+            Self::HabitatRing(levels) => levels.len() as u8,
+            Self::LogisticsSpine(levels) => levels.len() as u8,
+            Self::SurveyArray(levels) => levels.len() as u8,
+        }
+    }
+
+    /// Returns the materials cost to upgrade FROM the given level (1-based).
+    /// Returns `None` for the max level (no upgrade available) or for an out-of-range level.
+    pub fn upgrade_cost_at(&self, level: u8) -> Option<u32> {
+        let idx = level.saturating_sub(1) as usize;
+        match self {
+            Self::ReactorCore(levels) => levels.get(idx).and_then(|l| l.upgrade_cost_materials),
+            Self::HabitatRing(levels) => levels.get(idx).and_then(|l| l.upgrade_cost_materials),
+            Self::LogisticsSpine(levels) => levels.get(idx).and_then(|l| l.upgrade_cost_materials),
+            Self::SurveyArray(levels) => levels.get(idx).and_then(|l| l.upgrade_cost_materials),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SystemDefinition {
     pub id: &'static str,
