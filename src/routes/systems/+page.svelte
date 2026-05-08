@@ -1,27 +1,31 @@
 <script lang="ts">
   import { gameState } from '$lib/game/api/state.svelte';
   import { gameGateway } from '$lib/game/api';
-  import type { SystemId } from '$lib/game/api/types';
+  import type { GameSnapshot, SystemId } from '$lib/game/api/types';
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
   import * as Card from '$lib/components/ui/card';
   import Button from '$lib/components/ui/button/button.svelte';
 
-  let upgrading = $state<Set<string>>(new Set());
+  let inflight = $state<Set<string>>(new Set());
+
+  async function runInflightAction(
+    id: string,
+    fn: () => Promise<{ ok: boolean; snapshot: GameSnapshot }>,
+  ) {
+    if (inflight.has(id)) return;
+    inflight = new Set([...inflight, id]);
+    try {
+      const result = await fn();
+      if (result.ok) gameState.applySnapshot(result.snapshot);
+    } catch {
+      // Silent catch; store updates via event
+    } finally {
+      inflight = new Set([...inflight].filter((x) => x !== id));
+    }
+  }
 
   async function handleUpgrade(systemId: SystemId) {
-    if (upgrading.has(systemId)) return;
-
-    upgrading = new Set([...upgrading, systemId]);
-    try {
-      const result = await gameGateway.upgradeSystem({ systemId });
-      if (result.ok) {
-        gameState.applySnapshot(result.snapshot);
-      }
-    } catch {
-      // Error is handled by gameState
-    } finally {
-      upgrading = new Set([...upgrading].filter((id) => id !== systemId));
-    }
+    await runInflightAction(systemId, () => gameGateway.upgradeSystem({ systemId }));
   }
 </script>
 
@@ -37,7 +41,7 @@
 
     <div class="grid gap-6 lg:grid-cols-2">
       {#each systems.systems as system (system.id)}
-        {@const isUpgrading = upgrading.has(system.id)}
+        {@const isUpgrading = inflight.has(system.id)}
         <Card.Root>
           <Card.Header>
             <Card.Title>{system.name}</Card.Title>

@@ -2,6 +2,7 @@
   import { gameState } from '$lib/game/api/state.svelte';
   import { gameGateway } from '$lib/game/api';
   import type {
+    GameSnapshot,
     ServiceId,
     ServiceStatus,
     ServiceDisabledReasonCode,
@@ -12,7 +13,23 @@
   import Button from '$lib/components/ui/button/button.svelte';
   import { StatTile } from '$lib/components/ui/stat-tile';
 
-  let acting = $state<Set<string>>(new Set());
+  let inflight = $state<Set<string>>(new Set());
+
+  async function runInflightAction(
+    id: string,
+    fn: () => Promise<{ ok: boolean; snapshot: GameSnapshot }>,
+  ) {
+    if (inflight.has(id)) return;
+    inflight = new Set([...inflight, id]);
+    try {
+      const result = await fn();
+      if (result.ok) gameState.applySnapshot(result.snapshot);
+    } catch {
+      // Silent catch; store updates via event
+    } finally {
+      inflight = new Set([...inflight].filter((x) => x !== id));
+    }
+  }
 
   const disabledReasonLabels: Record<ServiceDisabledReasonCode, string> = {
     capacity: 'No service slots available',
@@ -35,41 +52,15 @@
   };
 
   async function handleActivation(serviceId: ServiceId, active: boolean) {
-    if (acting.has(serviceId)) return;
-
-    acting = new Set([...acting, serviceId]);
-    try {
-      const result = await gameGateway.setServiceActivation({
-        serviceId,
-        active,
-      });
-      if (result.ok) {
-        gameState.applySnapshot(result.snapshot);
-      }
-    } catch {
-      // Silent catch; store updates via event
-    } finally {
-      acting = new Set([...acting].filter((id) => id !== serviceId));
-    }
+    await runInflightAction(serviceId, () =>
+      gameGateway.setServiceActivation({ serviceId, active }),
+    );
   }
 
   async function handleReprioritize(serviceId: ServiceId, direction: 'up' | 'down') {
-    if (acting.has(serviceId)) return;
-
-    acting = new Set([...acting, serviceId]);
-    try {
-      const result = await gameGateway.reprioritizeService({
-        serviceId,
-        direction,
-      });
-      if (result.ok) {
-        gameState.applySnapshot(result.snapshot);
-      }
-    } catch {
-      // Silent catch; store updates via event
-    } finally {
-      acting = new Set([...acting].filter((id) => id !== serviceId));
-    }
+    await runInflightAction(serviceId, () =>
+      gameGateway.reprioritizeService({ serviceId, direction }),
+    );
   }
 </script>
 
@@ -105,7 +96,7 @@
 
     <div class="grid gap-6 lg:grid-cols-2">
       {#each services.services as service (service.id)}
-        {@const isActing = acting.has(service.id)}
+        {@const isInflight = inflight.has(service.id)}
         <Card.Root>
           <Card.Header>
             <div class="flex items-center justify-between">
@@ -167,18 +158,18 @@
               <Button
                 variant="outline"
                 onclick={() => handleActivation(service.id, false)}
-                disabled={isActing}
+                disabled={isInflight}
                 class="flex-1"
               >
-                {isActing ? 'Pausing...' : 'Pause'}
+                {isInflight ? 'Pausing...' : 'Pause'}
               </Button>
             {:else}
               <Button
                 onclick={() => handleActivation(service.id, true)}
-                disabled={isActing || service.disabledReasons.length > 0}
+                disabled={isInflight || service.disabledReasons.length > 0}
                 class="flex-1"
               >
-                {isActing ? 'Activating...' : 'Activate'}
+                {isInflight ? 'Activating...' : 'Activate'}
               </Button>
             {/if}
             <div class="flex gap-1">
@@ -186,7 +177,7 @@
                 variant="outline"
                 size="sm"
                 onclick={() => handleReprioritize(service.id, 'up')}
-                disabled={isActing || service.priorityOrder <= 1}
+                disabled={isInflight || service.priorityOrder <= 1}
                 title="Move up in priority"
               >
                 ↑
@@ -195,7 +186,7 @@
                 variant="outline"
                 size="sm"
                 onclick={() => handleReprioritize(service.id, 'down')}
-                disabled={isActing || service.priorityOrder >= services.services.length}
+                disabled={isInflight || service.priorityOrder >= services.services.length}
                 title="Move down in priority"
               >
                 ↓
