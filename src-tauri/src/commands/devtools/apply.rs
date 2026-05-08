@@ -1,3 +1,23 @@
+//! Pure mutation helpers for the devtools commands.
+//!
+//! **Debug builds only** — the entire `commands::devtools` module is gated by
+//! `#[cfg(debug_assertions)]` and stripped from release builds, so none of
+//! these helpers are reachable from production code paths.
+//!
+//! Each helper validates its input first and returns `Err(&'static str)` with a
+//! stable rejection code on failure (mapped to a typed
+//! `Devtools*RejectionCode` in `gateway.ts`); on success it mutates the
+//! supplied [`crate::game::sim::RunState`] (and, for progression,
+//! [`crate::game::progression::PrestigeProfile`]) in place. **No locks** are
+//! acquired here and **no events** are emitted — those concerns belong to
+//! [`crate::commands::devtools::run_devtools_mutation`], which wraps every
+//! handler and triggers `commit_and_emit` after a successful mutation.
+//!
+//! While a devtools input is focused, the frontend pauses snapshot apply via
+//! `gameState.deferUntilBlur(true)` (see `src/routes/+layout.svelte`); the
+//! emit fired post-mutation is therefore buffered until blur and the user's
+//! in-flight edit is preserved.
+
 use crate::commands::devtools::inputs::{
     DevtoolsApplyProgressionInput, DevtoolsApplySystemEntry, DevtoolsServiceEntry,
 };
@@ -27,6 +47,16 @@ where
     Ok(())
 }
 
+/// Validates and overwrites the materials + data resource stockpiles.
+///
+/// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
+/// **Mutates state**: yes (writes [`RunState::resources`]).
+/// **Emits event**: no — the wrapping
+/// [`crate::commands::devtools::run_devtools_mutation`] handles that.
+///
+/// # Errors
+/// - `invalid_range`: `materials < 0.0` or `data < 0.0` (also catches `NaN`,
+///   since the comparisons use `>= 0.0` rather than `< 0.0`).
 pub(crate) fn apply_devtools_resources(
     run_state: &mut RunState,
     materials: f32,
@@ -41,6 +71,19 @@ pub(crate) fn apply_devtools_resources(
     Ok(())
 }
 
+/// Validates and overwrites the crew headcount in [`RunState::resources`].
+///
+/// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
+/// **Mutates state**: yes (writes `crew_total`).
+/// **Emits event**: no.
+///
+/// Caller is expected to invoke [`crate::runtime::refresh_runtime_state`]
+/// afterward so derived fields like `crew_available` reflect the new total —
+/// [`crate::commands::devtools::run_devtools_mutation`] handles this.
+///
+/// # Errors
+/// - `invalid_range`: `crew_total < 1` or `crew_total < crew_assigned`.
+/// - `constraint_violation`: `crew_total > habitat_crew_capacity(run_state)`.
 pub(crate) fn apply_devtools_crew_total(run_state: &mut RunState, crew_total: u8) -> Result<(), &'static str> {
     if crew_total < 1 || crew_total < run_state.resources.crew_assigned {
         return Err("invalid_range");
@@ -54,10 +97,30 @@ pub(crate) fn apply_devtools_crew_total(run_state: &mut RunState, crew_total: u8
     Ok(())
 }
 
+/// Looks up the maximum level for a system id from the static content table.
+///
+/// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
+/// **Mutates state**: no.
+/// Returns `None` if `system_id` is not in
+/// [`crate::game::content::systems`].
 pub(crate) fn system_max_level(system_id: &str) -> Option<u8> {
     system_by_id(system_id).map(|system| system.progression.max_level())
 }
 
+/// Validates and overwrites per-system levels in [`RunState::systems`].
+///
+/// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
+/// **Mutates state**: yes (writes each `level` field).
+/// **Emits event**: no.
+///
+/// Validation runs over the entire payload before any mutation, so a single
+/// rejection leaves the run state untouched.
+///
+/// # Errors
+/// - `constraint_violation`: duplicate id within `systems`.
+/// - `unknown_id`: id not in [`crate::game::content::systems`] or absent from
+///   the run state.
+/// - `invalid_range`: `level < 1` or `level > system_max_level(id)`.
 pub(crate) fn apply_devtools_system_levels(
     run_state: &mut RunState,
     systems: &[DevtoolsApplySystemEntry],
@@ -90,6 +153,27 @@ pub(crate) fn apply_devtools_system_levels(
     Ok(())
 }
 
+/// Validates and applies a batch of per-service overrides to
+/// [`RunState::services`].
+///
+/// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
+/// **Mutates state**: yes (writes `desired_active`, `assigned_crew`,
+/// `priority`, then re-sorts `services` by priority).
+/// **Emits event**: no.
+///
+/// Validation is two-pass: per-entry checks (id, range, crew limit) run first,
+/// then the helper simulates the full priority assignment across *all* services
+/// (including those omitted from the payload) to detect priority collisions
+/// before mutating anything.
+///
+/// # Errors
+/// - `constraint_violation`: duplicate id, duplicate explicit priority, or a
+///   priority collision after merging the partial payload with the unspecified
+///   services that keep their existing priority.
+/// - `unknown_id`: id not in [`crate::game::content::services`] or absent from
+///   the run state.
+/// - `invalid_range`: `assigned_crew > definition.crew_required`, or
+///   `priority < 1` or `priority > run_state.services.len()`.
 pub(crate) fn apply_devtools_services(
     run_state: &mut RunState,
     services: &[DevtoolsServiceEntry],
@@ -143,6 +227,18 @@ pub(crate) fn apply_devtools_services(
     Ok(())
 }
 
+/// Collapses a per-planet survey-progress map into the single scalar
+/// `survey_progress` field tracked on `RunState::station`.
+///
+/// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
+/// **Mutates state**: no — pure function.
+///
+/// Each entry is scaled by [`crate::game::content::planets::survey_threshold`]
+/// to convert the `0.0..=1.0` per-planet progress into the absolute scale used
+/// by the station counter, then the helper takes the running maximum so a
+/// later, smaller survey can't *lower* the displayed progress. A floor is also
+/// applied for any planet already in `discovered_planets`, ensuring discovered
+/// planets always show at least their unlock threshold.
 pub(crate) fn total_survey_progress_from_map(
     discovered_planets: &[String],
     survey_progress: &std::collections::HashMap<String, f32>,
@@ -162,6 +258,26 @@ pub(crate) fn total_survey_progress_from_map(
         .fold(discovered_floor, f32::max)
 }
 
+/// Validates and overwrites every progression-related field in
+/// [`RunState::station`] and the [`PrestigeProfile`].
+///
+/// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
+/// **Mutates state**: yes (writes both `RunState::station` and
+/// `PrestigeProfile`'s doctrine + planet fields).
+/// **Emits event**: no.
+///
+/// Doctrine and planet id lists are de-duplicated and sorted before being
+/// written so the canonical form is stable for the diff cache used by
+/// [`crate::commit_and_emit`].
+///
+/// # Errors
+/// - `constraint_violation`: duplicate doctrine or planet id; the starter
+///   planet [`crate::game::content::planets::SOLSTICE_ANCHOR_ID`] is missing
+///   from `discovered_planets`; or `active_planet` is not in
+///   `discovered_planets`.
+/// - `unknown_id`: doctrine, planet, active-planet, or survey-key id missing
+///   from the static content tables.
+/// - `invalid_range`: a `survey_progress` value falls outside `0.0..=1.0`.
 pub(crate) fn apply_devtools_progression(
     run_state: &mut RunState,
     profile: &mut PrestigeProfile,
@@ -231,6 +347,19 @@ pub(crate) fn apply_devtools_progression(
     Ok(())
 }
 
+/// Validates `count` and runs the production [`tick`](crate::game::sim::tick())
+/// `count` times.
+///
+/// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
+/// **Mutates state**: yes (delegates to `tick`, which mutates the run state in
+/// the same way the background tick thread does).
+/// **Emits event**: no — the wrapping
+/// [`crate::commands::devtools::run_devtools_mutation`] fires a single
+/// `game://state-changed` after the loop completes.
+///
+/// # Errors
+/// - `invalid_range`: `count` is outside `1..=240` (one minute at the
+///   4 Hz tick cadence in `lib.rs::TICK_INTERVAL_MS`).
 pub(crate) fn apply_devtools_advance_ticks(run_state: &mut RunState, count: u32) -> Result<(), &'static str> {
     if !(1..=240).contains(&count) {
         return Err("invalid_range");
@@ -243,6 +372,15 @@ pub(crate) fn apply_devtools_advance_ticks(run_state: &mut RunState, count: u32)
     Ok(())
 }
 
+/// Hard-resets the run state, the prestige profile, and the session-tick
+/// counter back to the starter fixture used at first launch.
+///
+/// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
+/// **Mutates state**: yes (overwrites all three arguments wholesale).
+/// **Emits event**: no.
+///
+/// Always succeeds — there is no validation to perform — so the helper returns
+/// `()` rather than `Result`.
 pub(crate) fn reset_devtools_session(
     run_state: &mut RunState,
     profile: &mut PrestigeProfile,
