@@ -1,10 +1,25 @@
+//! Bit-level equality and hashing helpers for deterministic snapshot comparison.
+//!
+//! The `idle-spacestation-bit-eq-derive` proc-macro crate expands `derive(BitEq)`
+//! into field-by-field calls to these traits so snapshot DTOs compare floats by
+//! raw bit pattern instead of by IEEE `==` semantics.
+
 use std::hash::{Hash, Hasher};
 
 /// Bit-level equality for types that may contain f32/f64 fields.
 ///
 /// Floating-point fields are compared via `to_bits()` rather than `==`, so NaN
 /// bit patterns are handled consistently in snapshot diffing.
+///
+/// Snapshot DTOs use `#[derive(BitEq)]`, implemented by the
+/// `idle-spacestation-bit-eq-derive` proc-macro crate, to apply this rule
+/// field-by-field.
 pub trait BitEq {
+    /// Returns true when `self` and `other` have identical logical or bit patterns.
+    ///
+    /// Implementations for floating-point types intentionally compare
+    /// `to_bits()` values so equal NaN payloads remain equal and distinct NaN
+    /// bit patterns remain detectable.
     fn bit_eq(&self, other: &Self) -> bool;
 }
 
@@ -12,6 +27,10 @@ pub trait BitEq {
 ///
 /// Floating-point fields hash their raw bit patterns to match `BitEq` semantics.
 pub trait BitHash {
+    /// Writes this value's bit-equality-compatible hash into `state`.
+    ///
+    /// Floating-point implementations hash `to_bits()` so hashes stay aligned
+    /// with `BitEq`'s NaN-safe raw-bit comparisons.
     fn bit_hash<H: Hasher>(&self, state: &mut H);
 }
 
