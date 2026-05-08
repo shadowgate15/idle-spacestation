@@ -1,13 +1,27 @@
+//! Static data catalog for orbiting planets.
+//!
+//! These definitions are read-only once loaded at startup; they are never mutated at runtime.
+//! See [`crate::game::sim::state::RunState`] for the mutable game state that consumes this data.
+
+/// Stable string ID for Solstice Anchor, the starter balanced planet.
 pub const SOLSTICE_ANCHOR_ID: &str = "solstice-anchor";
+/// Stable string ID for Cinder Forge, the high-yield industrial planet.
 pub const CINDER_FORGE_ID: &str = "cinder-forge";
+/// Stable string ID for Aurora Pier, the data-focused research planet.
 pub const AURORA_PIER_ID: &str = "aurora-pier";
 
+/// Identifies which station stat a [`PlanetModifier`] applies to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetModifierTarget {
+    /// Scales crew productivity (affects resource output per assigned crew).
     CrewEfficiency,
+    /// Scales the amount of Data produced per tick.
     DataOutput,
+    /// Scales the amount of Materials produced per tick.
     MaterialsOutput,
+    /// Scales the power upkeep cost of all active services.
     ServicePowerUpkeep,
+    /// Scales the maximum crew the station can house.
     CrewCapacity,
 }
 
@@ -33,17 +47,25 @@ impl PlanetModifierTarget {
     }
 }
 
+/// A single percentage-based modifier applied by a planet to a station stat.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlanetModifier {
+    /// The station stat this modifier affects.
     pub target: PlanetModifierTarget,
+    /// Additive percentage adjustment (e.g. `0.10` = +10%, `-0.15` = -15%).
     pub percent: f32,
 }
 
+/// Defines a planet that the player can orbit during a run, including its stat modifiers.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlanetDefinition {
+    /// Unique kebab-case identifier used to track the active planet in [`crate::game::sim::state::RunState`].
     pub id: &'static str,
+    /// Short display name shown in the planet picker.
     pub label: &'static str,
+    /// Human-readable summary of the planet's trade-offs.
     pub description: &'static str,
+    /// Stat modifiers applied while the station orbits this planet.
     pub modifiers: &'static [PlanetModifier],
 }
 
@@ -80,6 +102,7 @@ const AURORA_PIER_MODIFIERS: &[PlanetModifier] = &[
     },
 ];
 
+/// Ordered catalog of all available planets; use the `id` field for stable lookups.
 pub const PLANETS: &[PlanetDefinition] = &[
     PlanetDefinition {
         id: SOLSTICE_ANCHOR_ID,
@@ -101,6 +124,7 @@ pub const PLANETS: &[PlanetDefinition] = &[
     },
 ];
 
+/// Looks up a planet definition by its stable string ID. Returns `None` if not found.
 pub fn planet_by_id(id: &str) -> Option<&'static PlanetDefinition> {
     PLANETS.iter().find(|planet| planet.id == id)
 }

@@ -1,41 +1,75 @@
+//! Static data catalog for upgradeable station systems.
+//!
+//! Each system has a fixed progression of four levels. Systems are upgraded by spending
+//! Materials; the cost for each transition is stored in the level's `upgrade_cost_materials`
+//! field (`None` at the maximum level).
+//!
+//! These definitions are read-only once loaded at startup; they are never mutated at runtime.
+//! See [`crate::game::sim::state::RunState`] for the mutable game state that consumes this data.
+
+/// Stable string ID for the Reactor Core system (power and service-power-cap progression).
 pub const REACTOR_CORE_ID: &str = "reactor-core";
+/// Stable string ID for the Habitat Ring system (crew capacity and recovery progression).
 pub const HABITAT_RING_ID: &str = "habitat-ring";
+/// Stable string ID for the Logistics Spine system (service slots and materials-cap progression).
 pub const LOGISTICS_SPINE_ID: &str = "logistics-spine";
+/// Stable string ID for the Survey Array system (data and survey multiplier progression).
 pub const SURVEY_ARRAY_ID: &str = "survey-array";
 
+/// Stats for one level of the Reactor Core upgrade path.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ReactorCoreLevel {
+    /// Total power output contributed by the reactor at this level.
     pub power_output: f32,
+    /// Maximum power that can be allocated to services at this level.
     pub service_power_cap: u8,
+    /// Materials cost to upgrade from this level to the next; `None` at the maximum level.
     pub upgrade_cost_materials: Option<u32>,
 }
 
+/// Stats for one level of the Habitat Ring upgrade path.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct HabitatRingLevel {
+    /// Maximum crew the station can house at this level.
     pub crew_capacity: u8,
+    /// Maximum crew recovery rate per real-time minute at this level.
     pub recovery_ceiling_per_minute: f32,
+    /// Materials cost to upgrade from this level to the next; `None` at the maximum level.
     pub upgrade_cost_materials: Option<u32>,
 }
 
+/// Stats for one level of the Logistics Spine upgrade path.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LogisticsSpineLevel {
+    /// Number of service slots available at this level.
     pub active_service_slots: u8,
+    /// Maximum materials the station can stockpile at this level.
     pub materials_capacity: u32,
+    /// Materials cost to upgrade from this level to the next; `None` at the maximum level.
     pub upgrade_cost_materials: Option<u32>,
 }
 
+/// Stats for one level of the Survey Array upgrade path.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SurveyArrayLevel {
+    /// Multiplier applied to all data generation at this level.
     pub data_multiplier: f32,
+    /// Multiplier applied to all survey progress at this level.
     pub survey_multiplier: f32,
+    /// Materials cost to upgrade from this level to the next; `None` at the maximum level.
     pub upgrade_cost_materials: Option<u32>,
 }
 
+/// Typed progression table for a system, discriminated by system kind.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SystemProgression {
+    /// Level table for the Reactor Core system.
     ReactorCore(&'static [ReactorCoreLevel]),
+    /// Level table for the Habitat Ring system.
     HabitatRing(&'static [HabitatRingLevel]),
+    /// Level table for the Logistics Spine system.
     LogisticsSpine(&'static [LogisticsSpineLevel]),
+    /// Level table for the Survey Array system.
     SurveyArray(&'static [SurveyArrayLevel]),
 }
 
@@ -63,10 +97,14 @@ impl SystemProgression {
     }
 }
 
+/// Defines a station system with its full upgrade progression table.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SystemDefinition {
+    /// Unique kebab-case identifier used throughout the simulation and IPC layer.
     pub id: &'static str,
+    /// Short display name shown in the UI.
     pub label: &'static str,
+    /// The typed level table for this system's upgrade path.
     pub progression: SystemProgression,
 }
 
@@ -162,6 +200,7 @@ const SURVEY_ARRAY_LEVELS: &[SurveyArrayLevel] = &[
     },
 ];
 
+/// Ordered catalog of all station systems; use the `id` field for stable lookups.
 pub const SYSTEMS: &[SystemDefinition] = &[
     SystemDefinition {
         id: REACTOR_CORE_ID,
@@ -185,6 +224,7 @@ pub const SYSTEMS: &[SystemDefinition] = &[
     },
 ];
 
+/// Looks up a system definition by its stable string ID. Returns `None` if not found.
 pub fn system_by_id(id: &str) -> Option<&'static SystemDefinition> {
     SYSTEMS.iter().find(|system| system.id == id)
 }

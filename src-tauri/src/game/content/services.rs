@@ -1,14 +1,29 @@
+//! Static data catalog for station services (the activatable modules that drive production).
+//!
+//! These definitions are read-only once loaded at startup; they are never mutated at runtime.
+//! See [`crate::game::sim::state::RunState`] for the mutable game state that consumes this data.
+
+/// Stable string ID for the Solar Harvester service (primary power producer).
 pub const SOLAR_HARVESTER_ID: &str = "solar-harvester";
+/// Stable string ID for the Ore Reclaimer service (materials producer).
 pub const ORE_RECLAIMER_ID: &str = "ore-reclaimer";
+/// Stable string ID for the Survey Uplink service (data and survey-point producer).
 pub const SURVEY_UPLINK_ID: &str = "survey-uplink";
+/// Stable string ID for the Maintenance Bay service (global power upkeep reducer).
 pub const MAINTENANCE_BAY_ID: &str = "maintenance-bay";
+/// Stable string ID for the Command Relay service (survey speed booster and priority stabiliser).
 pub const COMMAND_RELAY_ID: &str = "command-relay";
+/// Stable string ID for the Fabrication Loop service (materials-to-data converter).
 pub const FABRICATION_LOOP_ID: &str = "fabrication-loop";
 
+/// Broad category that groups services by their primary economic role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ServiceCategory {
+    /// Generates primary resources (power, materials, data, or survey points).
     Production,
+    /// Modifies station-wide multipliers without direct resource generation.
     Support,
+    /// Consumes one resource to produce another (e.g. materials → data).
     Conversion,
 }
 
@@ -22,24 +37,43 @@ impl ServiceCategory {
     }
 }
 
+/// Full static definition of a service module that can be slotted and activated on the station.
+///
+/// All numeric fields are per-tick rates unless noted otherwise. Positive values are outputs;
+/// negative values are inputs consumed by the service.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ServiceDefinition {
+    /// Unique kebab-case identifier used throughout the simulation and IPC layer.
     pub id: &'static str,
+    /// Short display name shown in the UI.
     pub label: &'static str,
+    /// Broad economic role of this service.
     pub category: ServiceCategory,
+    /// Number of crew members the service requires to run each tick.
     pub crew_required: u8,
+    /// Power consumed per tick while active (subtracted from the power budget).
     pub power_upkeep: f32,
+    /// Power generated per tick while active (added to the power budget).
     pub power_output: f32,
+    /// Materials consumed per tick as ongoing upkeep (non-conversion cost).
     pub materials_upkeep: f32,
+    /// Materials generated per tick while active.
     pub materials_output: f32,
+    /// Materials consumed per tick as conversion input (negative = consumed).
     pub materials_input: f32,
+    /// Data generated per tick while active.
     pub data_output: f32,
+    /// Survey progress points contributed per tick while active.
     pub survey_points: f32,
+    /// Fractional additive modifier applied to every other service's power upkeep (e.g. `-0.10` = −10%).
     pub global_service_power_modifier: f32,
+    /// Fractional additive modifier applied to the global survey speed (e.g. `0.10` = +10%).
     pub survey_speed_modifier: f32,
+    /// Signed adjustment to this service's scheduling priority for stability tiebreaking.
     pub service_priority_stability: i8,
 }
 
+/// Ordered catalog of all available services; use the `id` field for stable lookups.
 pub const SERVICES: &[ServiceDefinition] = &[
     ServiceDefinition {
         id: SOLAR_HARVESTER_ID,
@@ -139,6 +173,7 @@ pub const SERVICES: &[ServiceDefinition] = &[
     },
 ];
 
+/// Looks up a service definition by its stable string ID. Returns `None` if not found.
 pub fn service_by_id(id: &str) -> Option<&'static ServiceDefinition> {
     SERVICES.iter().find(|service| service.id == id)
 }

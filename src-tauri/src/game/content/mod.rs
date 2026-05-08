@@ -1,3 +1,11 @@
+//! Static data catalogs for all game content.
+//!
+//! These modules define the read-only tables that describe every playable entity in the
+//! space station simulation: systems, services, planets, resources, and doctrines.
+//! All data is declared as `&'static` constants and is never mutated at runtime.
+//!
+//! See [`crate::game::sim::state::RunState`] for the mutable game state that consumes this data.
+
 #![allow(dead_code)]
 
 pub mod doctrines;
