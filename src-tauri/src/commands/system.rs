@@ -1,3 +1,10 @@
+//! System-domain Tauri command handlers.
+//!
+//! Currently exposes [`game_upgrade_system`], which spends materials to bump a
+//! station system by one level and refreshes runtime power/crew capacities.
+//!
+//! See also: [`crate::commands`].
+
 use crate::commands::action_response;
 use crate::commands::inputs::UpgradeSystemInput;
 use crate::game::content::systems::system_by_id_required;
@@ -5,6 +12,22 @@ use crate::game::snapshot::ActionResponse;
 use crate::runtime::refresh_runtime_state;
 use crate::{commit_and_emit, GameState, LastEmittedSnapshot};
 
+/// Upgrade a station system by one level, charging the upgrade's material cost.
+///
+/// **Frontend alias**: `game_upgrade_system` (same as Rust name)
+/// **Mutates state**: yes
+/// **Emits `game://state-changed`**: yes (via [`commit_and_emit`])
+///
+/// On success, decrements `resources.materials`, increments the system's
+/// `level` (saturating), and re-projects runtime state via
+/// [`refresh_runtime_state`] before emitting the change to the frontend.
+///
+/// # Errors
+/// Returns an `ActionResponse { ok: false, reason_code: Some(_) }` (mapped to
+/// `SystemUpgradeRejectionCode` on the frontend) for one of:
+/// - `unknown-system`: no system in `RunState` matches the requested id.
+/// - `max-level`: the system is already at its highest configured level.
+/// - `insufficient-materials`: the player cannot afford the next-level cost.
 #[tauri::command]
 pub fn game_upgrade_system(
     app: tauri::AppHandle<impl tauri::Runtime>,

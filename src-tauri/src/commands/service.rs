@@ -1,3 +1,11 @@
+//! Service-domain Tauri command handlers.
+//!
+//! Covers activation, crew assignment, and priority ordering for services.
+//! All three commands mutate state and emit `game://state-changed` via
+//! [`commit_and_emit`] when they succeed.
+//!
+//! See also: [`crate::commands`], [`crate::commands::inputs`].
+
 use crate::commands::action_response;
 use crate::commands::inputs::{
     AssignServiceCrewInput, ReprioritizeServiceInput, ServicePriorityDirection, ToggleServiceInput,
@@ -8,6 +16,24 @@ use crate::game::snapshot::ActionResponse;
 use crate::runtime::{active_service_slots, projected_power_after_toggle, refresh_runtime_state};
 use crate::{commit_and_emit, GameState, LastEmittedSnapshot};
 
+/// Activate or deactivate a service.
+///
+/// **Frontend alias**: `game_set_service_activation`
+/// **Mutates state**: yes
+/// **Emits `game://state-changed`**: yes (via [`commit_and_emit`]) on success
+///
+/// Deactivation always succeeds; activation must pass capacity, crew, and
+/// power checks. When activation is rejected for capacity/crew/deficit
+/// reasons the service is left in a paused state with the matching
+/// [`ServicePauseReason`] so the UI can surface the cause.
+///
+/// # Errors
+/// Returns an `ActionResponse { ok: false, reason_code: Some(_) }` (mapped to
+/// `ServiceActivationRejectionCode` on the frontend) for one of:
+/// - `unknown-service`: no service in `RunState` matches the requested id.
+/// - `capacity-reached`: active service slots are exhausted for the station.
+/// - `insufficient-crew`: not enough free crew to cover the service requirement.
+/// - `power-deficit`: enabling the service would push projected power below 0.
 #[tauri::command]
 pub fn game_toggle_service(
     app: tauri::AppHandle<impl tauri::Runtime>,
@@ -72,6 +98,22 @@ fn apply_service_toggle(
     Ok(())
 }
 
+/// Assign a specific crew count to a service.
+///
+/// **Frontend alias**: `game_assign_service_crew` (same as Rust name)
+/// **Mutates state**: yes
+/// **Emits `game://state-changed`**: yes (via [`commit_and_emit`]) on success
+///
+/// Replaces the service's `assigned_crew` with the requested value, then
+/// re-projects runtime state. Negative values and assignments that exceed the
+/// available free crew are rejected without mutation.
+///
+/// # Errors
+/// Returns an `ActionResponse { ok: false, reason_code: Some(_) }` (mapped to
+/// `ServiceCrewAssignmentRejectionCode` on the frontend) for one of:
+/// - `unknown-service`: no service in `RunState` matches the requested id.
+/// - `invalid-assignment`: the requested crew count is negative.
+/// - `insufficient-crew`: assignment delta exceeds currently free crew.
 #[tauri::command]
 pub fn game_assign_service_crew(
     app: tauri::AppHandle<impl tauri::Runtime>,
@@ -112,6 +154,21 @@ pub fn game_assign_service_crew(
     action_response(&guard.run, &guard.profile, true, None)
 }
 
+/// Move a service one slot up or down in the priority order.
+///
+/// **Frontend alias**: `game_reprioritize_service` (same as Rust name)
+/// **Mutates state**: yes
+/// **Emits `game://state-changed`**: yes (via [`commit_and_emit`]) on success
+///
+/// Swaps the priority value of the target service with its neighbour in the
+/// requested direction. The relative priority of all other services is
+/// preserved.
+///
+/// # Errors
+/// Returns an `ActionResponse { ok: false, reason_code: Some(_) }` (mapped to
+/// `ServicePriorityRejectionCode` on the frontend) for one of:
+/// - `unknown-service`: no service in `RunState` matches the requested id.
+/// - `priority-limit`: the service is already at the top/bottom of the order.
 #[tauri::command]
 pub fn game_reprioritize_service(
     app: tauri::AppHandle<impl tauri::Runtime>,
