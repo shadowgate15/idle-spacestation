@@ -165,6 +165,15 @@ pub fn system_by_id(id: &str) -> Option<&'static SystemDefinition> {
     SYSTEMS.iter().find(|system| system.id == id)
 }
 
+/// Returns a system definition by ID, panicking if not found.
+///
+/// # Panics
+/// Panics with "system must exist in catalog" if the ID is not found.
+#[track_caller]
+pub fn system_by_id_required(id: &str) -> &'static SystemDefinition {
+    system_by_id(id).expect("system must exist in catalog")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -320,5 +329,11 @@ mod tests {
             ),
             _ => panic!("wrong progression for survey-array"),
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "system must exist in catalog")]
+    fn system_by_id_required_panics_on_unknown() {
+        system_by_id_required("nonexistent-system-that-does-not-exist");
     }
 }

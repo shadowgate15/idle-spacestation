@@ -65,6 +65,15 @@ pub fn doctrine_by_id(id: &str) -> Option<&'static DoctrineDefinition> {
     DOCTRINES.iter().find(|doctrine| doctrine.id == id)
 }
 
+/// Returns a doctrine definition by ID, panicking if not found.
+///
+/// # Panics
+/// Panics with "doctrine must exist in catalog" if the ID is not found.
+#[track_caller]
+pub fn doctrine_by_id_required(id: &str) -> &'static DoctrineDefinition {
+    doctrine_by_id(id).expect("doctrine must exist in catalog")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,5 +118,11 @@ mod tests {
                 level: 2,
             }
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "doctrine must exist in catalog")]
+    fn doctrine_by_id_required_panics_on_unknown() {
+        doctrine_by_id_required("nonexistent-doctrine-that-does-not-exist");
     }
 }

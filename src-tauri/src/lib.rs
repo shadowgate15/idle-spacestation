@@ -13,8 +13,8 @@ use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder};
 use tauri::Manager;
 use crate::game::content::doctrines::doctrine_by_id;
 use crate::game::content::planets::{planet_by_id, AURORA_PIER_ID, CINDER_FORGE_ID, SOLSTICE_ANCHOR_ID};
-use crate::game::content::services::service_by_id;
-use crate::game::content::systems::{system_by_id, SystemProgression, HABITAT_RING_ID, REACTOR_CORE_ID, SYSTEMS};
+use crate::game::content::services::{service_by_id, service_by_id_required};
+use crate::game::content::systems::{system_by_id, system_by_id_required, SystemProgression, HABITAT_RING_ID, REACTOR_CORE_ID, SYSTEMS};
 use crate::game::progression::{execute_prestige, DoctrinePurchaseError, PrestigeExecutionError};
 use crate::game::progression::PrestigeProfile;
 use crate::game::snapshot::{build_snapshot, ActionResponse, RawGameSnapshot, SaveLoadResponse};
@@ -554,9 +554,7 @@ fn game_toggle_service(
         return action_response(&guard.run, &guard.profile, false, Some("capacity-reached"));
     }
 
-    let required_crew = service_by_id(&input.service_id)
-        .expect("service must exist in catalog")
-        .crew_required;
+    let required_crew = service_by_id_required(&input.service_id).crew_required;
     let additional_crew_needed = required_crew.saturating_sub(guard.run.services[service_index].assigned_crew);
     if guard.run.resources.crew_available < additional_crew_needed {
         let service = &mut guard.run.services[service_index];
@@ -1244,11 +1242,7 @@ fn active_service_power_output(run_state: &RunState) -> f32 {
         .services
         .iter()
         .filter(|service| service.is_active)
-        .map(|service| {
-            service_by_id(&service.service_id)
-                .expect("service must exist in catalog")
-                .power_output
-        })
+        .map(|service| service_by_id_required(&service.service_id).power_output)
         .sum()
 }
 
@@ -1270,11 +1264,7 @@ fn effective_service_power_upkeep(run_state: &RunState, service_id: &str) -> f32
         .services
         .iter()
         .filter(|service| service.is_active)
-        .map(|service| {
-            service_by_id(&service.service_id)
-                .expect("service must exist in catalog")
-                .global_service_power_modifier
-        })
+        .map(|service| service_by_id_required(&service.service_id).global_service_power_modifier)
         .sum::<f32>();
 
     (definition.power_upkeep * (1.0 + planet_modifier + service_modifier)).max(0.0)

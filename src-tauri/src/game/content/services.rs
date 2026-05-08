@@ -283,4 +283,10 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    #[should_panic(expected = "service must exist in catalog")]
+    fn service_by_id_required_panics_on_unknown() {
+        service_by_id_required("nonexistent-service-that-does-not-exist");
+    }
 }

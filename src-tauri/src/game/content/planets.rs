@@ -83,6 +83,15 @@ pub fn planet_by_id(id: &str) -> Option<&'static PlanetDefinition> {
     PLANETS.iter().find(|planet| planet.id == id)
 }
 
+/// Returns a planet definition by ID, panicking if not found.
+///
+/// # Panics
+/// Panics with "planet must exist in catalog" if the ID is not found.
+#[track_caller]
+pub fn planet_by_id_required(id: &str) -> &'static PlanetDefinition {
+    planet_by_id(id).expect("planet must exist in catalog")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,5 +150,11 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "planet must exist in catalog")]
+    fn planet_by_id_required_panics_on_unknown() {
+        planet_by_id_required("nonexistent-planet-that-does-not-exist");
     }
 }
