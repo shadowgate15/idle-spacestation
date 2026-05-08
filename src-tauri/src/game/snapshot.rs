@@ -8,7 +8,7 @@ use crate::game::content::planets::{
 use crate::game::content::services::SURVEY_UPLINK_ID;
 use crate::game::content::systems::{
     system_by_id_required, SystemProgression, HABITAT_RING_ID, LOGISTICS_SPINE_ID, REACTOR_CORE_ID,
-    SYSTEMS,
+    SURVEY_ARRAY_ID, SYSTEMS,
 };
 use crate::game::progression::{
     calculate_station_tier, evaluate_prestige_eligibility, PrestigeIneligibleReason, PrestigeProfile,

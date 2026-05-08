@@ -8,6 +8,7 @@ pub mod tick;
 pub use state::{RunState, ServicePauseReason, ServiceState, SimState, StationState, SystemState};
 #[allow(unused_imports)]
 pub use tick::tick;
+#[allow(unused_imports)]
 pub(crate) use tick::{
     effective_crew_capacity, effective_data_output_multiplier,
     effective_materials_output_multiplier, effective_service_power_upkeep,
