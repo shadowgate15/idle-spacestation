@@ -1,5 +1,12 @@
 #![allow(dead_code)]
 
+//! In-place simulation state, tick processing, and deficit recovery.
+//!
+//! This module owns the mutable run model consumed by the snapshot layer and
+//! advances it through the deterministic tick loop used by the Tauri backend.
+//! The loop is intentionally split from command handling so both tests and the
+//! daemon thread can mutate `RunState` through the same rules.
+
 pub mod deficit;
 pub mod state;
 pub mod tick;

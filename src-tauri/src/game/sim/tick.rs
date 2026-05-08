@@ -1,5 +1,14 @@
 #![allow(dead_code)]
 
+//! Deterministic six-phase simulation tick for one in-memory run.
+//!
+//! Each tick mutates `RunState` in a fixed six-phase order: allocation, service
+//! activation, production conversion, upkeep, survey/unlock commits, and
+//! autosave/prestige checks. The order is behavior-defining because later phases
+//! consume the capacity clamps, active-service set, pending deltas, and deficit
+//! fallout produced by earlier phases. See `src-tauri/src/lib.rs:setup()` for
+//! the daemon thread that drives this loop at 250 ms / 4 Hz.
+
 use crate::game::content::doctrines::{doctrine_by_id, DoctrineEffect};
 use crate::game::content::planets::{PlanetModifierTarget, AURORA_PIER_ID, CINDER_FORGE_ID};
 use crate::game::content::services::{service_by_id, ServiceCategory};
@@ -14,12 +23,27 @@ use crate::game::sim::state::{
 };
 
 #[derive(Debug, Clone, Copy)]
+/// Capacity snapshot computed once at the start of a tick.
+///
+/// Later phases use this value object instead of repeatedly reading mutable
+/// system state, which keeps service activation, material caps, and power caps
+/// consistent for the entire tick.
 struct AllocationState {
+    /// Effective Reactor Core level used for generation and service power cap.
     reactor: ReactorCoreLevel,
+    /// Effective Logistics Spine level used for service slots and materials cap.
     logistics: LogisticsSpineLevel,
+    /// Materials storage ceiling after Logistics Spine lookup.
     materials_capacity: f32,
 }
 
+/// Advances the run by one deterministic simulation tick.
+///
+/// Mutates `RunState` in six ordered phases: allocation clamps resources and
+/// resets runtime service state; activation chooses staffed services; production
+/// stages resource deltas; upkeep exposes the net power pool; deficit recovery
+/// may clear staged deltas; survey/unlock commits surviving production; and the
+/// final phase advances counters, autosave flags, and prestige eligibility.
 pub fn tick(state: &mut RunState) {
     let allocation = allocation_phase(state);
     service_activation_phase(state, allocation);
@@ -31,6 +55,12 @@ pub fn tick(state: &mut RunState) {
     autosave_prestige_check_phase(state);
 }
 
+/// Phase 1: resolves system-derived capacities and normalizes mutable runtime state.
+///
+/// Reads system levels and active planet modifiers, then clamps materials and
+/// crew to current capacity, recalculates station tier, clears autosave due, and
+/// resets all service runtime activation fields. This must run first so every
+/// later phase works from legal resource caps and a clean service-allocation slate.
 fn allocation_phase(state: &mut RunState) -> AllocationState {
     let reactor = reactor_level(state);
     let habitat = habitat_level(state);
@@ -65,6 +95,13 @@ fn allocation_phase(state: &mut RunState) -> AllocationState {
     }
 }
 
+/// Phase 2: activates desired services within slots, crew, and reactor power cap.
+///
+/// Reads the capacity snapshot, service priorities, doctrine discounts, and
+/// planet modifiers. Mutates service `is_active`, pause state, assigned crew,
+/// and derived power/crew resource totals. It must follow allocation's reset and
+/// precede production so only services that passed capacity checks can generate
+/// pending resource changes.
 fn service_activation_phase(state: &mut RunState, allocation: AllocationState) {
     let mut active_slots = 0u8;
     let mut available_crew = state.resources.crew_total;
@@ -131,6 +168,13 @@ fn service_activation_phase(state: &mut RunState, allocation: AllocationState) {
     state.resources.power_available = state.resources.power_generated - state.resources.power_reserved;
 }
 
+/// Phase 3: stages per-service production and conversion deltas without committing them.
+///
+/// Reads the active-service set, current materials stockpile, service catalog
+/// rates, and output multipliers. Returns `PendingServiceDelta` entries indexed
+/// to `RunState.services`, using a shadow materials pool to throttle inputs and
+/// cap material gains before state is mutated. It must run before upkeep and
+/// deficit recovery so power shortfalls can still erase same-tick output.
 fn production_conversion_phase(
     state: &RunState,
     allocation: AllocationState,
@@ -185,11 +229,24 @@ fn production_conversion_phase(
     pending
 }
 
+/// Phase 4: applies staged power output to reveal the net power position.
+///
+/// Reads pending service power output and mutates only `power_available`. This
+/// intentionally runs before deficit recovery because the deficit resolver needs
+/// to see whether service output plus reactor generation still leaves a
+/// shortfall after upkeep reservation.
 fn upkeep_phase(state: &mut RunState, pending: &[PendingServiceDelta]) {
     let power_delta: f32 = pending.iter().map(|service| service.power_output).sum();
     state.resources.power_available += power_delta;
 }
 
+/// Phase 5: commits surviving material, data, survey, and planet-unlock changes.
+///
+/// Reads pending deltas after deficit recovery, then mutates resource stockpiles,
+/// lifetime data, survey progress, and discovered planets. It must come after
+/// deficit handling because paused services have their pending deltas cleared,
+/// and before prestige checks because unlock and data progress can affect the
+/// snapshot produced for this tick.
 fn surveys_unlocks_phase(
     state: &mut RunState,
     allocation: AllocationState,
@@ -213,6 +270,12 @@ fn surveys_unlocks_phase(
     unlock_planet_if_ready(state, AURORA_PIER_ID, AURORA_PIER_SURVEY_THRESHOLD);
 }
 
+/// Phase 6: advances tick counters, autosave bookkeeping, and prestige eligibility.
+///
+/// Reads final net power after all service shedding and resource commits. Mutates
+/// `tick_count`, autosave flags, stable-power counters, and cached prestige
+/// eligibility. This must run last so persistence/prestige decisions describe the
+/// fully resolved tick rather than a pre-deficit or pre-unlock intermediate state.
 fn autosave_prestige_check_phase(state: &mut RunState) {
     state.tick_count += 1;
     state.autosave_due = state.tick_count % AUTOSAVE_CADENCE_TICKS == 0;
@@ -235,6 +298,11 @@ fn autosave_prestige_check_phase(state: &mut RunState) {
     state.prestige_eligible = eligibility.eligible;
 }
 
+/// Adds a planet to the discovered list once survey progress reaches its threshold.
+///
+/// Called during the survey/unlock phase after survey deltas have been committed;
+/// sorting keeps snapshot and hash output deterministic when multiple unlocks
+/// become available in the same tick.
 fn unlock_planet_if_ready(state: &mut RunState, planet_id: &str, threshold: f32) {
     if state.station.survey_progress + f32::EPSILON < threshold {
         return;
@@ -251,11 +319,20 @@ fn unlock_planet_if_ready(state: &mut RunState, planet_id: &str, threshold: f32)
     }
 }
 
+/// Computes crew capacity after active planet modifiers.
+///
+/// Allocation uses this before clamping total crew so service activation never
+/// assigns more crew than the current habitat and planet can support.
 pub(crate) fn effective_crew_capacity(state: &RunState, base_capacity: u8) -> u8 {
     let modifier = planet_modifier_total(state, PlanetModifierTarget::CrewCapacity);
     ((base_capacity as f32) * (1.0 + modifier)).floor().max(1.0) as u8
 }
 
+/// Computes crew required for one service after doctrine and planet efficiency effects.
+///
+/// Service activation reads this while walking priority order. The support
+/// discount flag ensures the first eligible support service consumes the one-off
+/// discount before later support services are evaluated.
 fn effective_crew_required(
     state: &RunState,
     category: ServiceCategory,
@@ -278,6 +355,10 @@ fn effective_crew_required(
         .max(1.0) as u8
 }
 
+/// Sums effective power upkeep for services currently marked active.
+///
+/// Service activation calls this after tentatively activating a service to ensure
+/// the Reactor Core service-power cap is not exceeded before production can run.
 fn total_active_service_power_upkeep(state: &RunState) -> f32 {
     state
         .services
@@ -287,6 +368,10 @@ fn total_active_service_power_upkeep(state: &RunState) -> f32 {
         .sum()
 }
 
+/// Computes current power upkeep for a service after planet and service modifiers.
+///
+/// Used by activation, production staging, deficit recovery, and snapshots; the
+/// result is clamped non-negative so stacked modifiers cannot create upkeep credit.
 pub(crate) fn effective_service_power_upkeep(state: &RunState, service_id: &str) -> f32 {
     let definition = service_by_id(service_id).expect("service must exist in catalog");
     let modifier = planet_modifier_total(state, PlanetModifierTarget::ServicePowerUpkeep)
@@ -300,14 +385,21 @@ pub(crate) fn effective_service_power_upkeep(state: &RunState, service_id: &str)
     (definition.power_upkeep * (1.0 + modifier)).max(0.0)
 }
 
+/// Computes the active planet multiplier for material output accumulation.
 pub(crate) fn effective_materials_output_multiplier(state: &RunState) -> f32 {
     1.0 + planet_modifier_total(state, PlanetModifierTarget::MaterialsOutput)
 }
 
+/// Computes the data output multiplier from Survey Array level and planet modifiers.
 pub(crate) fn effective_data_output_multiplier(state: &RunState) -> f32 {
     survey_array_level(state).data_multiplier * (1.0 + planet_modifier_total(state, PlanetModifierTarget::DataOutput))
 }
 
+/// Computes survey progress multiplier for a service.
+///
+/// Production staging reads this when accumulating pending survey deltas. It
+/// combines Survey Array level, active service modifiers, planet modifiers, and
+/// service-specific doctrine multipliers before the unlock phase commits progress.
 pub(crate) fn effective_survey_output_multiplier(state: &RunState, service_id: &str) -> f32 {
     let doctrine_multiplier = state
         .station
@@ -334,6 +426,7 @@ pub(crate) fn effective_survey_output_multiplier(state: &RunState, service_id: &
     survey_array_level(state).survey_multiplier * service_multiplier * doctrine_multiplier
 }
 
+/// Sums active-planet percentage modifiers for one modifier target.
 pub(crate) fn planet_modifier_total(state: &RunState, target: PlanetModifierTarget) -> f32 {
     state
         .active_planet_definition()
@@ -344,6 +437,10 @@ pub(crate) fn planet_modifier_total(state: &RunState, target: PlanetModifierTarg
         .sum()
 }
 
+/// Returns the doctrine discount applied to the first activated support service.
+///
+/// Activation queries this while walking services in priority order so the first
+/// support service that successfully activates owns the one-off crew reduction.
 fn first_support_service_discount(state: &RunState) -> Option<(u8, u8)> {
     state.station
         .doctrine_ids
@@ -357,6 +454,9 @@ fn first_support_service_discount(state: &RunState) -> Option<(u8, u8)> {
         })
 }
 
+/// Returns the Reactor Core progression row for the current system level.
+///
+/// Allocation uses this to freeze reactor output and service-power cap for the tick.
 pub(crate) fn reactor_level(state: &RunState) -> ReactorCoreLevel {
     match system_by_id(REACTOR_CORE_ID)
         .expect("reactor-core system must exist")
@@ -367,6 +467,9 @@ pub(crate) fn reactor_level(state: &RunState) -> ReactorCoreLevel {
     }
 }
 
+/// Returns the Habitat Ring progression row for the current system level.
+///
+/// Allocation uses this before crew capacity is clamped and activation assigns crew.
 pub(crate) fn habitat_level(state: &RunState) -> HabitatRingLevel {
     match system_by_id(HABITAT_RING_ID)
         .expect("habitat-ring system must exist")
@@ -377,6 +480,9 @@ pub(crate) fn habitat_level(state: &RunState) -> HabitatRingLevel {
     }
 }
 
+/// Returns the Logistics Spine progression row for the current system level.
+///
+/// Allocation uses this to freeze active-service slots and materials capacity for the tick.
 pub(crate) fn logistics_level(state: &RunState) -> LogisticsSpineLevel {
     match system_by_id(LOGISTICS_SPINE_ID)
         .expect("logistics-spine system must exist")
@@ -389,6 +495,9 @@ pub(crate) fn logistics_level(state: &RunState) -> LogisticsSpineLevel {
     }
 }
 
+/// Returns the Survey Array progression row for the current system level.
+///
+/// Production and snapshot code use this for data and survey multipliers.
 pub(crate) fn survey_array_level(state: &RunState) -> SurveyArrayLevel {
     match system_by_id(SURVEY_ARRAY_ID)
         .expect("survey-array system must exist")
@@ -399,6 +508,10 @@ pub(crate) fn survey_array_level(state: &RunState) -> SurveyArrayLevel {
     }
 }
 
+/// Marks a service inactive with a pause reason and clears its crew assignment.
+///
+/// Used inside activation before production staging, so services paused for slot,
+/// crew, or power-cap reasons never contribute pending output in the same tick.
 fn mark_paused(service: &mut crate::game::sim::state::ServiceState, reason: ServicePauseReason) {
     service.is_active = false;
     service.is_paused = true;
