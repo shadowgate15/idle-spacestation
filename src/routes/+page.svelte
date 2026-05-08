@@ -1,10 +1,6 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
   import type { ResourceDeltaSnapshot, WarningSnapshot } from '$lib/game/api/types';
-
-  type AppRoute = '/' | '/systems' | '/services' | '/planets' | '/prestige';
 
   function formatDelta(delta: ResourceDeltaSnapshot): string {
     const sign = delta.deltaPerSecond >= 0 ? '+' : '';
@@ -31,10 +27,6 @@
       default:
         return 'border-sky-500 bg-sky-950/30 text-sky-200';
     }
-  }
-
-  function navigateTo(path: AppRoute) {
-    goto(resolve(path));
   }
 </script>
 
@@ -129,37 +121,6 @@
         {/each}
       </section>
     {/if}
-
-    <nav class="mb-8 flex gap-4">
-      <button
-        type="button"
-        class="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        onclick={() => navigateTo('/systems')}
-      >
-        Systems
-      </button>
-      <button
-        type="button"
-        class="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        onclick={() => navigateTo('/services')}
-      >
-        Services
-      </button>
-      <button
-        type="button"
-        class="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        onclick={() => navigateTo('/planets')}
-      >
-        Planets
-      </button>
-      <button
-        type="button"
-        class="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        onclick={() => navigateTo('/prestige')}
-      >
-        Prestige
-      </button>
-    </nav>
 
     <div class="grid gap-6 lg:grid-cols-2">
       <div class="flex flex-col gap-6">

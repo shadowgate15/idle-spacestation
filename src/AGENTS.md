@@ -118,6 +118,7 @@ src/
 - Do not add SSR-dependent code; the SPA + Tauri assumption is load-bearing.
 - Do not bypass shadcn-svelte composition when a matching primitive already exists.
 - Do not write raw class concatenation when `cn()` already covers the case.
+- Do not duplicate the global header nav inside individual route pages. The `<header data-testid="game-header">` nav in `routes/+layout.svelte` (lines 176–196) is the single source of truth for navigation. Use the header links (which support middle-click, right-click, and bookmarking) instead of in-page button navs.
 
 ## UNIQUE STYLES
 

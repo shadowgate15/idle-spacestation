@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import { gameState } from '$lib/game/api/state.svelte';
   import { gameGateway } from '$lib/game/api';
   import type {
@@ -12,8 +10,6 @@
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
   import * as Card from '$lib/components/ui/card';
   import Button from '$lib/components/ui/button/button.svelte';
-
-  type AppRoute = '/' | '/systems' | '/services' | '/planets' | '/prestige';
 
   let acting = $state<Set<string>>(new Set());
 
@@ -74,10 +70,6 @@
       acting = new Set([...acting].filter((id) => id !== serviceId));
     }
   }
-
-  function navigateTo(path: AppRoute) {
-    goto(resolve(path));
-  }
 </script>
 
 <SnapshotGuard loadingMessage="Loading station services...">
@@ -118,37 +110,6 @@
         {/each}
       </section>
     {/if}
-
-    <nav class="mb-8 flex gap-4">
-      <button
-        type="button"
-        class="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        onclick={() => navigateTo('/')}
-      >
-        Overview
-      </button>
-      <button
-        type="button"
-        class="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        onclick={() => navigateTo('/systems')}
-      >
-        Systems
-      </button>
-      <button
-        type="button"
-        class="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        onclick={() => navigateTo('/planets')}
-      >
-        Planets
-      </button>
-      <button
-        type="button"
-        class="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        onclick={() => navigateTo('/prestige')}
-      >
-        Prestige
-      </button>
-    </nav>
 
     <div class="grid gap-6 lg:grid-cols-2">
       {#each services.services as service (service.id)}
