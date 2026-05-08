@@ -2,7 +2,7 @@ use crate::commands::devtools::inputs::{
     DevtoolsApplyProgressionInput, DevtoolsApplySystemEntry, DevtoolsServiceEntry,
 };
 use crate::game::content::doctrines::doctrine_by_id;
-use crate::game::content::planets::{planet_by_id, AURORA_PIER_ID, CINDER_FORGE_ID, SOLSTICE_ANCHOR_ID};
+use crate::game::content::planets::{planet_by_id, SOLSTICE_ANCHOR_ID};
 use crate::game::content::services::service_by_id;
 use crate::game::content::systems::{SystemProgression, SYSTEMS};
 use crate::game::progression::PrestigeProfile;
@@ -151,28 +151,21 @@ pub(crate) fn apply_devtools_services(
     Ok(())
 }
 
-pub(crate) fn survey_progress_threshold(planet_id: &str) -> Option<f32> {
-    match planet_id {
-        SOLSTICE_ANCHOR_ID => Some(0.0),
-        CINDER_FORGE_ID => Some(crate::game::sim::state::CINDER_FORGE_SURVEY_THRESHOLD),
-        AURORA_PIER_ID => Some(crate::game::sim::state::AURORA_PIER_SURVEY_THRESHOLD),
-        _ => None,
-    }
-}
-
 pub(crate) fn total_survey_progress_from_map(
     discovered_planets: &[String],
     survey_progress: &std::collections::HashMap<String, f32>,
 ) -> f32 {
+    use crate::game::content::planets::survey_threshold;
+    
     let discovered_floor = discovered_planets
         .iter()
-        .filter_map(|planet_id| survey_progress_threshold(planet_id))
+        .filter_map(|planet_id| survey_threshold(planet_id))
         .fold(0.0, f32::max);
 
     survey_progress
         .iter()
         .filter_map(|(planet_id, progress)| {
-            survey_progress_threshold(planet_id).map(|threshold| progress * threshold)
+            survey_threshold(planet_id).map(|threshold| progress * threshold)
         })
         .fold(discovered_floor, f32::max)
 }

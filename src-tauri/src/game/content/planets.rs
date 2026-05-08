@@ -114,6 +114,23 @@ pub fn planet_by_id_required(id: &str) -> &'static PlanetDefinition {
     planet_by_id(id).expect("planet must exist in catalog")
 }
 
+/// Returns the survey threshold for a given planet ID, or `None` if the planet is not surveyable.
+///
+/// SOLSTICE_ANCHOR has no survey threshold (returns `None`).
+/// CINDER_FORGE returns `Some(600.0)`.
+/// AURORA_PIER returns `Some(1400.0)`.
+/// Unknown planets return `None`.
+pub fn survey_threshold(planet_id: &str) -> Option<f32> {
+    use crate::game::sim::state::{CINDER_FORGE_SURVEY_THRESHOLD, AURORA_PIER_SURVEY_THRESHOLD};
+    
+    match planet_id {
+        SOLSTICE_ANCHOR_ID => None,
+        CINDER_FORGE_ID => Some(CINDER_FORGE_SURVEY_THRESHOLD),
+        AURORA_PIER_ID => Some(AURORA_PIER_SURVEY_THRESHOLD),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -178,5 +195,13 @@ mod tests {
     #[should_panic(expected = "planet must exist in catalog")]
     fn planet_by_id_required_panics_on_unknown() {
         planet_by_id_required("nonexistent-planet-that-does-not-exist");
+    }
+
+    #[test]
+    fn survey_threshold_semantics() {
+        assert_eq!(survey_threshold(SOLSTICE_ANCHOR_ID), None, "SOLSTICE has no threshold");
+        assert_eq!(survey_threshold(CINDER_FORGE_ID), Some(600.0), "Cinder Forge threshold");
+        assert_eq!(survey_threshold(AURORA_PIER_ID), Some(1400.0), "Aurora Pier threshold");
+        assert_eq!(survey_threshold("unknown-planet"), None, "Unknown planet has no threshold");
     }
 }

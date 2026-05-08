@@ -3,7 +3,7 @@ use crate::game::content::services::service_by_id_required;
 use crate::game::content::systems::{
     system_by_id_required, SystemProgression, HABITAT_RING_ID, REACTOR_CORE_ID,
 };
-use crate::game::sim::RunState;
+use crate::game::sim::{effective_service_power_upkeep, RunState};
 
 pub(crate) fn refresh_runtime_state(run_state: &mut RunState) {
     let crew_capacity = habitat_crew_capacity(run_state);
@@ -113,27 +113,4 @@ pub(crate) fn projected_power_after_toggle(
     reactor_power_output(run_state) - new_reserved
         + active_service_power_output(run_state)
         + output_delta
-}
-
-pub(crate) fn effective_service_power_upkeep(run_state: &RunState, service_id: &str) -> f32 {
-    let definition = service_by_id_required(service_id);
-    let planet_modifier = run_state
-        .active_planet_definition()
-        .modifiers
-        .iter()
-        .filter(|modifier| matches!(modifier.target, PlanetModifierTarget::ServicePowerUpkeep))
-        .map(|modifier| modifier.percent)
-        .sum::<f32>();
-
-    (definition.power_upkeep * (1.0 + planet_modifier + active_service_power_modifier(run_state)))
-        .max(0.0)
-}
-
-pub(crate) fn active_service_power_modifier(run_state: &RunState) -> f32 {
-    run_state
-        .services
-        .iter()
-        .filter(|service| service.is_active)
-        .map(|service| service_by_id_required(&service.service_id).global_service_power_modifier)
-        .sum::<f32>()
 }

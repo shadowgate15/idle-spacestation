@@ -2,21 +2,25 @@ use serde::Serialize;
 
 use crate::game::content::doctrines::{doctrine_by_id, DOCTRINES};
 use crate::game::content::planets::{
-    planet_by_id, planet_by_id_required, PlanetDefinition, PlanetModifierTarget, AURORA_PIER_ID, CINDER_FORGE_ID, PLANETS,
+    planet_by_id_required, survey_threshold, PlanetDefinition, AURORA_PIER_ID, CINDER_FORGE_ID, PLANETS,
     SOLSTICE_ANCHOR_ID,
 };
-use crate::game::content::services::{service_by_id, service_by_id_required, ServiceCategory, SURVEY_UPLINK_ID};
+use crate::game::content::services::SURVEY_UPLINK_ID;
 use crate::game::content::systems::{
-    system_by_id, system_by_id_required, SystemProgression, HABITAT_RING_ID, LOGISTICS_SPINE_ID, REACTOR_CORE_ID,
-    SURVEY_ARRAY_ID, SYSTEMS,
+    system_by_id_required, SystemProgression, HABITAT_RING_ID, LOGISTICS_SPINE_ID, REACTOR_CORE_ID,
+    SYSTEMS,
 };
 use crate::game::progression::{
     calculate_station_tier, evaluate_prestige_eligibility, PrestigeIneligibleReason, PrestigeProfile,
     POWER_STABILITY_TICKS_REQUIRED,
 };
-use crate::game::sim::{RunState, ServicePauseReason};
+use crate::game::sim::{
+    effective_crew_capacity, effective_data_output_multiplier,
+    effective_materials_output_multiplier, effective_service_power_upkeep,
+    effective_survey_output_multiplier, RunState, ServicePauseReason,
+};
 use crate::game::sim::state::{
-    AURORA_PIER_SURVEY_THRESHOLD, CINDER_FORGE_SURVEY_THRESHOLD, HOUSEKEEPING_POWER_PER_SECOND,
+    HOUSEKEEPING_POWER_PER_SECOND,
     SECONDS_PER_TICK,
 };
 
@@ -1016,15 +1020,6 @@ fn stable_power_seconds(stable_power_ticks: u32) -> f32 {
     round2(stable_power_ticks as f32 * SECONDS_PER_TICK)
 }
 
-fn survey_threshold(planet_id: &str) -> Option<f32> {
-    match planet_id {
-        SOLSTICE_ANCHOR_ID => None,
-        CINDER_FORGE_ID => Some(CINDER_FORGE_SURVEY_THRESHOLD),
-        AURORA_PIER_ID => Some(AURORA_PIER_SURVEY_THRESHOLD),
-        _ => None,
-    }
-}
-
 fn system_label(system_id: &str) -> &'static str {
     system_by_id_required(system_id).label
 }
@@ -1069,72 +1064,6 @@ fn round2(value: f32) -> f32 {
     (value * 100.0).round() / 100.0
 }
 
-fn active_service_power_modifier(run_state: &RunState) -> f32 {
-    run_state
-        .services
-        .iter()
-        .filter(|service| service.is_active)
-        .map(|service| service.definition().global_service_power_modifier)
-        .sum()
-}
-
-fn effective_service_power_upkeep(run_state: &RunState, service_id: &str) -> f32 {
-    let definition = service_by_id_required(service_id);
-    let modifier = planet_modifier_total(run_state, PlanetModifierTarget::ServicePowerUpkeep)
-        + active_service_power_modifier(run_state);
-
-    (definition.power_upkeep * (1.0 + modifier)).max(0.0)
-}
-
-fn effective_materials_output_multiplier(run_state: &RunState) -> f32 {
-    1.0 + planet_modifier_total(run_state, PlanetModifierTarget::MaterialsOutput)
-}
-
-fn effective_data_output_multiplier(run_state: &RunState) -> f32 {
-    survey_array_level(run_state).0 * (1.0 + planet_modifier_total(run_state, PlanetModifierTarget::DataOutput))
-}
-
-fn effective_survey_output_multiplier(run_state: &RunState, service_id: &str) -> f32 {
-    let doctrine_multiplier = run_state
-        .station
-        .doctrine_ids
-        .iter()
-        .filter_map(|doctrine_id| doctrine_by_id(doctrine_id))
-        .filter_map(|doctrine| match doctrine.effect {
-            crate::game::content::doctrines::DoctrineEffect::SurveyProgressMultiplier {
-                source_service_id,
-                multiplier,
-            } if source_service_id == service_id => Some(multiplier),
-            _ => None,
-        })
-        .fold(1.0, |acc, multiplier| acc * multiplier);
-    let service_multiplier = 1.0
-        + run_state
-            .services
-            .iter()
-            .filter(|service| service.is_active)
-            .map(|service| service.definition().survey_speed_modifier)
-            .sum::<f32>();
-
-    survey_array_level(run_state).1 * service_multiplier * doctrine_multiplier
-}
-
-fn planet_modifier_total(run_state: &RunState, target: PlanetModifierTarget) -> f32 {
-    run_state
-        .active_planet_definition()
-        .modifiers
-        .iter()
-        .filter(|modifier| modifier.target == target)
-        .map(|modifier| modifier.percent)
-        .sum()
-}
-
-fn effective_crew_capacity(run_state: &RunState, base_capacity: u8) -> u8 {
-    ((base_capacity as f32) * (1.0 + planet_modifier_total(run_state, PlanetModifierTarget::CrewCapacity)))
-        .floor()
-        .max(1.0) as u8
-}
-
 fn logistics_active_service_slots(run_state: &RunState) -> u8 {
     match system_by_id_required(LOGISTICS_SPINE_ID)
         .progression
@@ -1144,19 +1073,6 @@ fn logistics_active_service_slots(run_state: &RunState) -> u8 {
             levels[(level - 1) as usize].active_service_slots
         }
         _ => unreachable!("logistics-spine progression must use logistics levels"),
-    }
-}
-
-fn survey_array_level(run_state: &RunState) -> (f32, f32) {
-    match system_by_id_required(SURVEY_ARRAY_ID)
-        .progression
-    {
-        SystemProgression::SurveyArray(levels) => {
-            let level = run_state.system_level(SURVEY_ARRAY_ID).unwrap_or(1).clamp(1, levels.len() as u8);
-            let current = levels[(level - 1) as usize];
-            (current.data_multiplier, current.survey_multiplier)
-        }
-        _ => unreachable!("survey-array progression must use survey levels"),
     }
 }
 
@@ -1402,8 +1318,8 @@ fn prestige_route_eq(a: &PrestigeRouteSnapshot, b: &PrestigeRouteSnapshot) -> bo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::game::sim::RunState;
     use crate::game::progression::PrestigeProfile;
+    use crate::game::sim::{tick, RunState};
 
     fn make_test_snapshot() -> RawGameSnapshot {
         let run_state = RunState::starter_fixture();
@@ -1476,5 +1392,28 @@ mod tests {
             assert!(!state_equals(&snapshot1, &snapshot2), "snapshots with different system levels should not be equal");
         }
     }
-}
 
+    #[test]
+    fn replay_preserves_state_equals_bit_for_bit() {
+        let mut run = RunState::starter_fixture();
+        let profile = PrestigeProfile::default();
+        let baseline_snapshots: Vec<_> = (0..100)
+            .map(|_| {
+                tick(&mut run);
+                build_snapshot(&run, &profile)
+            })
+            .collect();
+
+        // After code changes, this same sequence MUST produce state_equals snapshots.
+        // For the test itself, verify build_snapshot is deterministic:
+        let mut run2 = RunState::starter_fixture();
+        for (i, baseline) in baseline_snapshots.iter().enumerate() {
+            tick(&mut run2);
+            let new_snapshot = build_snapshot(&run2, &profile);
+            assert!(
+                state_equals(&new_snapshot, baseline),
+                "snapshot diverges at tick {i}"
+            );
+        }
+    }
+}

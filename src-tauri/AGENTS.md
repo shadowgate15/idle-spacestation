@@ -130,6 +130,7 @@ The frontend gateway (`src/lib/game/api/gateway.ts`) issues two of these command
 - Serde DTOs in `snapshot.rs` use `#[serde(rename_all = "camelCase")]` so the wire shape matches the TypeScript types in `src/lib/game/api/types.ts`.
 - The simulation owns mutation; `#[tauri::command]` functions take the lock briefly, mutate, and produce a fresh snapshot. Don't perform long-running work while holding `GameState`'s `Mutex`, and don't hold it across `commit_and_emit`.
 - `state_equals` (in `snapshot.rs`) is the source of truth for "did anything change?". It uses `f32::to_bits()` for every f32 field (so NaN-vs-NaN compares equal and rounding noise is deterministic) and standard `==` for integers, strings, booleans, and enums. Use these helpers — never roll your own raw-`==` float comparison for snapshot diffing.
+- **Canonical-helper rule**: shared physics helpers live in `src/game/sim/tick.rs` and are re-exported via `src/game/sim/mod.rs`. `lib.rs`/`runtime.rs`/`snapshot.rs` MUST import from there; do not re-implement.
 - Plugins:
   - `tauri-plugin-opener` is registered in all builds.
   - `tauri-plugin-mcp-bridge` is registered only under `#[cfg(debug_assertions)]`. Treat its presence as a debug-only assumption.

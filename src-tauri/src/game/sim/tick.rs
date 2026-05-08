@@ -251,7 +251,7 @@ fn unlock_planet_if_ready(state: &mut RunState, planet_id: &str, threshold: f32)
     }
 }
 
-fn effective_crew_capacity(state: &RunState, base_capacity: u8) -> u8 {
+pub(crate) fn effective_crew_capacity(state: &RunState, base_capacity: u8) -> u8 {
     let modifier = planet_modifier_total(state, PlanetModifierTarget::CrewCapacity);
     ((base_capacity as f32) * (1.0 + modifier)).floor().max(1.0) as u8
 }
@@ -287,7 +287,7 @@ fn total_active_service_power_upkeep(state: &RunState) -> f32 {
         .sum()
 }
 
-fn effective_service_power_upkeep(state: &RunState, service_id: &str) -> f32 {
+pub(crate) fn effective_service_power_upkeep(state: &RunState, service_id: &str) -> f32 {
     let definition = service_by_id(service_id).expect("service must exist in catalog");
     let modifier = planet_modifier_total(state, PlanetModifierTarget::ServicePowerUpkeep)
         + state
@@ -300,15 +300,15 @@ fn effective_service_power_upkeep(state: &RunState, service_id: &str) -> f32 {
     (definition.power_upkeep * (1.0 + modifier)).max(0.0)
 }
 
-fn effective_materials_output_multiplier(state: &RunState) -> f32 {
+pub(crate) fn effective_materials_output_multiplier(state: &RunState) -> f32 {
     1.0 + planet_modifier_total(state, PlanetModifierTarget::MaterialsOutput)
 }
 
-fn effective_data_output_multiplier(state: &RunState) -> f32 {
+pub(crate) fn effective_data_output_multiplier(state: &RunState) -> f32 {
     survey_array_level(state).data_multiplier * (1.0 + planet_modifier_total(state, PlanetModifierTarget::DataOutput))
 }
 
-fn effective_survey_output_multiplier(state: &RunState, service_id: &str) -> f32 {
+pub(crate) fn effective_survey_output_multiplier(state: &RunState, service_id: &str) -> f32 {
     let doctrine_multiplier = state
         .station
         .doctrine_ids
@@ -334,7 +334,7 @@ fn effective_survey_output_multiplier(state: &RunState, service_id: &str) -> f32
     survey_array_level(state).survey_multiplier * service_multiplier * doctrine_multiplier
 }
 
-fn planet_modifier_total(state: &RunState, target: PlanetModifierTarget) -> f32 {
+pub(crate) fn planet_modifier_total(state: &RunState, target: PlanetModifierTarget) -> f32 {
     state
         .active_planet_definition()
         .modifiers
@@ -357,7 +357,7 @@ fn first_support_service_discount(state: &RunState) -> Option<(u8, u8)> {
         })
 }
 
-fn reactor_level(state: &RunState) -> ReactorCoreLevel {
+pub(crate) fn reactor_level(state: &RunState) -> ReactorCoreLevel {
     match system_by_id(REACTOR_CORE_ID)
         .expect("reactor-core system must exist")
         .progression
@@ -367,7 +367,7 @@ fn reactor_level(state: &RunState) -> ReactorCoreLevel {
     }
 }
 
-fn habitat_level(state: &RunState) -> HabitatRingLevel {
+pub(crate) fn habitat_level(state: &RunState) -> HabitatRingLevel {
     match system_by_id(HABITAT_RING_ID)
         .expect("habitat-ring system must exist")
         .progression
@@ -377,7 +377,7 @@ fn habitat_level(state: &RunState) -> HabitatRingLevel {
     }
 }
 
-fn logistics_level(state: &RunState) -> LogisticsSpineLevel {
+pub(crate) fn logistics_level(state: &RunState) -> LogisticsSpineLevel {
     match system_by_id(LOGISTICS_SPINE_ID)
         .expect("logistics-spine system must exist")
         .progression
@@ -389,7 +389,7 @@ fn logistics_level(state: &RunState) -> LogisticsSpineLevel {
     }
 }
 
-fn survey_array_level(state: &RunState) -> SurveyArrayLevel {
+pub(crate) fn survey_array_level(state: &RunState) -> SurveyArrayLevel {
     match system_by_id(SURVEY_ARRAY_ID)
         .expect("survey-array system must exist")
         .progression
