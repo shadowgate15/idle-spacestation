@@ -4,7 +4,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 use crate::game::content::doctrines::HARDENED_RELAYS_ID;
-use crate::game::content::planets::{planet_by_id, SOLSTICE_ANCHOR_ID};
+use crate::game::content::planets::{planet_by_id, planet_by_id_required, SOLSTICE_ANCHOR_ID};
 use crate::game::content::services::{
     ServiceDefinition, COMMAND_RELAY_ID, FABRICATION_LOOP_ID, MAINTENANCE_BAY_ID, ORE_RECLAIMER_ID,
     SERVICES, SOLAR_HARVESTER_ID, SURVEY_UPLINK_ID,
@@ -129,7 +129,7 @@ impl RunState {
     }
 
     pub fn active_planet_definition(&self) -> &'static crate::game::content::PlanetDefinition {
-        planet_by_id(&self.station.active_planet_id).expect("active planet must exist in catalog")
+        planet_by_id_required(&self.station.active_planet_id)
     }
 
     pub fn has_doctrine(&self, doctrine_id: &str) -> bool {

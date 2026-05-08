@@ -5,9 +5,9 @@ use crate::game::content::planets::{
     planet_by_id, PlanetDefinition, PlanetModifierTarget, AURORA_PIER_ID, CINDER_FORGE_ID, PLANETS,
     SOLSTICE_ANCHOR_ID,
 };
-use crate::game::content::services::{service_by_id, ServiceCategory, SURVEY_UPLINK_ID};
+use crate::game::content::services::{service_by_id, service_by_id_required, ServiceCategory, SURVEY_UPLINK_ID};
 use crate::game::content::systems::{
-    system_by_id, SystemProgression, HABITAT_RING_ID, LOGISTICS_SPINE_ID, REACTOR_CORE_ID,
+    system_by_id, system_by_id_required, SystemProgression, HABITAT_RING_ID, LOGISTICS_SPINE_ID, REACTOR_CORE_ID,
     SURVEY_ARRAY_ID, SYSTEMS,
 };
 use crate::game::progression::{
@@ -649,7 +649,7 @@ fn build_prestige_route(
 }
 
 fn build_system_entry(run_state: &RunState, system_id: &str) -> SystemRouteEntrySnapshot {
-    let system = system_by_id(system_id).expect("system must exist in catalog");
+    let system = system_by_id_required(system_id);
     let level = run_state.system_level(system_id).unwrap_or(1);
 
     match system.progression {
@@ -1028,9 +1028,7 @@ fn survey_threshold(planet_id: &str) -> Option<f32> {
 }
 
 fn system_label(system_id: &str) -> &'static str {
-    system_by_id(system_id)
-        .expect("system must exist in catalog")
-        .label
+    system_by_id_required(system_id).label
 }
 
 fn system_description(system_id: &str) -> &'static str {
@@ -1130,7 +1128,7 @@ fn active_service_power_modifier(run_state: &RunState) -> f32 {
 }
 
 fn effective_service_power_upkeep(run_state: &RunState, service_id: &str) -> f32 {
-    let definition = service_by_id(service_id).expect("service must exist in catalog");
+    let definition = service_by_id_required(service_id);
     let modifier = planet_modifier_total(run_state, PlanetModifierTarget::ServicePowerUpkeep)
         + active_service_power_modifier(run_state);
 

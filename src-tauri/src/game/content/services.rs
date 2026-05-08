@@ -133,6 +133,15 @@ pub fn service_by_id(id: &str) -> Option<&'static ServiceDefinition> {
     SERVICES.iter().find(|service| service.id == id)
 }
 
+/// Returns a service definition by ID, panicking if not found.
+///
+/// # Panics
+/// Panics with "service must exist in catalog" if the ID is not found.
+#[track_caller]
+pub fn service_by_id_required(id: &str) -> &'static ServiceDefinition {
+    service_by_id(id).expect("service must exist in catalog")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

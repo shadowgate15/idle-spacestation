@@ -176,7 +176,7 @@ fn game_devtools_apply_resources(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+    let mut guard = game_state.lock().expect("game state mutex poisoned");
 
     match apply_devtools_resources(&mut guard.run, input.materials, input.data) {
         Ok(()) => {
@@ -197,7 +197,7 @@ fn game_devtools_apply_crew(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+    let mut guard = game_state.lock().expect("game state mutex poisoned");
 
     match apply_devtools_crew_total(&mut guard.run, input.crew_total) {
         Ok(()) => {
@@ -218,7 +218,7 @@ fn game_devtools_apply_systems(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+    let mut guard = game_state.lock().expect("game state mutex poisoned");
 
     match apply_devtools_system_levels(&mut guard.run, &input.systems) {
         Ok(()) => {
@@ -239,7 +239,7 @@ fn game_devtools_apply_services(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+    let mut guard = game_state.lock().expect("game state mutex poisoned");
 
     match apply_devtools_services(&mut guard.run, &input.services) {
         Ok(()) => {
@@ -260,7 +260,7 @@ fn game_devtools_apply_progression(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+    let mut guard = game_state.lock().expect("game state mutex poisoned");
     let GameRunState { run: run_state, profile, .. } = &mut *guard;
 
     match apply_devtools_progression(run_state, profile, &input) {
@@ -282,7 +282,7 @@ fn game_devtools_advance_ticks(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+    let mut guard = game_state.lock().expect("game state mutex poisoned");
 
     // apply_devtools_advance_ticks runs the tick loop internally; we emit ONCE
     // after all ticks complete (not per-tick) to avoid flooding the frontend.
@@ -304,7 +304,7 @@ fn game_devtools_reset_to_starter(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+    let mut guard = game_state.lock().expect("game state mutex poisoned");
     let GameRunState { run: run_state, profile, session_ticks } = &mut *guard;
 
     reset_devtools_session(run_state, profile, session_ticks);
@@ -349,7 +349,7 @@ fn devtools_visibility_payload(visible: bool) -> DevtoolsVisibilityChangedEvent 
 
 #[cfg(debug_assertions)]
 fn build_devtools_state_response(game_state: &GameState, visible: bool) -> DevtoolsStateResponse {
-    let guard = game_state.0.lock().expect("game state mutex poisoned");
+    let guard = game_state.lock().expect("game state mutex poisoned");
     DevtoolsStateResponse {
         visible,
         snapshot: build_snapshot(&guard.run, &guard.profile),
@@ -387,7 +387,7 @@ fn commit_and_emit<R: tauri::Runtime>(
     let new_snapshot = build_snapshot(run, profile);
     // Lock order: callers acquire GameState first, then this helper acquires
     // LastEmittedSnapshot. Keep every push-based caller in that order to avoid deadlocks.
-    let mut cache = last_emitted.0.lock().expect("last_emitted mutex poisoned");
+    let mut cache = last_emitted.lock().expect("last_emitted mutex poisoned");
 
     if let Some(ref previous_snapshot) = *cache {
         if state_equals(previous_snapshot, &new_snapshot) {
@@ -507,7 +507,7 @@ enum ServicePriorityDirection {
 
 #[tauri::command]
 fn game_get_snapshot(state: tauri::State<GameState>) -> RawGameSnapshot {
-    let guard = state.0.lock().expect("game state mutex poisoned");
+    let guard = state.lock().expect("game state mutex poisoned");
     build_snapshot(&guard.run, &guard.profile)
 }
 
@@ -518,7 +518,7 @@ fn game_toggle_service(
     state: tauri::State<GameState>,
     last_emitted: tauri::State<LastEmittedSnapshot>,
 ) -> ActionResponse {
-    let mut guard = state.0.lock().expect("game state mutex poisoned");
+    let mut guard = state.lock().expect("game state mutex poisoned");
 
      let service_index = match guard
          .run
@@ -609,7 +609,7 @@ fn game_upgrade_system(
     state: tauri::State<GameState>,
     last_emitted: tauri::State<LastEmittedSnapshot>,
 ) -> ActionResponse {
-    let mut guard = state.0.lock().expect("game state mutex poisoned");
+    let mut guard = state.lock().expect("game state mutex poisoned");
 
      let system_index = match guard
          .run
@@ -653,7 +653,7 @@ fn game_purchase_doctrine(
     state: tauri::State<GameState>,
     last_emitted: tauri::State<LastEmittedSnapshot>,
 ) -> ActionResponse {
-    let mut guard = state.0.lock().expect("game state mutex poisoned");
+    let mut guard = state.lock().expect("game state mutex poisoned");
 
     if doctrine_by_id(&input.doctrine_id).is_none() {
         return action_response(&guard.run, &guard.profile, false, Some("unknown-doctrine"));
@@ -685,7 +685,7 @@ fn game_execute_prestige(
     state: tauri::State<GameState>,
     last_emitted: tauri::State<LastEmittedSnapshot>,
 ) -> ActionResponse {
-    let mut guard = state.0.lock().expect("game state mutex poisoned");
+    let mut guard = state.lock().expect("game state mutex poisoned");
 
     if !input.confirm {
         return action_response(&guard.run, &guard.profile, false, Some("confirmation-required"));
@@ -729,7 +729,7 @@ fn game_assign_service_crew(
     state: tauri::State<GameState>,
     last_emitted: tauri::State<LastEmittedSnapshot>,
 ) -> ActionResponse {
-    let mut guard = state.0.lock().expect("game state mutex poisoned");
+    let mut guard = state.lock().expect("game state mutex poisoned");
 
      let service_index = match guard
          .run
@@ -764,7 +764,7 @@ fn game_reprioritize_service(
     state: tauri::State<GameState>,
     last_emitted: tauri::State<LastEmittedSnapshot>,
 ) -> ActionResponse {
-    let mut guard = state.0.lock().expect("game state mutex poisoned");
+    let mut guard = state.lock().expect("game state mutex poisoned");
     let mut ordered_indices: Vec<_> = (0..guard.run.services.len()).collect();
     ordered_indices.sort_by_key(|index| guard.run.services[*index].priority);
 
@@ -799,7 +799,7 @@ fn game_start_survey(
     state: tauri::State<GameState>,
     last_emitted: tauri::State<LastEmittedSnapshot>,
 ) -> ActionResponse {
-    let mut guard = state.0.lock().expect("game state mutex poisoned");
+    let mut guard = state.lock().expect("game state mutex poisoned");
 
      if guard
          .run
@@ -826,7 +826,7 @@ fn game_start_survey(
 
 #[tauri::command]
 fn game_request_save(state: tauri::State<GameState>) -> SaveLoadResponse {
-    let guard = state.0.lock().expect("game state mutex poisoned");
+    let guard = state.lock().expect("game state mutex poisoned");
     SaveLoadResponse {
         ok: true,
         status: "saved".to_string(),
@@ -840,7 +840,7 @@ fn game_request_load(
     state: tauri::State<GameState>,
     last_emitted: tauri::State<LastEmittedSnapshot>,
 ) -> SaveLoadResponse {
-    let guard = state.0.lock().expect("game state mutex poisoned");
+    let guard = state.lock().expect("game state mutex poisoned");
     let snapshot = build_snapshot(&guard.run, &guard.profile);
     let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
     SaveLoadResponse {
@@ -1293,7 +1293,7 @@ mod tests {
         ) -> bool {
             use crate::game::snapshot::state_equals;
 
-            let cache_guard = cache.0.lock().expect("last emitted cache should lock");
+            let cache_guard = cache.lock().expect("last emitted cache should lock");
             match &*cache_guard {
                 Some(previous_snapshot) => !state_equals(previous_snapshot, snapshot),
                 None => true,
@@ -1304,14 +1304,14 @@ mod tests {
             cache: &LastEmittedSnapshot,
             snapshot: crate::game::snapshot::RawGameSnapshot,
         ) {
-            let mut cache_guard = cache.0.lock().expect("last emitted cache should lock");
+            let mut cache_guard = cache.lock().expect("last emitted cache should lock");
             *cache_guard = Some(snapshot);
         }
 
         #[test]
         fn cache_starts_empty() {
             let cache = LastEmittedSnapshot(Mutex::new(None));
-            let cache_guard = cache.0.lock().expect("last emitted cache should lock");
+            let cache_guard = cache.lock().expect("last emitted cache should lock");
 
             assert!(cache_guard.is_none(), "cache should start empty");
         }
@@ -1366,7 +1366,7 @@ mod tests {
             let final_snapshot = build_snapshot(&run, &profile);
             update_cache(&cache, final_snapshot.clone());
 
-            let cache_guard = cache.0.lock().expect("last emitted cache should lock");
+            let cache_guard = cache.lock().expect("last emitted cache should lock");
             let cached = cache_guard
                 .as_ref()
                 .expect("cache should hold final post-loop snapshot");
@@ -1875,7 +1875,7 @@ pub fn run() {
 
             let game_state = app_handle.state::<GameState>();
             let last_emitted = app_handle.state::<LastEmittedSnapshot>();
-            let mut guard = game_state.0.lock().expect("game state mutex poisoned");
+            let mut guard = game_state.lock().expect("game state mutex poisoned");
             tick(&mut guard.run);
             // Emit state-changed if game state changed. Log error, never panic.
             if let Err(err) = commit_and_emit(&app_handle, &guard.run, &guard.profile, &last_emitted) {
