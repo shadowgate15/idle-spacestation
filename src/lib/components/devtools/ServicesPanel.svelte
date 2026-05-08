@@ -1,28 +1,25 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
-  import { createGameGateway } from '$lib/game/api';
+  import { type GameGateway } from '$lib/game/api';
   import type { GameSnapshot, RawServiceStateSnapshot, ServiceId } from '$lib/game/api/types';
   import { cn } from '$lib/utils';
   import { createServicesPanelState } from './services-panel-state.svelte';
+  import { useSnapshotSync } from './_use-snapshot-sync.svelte';
 
   let {
     snapshot,
     gateway,
   }: {
     snapshot: GameSnapshot | null;
-    gateway: ReturnType<typeof createGameGateway>;
+    gateway: GameGateway;
   } = $props();
 
   const state = createServicesPanelState(null, {
     applyServices: (input) => gateway.applyServices(input),
   });
 
-  $effect(() => {
-    const s = snapshot;
-    untrack(() => state.sync(s));
-  });
+  useSnapshotSync(state, () => snapshot);
 
   function getCurrentService(id: ServiceId): RawServiceStateSnapshot | null {
     return state.snapshot?.services.find((service) => service.id === id) ?? null;

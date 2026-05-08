@@ -1,28 +1,25 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
-  import { createGameGateway } from '$lib/game/api';
+  import { type GameGateway } from '$lib/game/api';
   import type { GameSnapshot } from '$lib/game/api/types';
   import { cn } from '$lib/utils';
   import { createCrewPanelState } from './crew-panel-state.svelte';
+  import { useSnapshotSync } from './_use-snapshot-sync.svelte';
 
   let {
     snapshot,
     gateway,
   }: {
     snapshot: GameSnapshot | null;
-    gateway: ReturnType<typeof createGameGateway>;
+    gateway: GameGateway;
   } = $props();
 
   const state = createCrewPanelState(null, {
     applyCrew: (input) => gateway.applyCrew(input),
   });
 
-  $effect(() => {
-    const s = snapshot;
-    untrack(() => state.sync(s));
-  });
+  useSnapshotSync(state, () => snapshot);
 </script>
 
 <div data-testid="devtools-crew-panel" class="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">

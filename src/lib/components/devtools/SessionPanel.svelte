@@ -1,18 +1,18 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
-  import { createGameGateway } from '$lib/game/api';
+  import { type GameGateway } from '$lib/game/api';
   import type { GameSnapshot } from '$lib/game/api/types';
   import { cn } from '$lib/utils';
   import { createSessionPanelState } from './session-panel-state.svelte';
+  import { useSnapshotSync } from './_use-snapshot-sync.svelte';
 
   let {
     snapshot,
     gateway,
   }: {
     snapshot: GameSnapshot | null;
-    gateway: ReturnType<typeof createGameGateway>;
+    gateway: GameGateway;
   } = $props();
 
   const state = createSessionPanelState(null, {
@@ -20,10 +20,7 @@
     resetToStarter: (input) => gateway.resetToStarter(input),
   });
 
-  $effect(() => {
-    const s = snapshot;
-    untrack(() => state.sync(s));
-  });
+  useSnapshotSync(state, () => snapshot);
 </script>
 
 <div
