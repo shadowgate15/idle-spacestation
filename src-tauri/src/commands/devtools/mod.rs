@@ -5,7 +5,7 @@ pub(crate) mod inputs;
 use crate::commands::devtools::inputs::{DevtoolsStateResponse, DevtoolsVisibilityChangedEvent};
 use crate::game::progression::PrestigeProfile;
 use crate::game::sim::RunState;
-use crate::{DevtoolsState, GameState};
+use crate::{DevtoolsState, GameState, LastEmittedSnapshot};
 use tauri::Emitter;
 
 #[cfg(debug_assertions)]
@@ -145,6 +145,34 @@ pub(crate) fn devtools_action_failure(
         "reasonCode": reason_code,
         "snapshot": crate::game::snapshot::build_snapshot(run_state, profile),
     })
+}
+
+/// Lock → mutate → refresh → emit → respond pipeline for devtools mutators.
+/// On `Err(reason_code)` no event is emitted (state unchanged); on `Ok` the
+/// helper preserves the documented `GameState` → `LastEmittedSnapshot` lock
+/// order required by `commit_and_emit`.
+#[cfg(debug_assertions)]
+pub(crate) fn run_devtools_mutation<R, F>(
+    app: &tauri::AppHandle<R>,
+    game_state: &GameState,
+    last_emitted: &LastEmittedSnapshot,
+    mutate: F,
+) -> Result<serde_json::Value, String>
+where
+    R: tauri::Runtime,
+    F: FnOnce(&mut RunState, &mut PrestigeProfile, &mut u32) -> Result<(), &'static str>,
+{
+    let mut guard = game_state.lock();
+    let crate::GameRunState { run, profile, session_ticks } = &mut *guard;
+
+    match mutate(run, profile, session_ticks) {
+        Ok(()) => {
+            crate::runtime::refresh_runtime_state(run);
+            let _ = crate::commit_and_emit(app, run, profile, last_emitted);
+            Ok(devtools_action_success(run, profile))
+        }
+        Err(reason_code) => Ok(devtools_action_failure(run, profile, reason_code)),
+    }
 }
 
 #[cfg(test)]

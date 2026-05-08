@@ -9,11 +9,9 @@ use crate::commands::devtools::inputs::{
     DevtoolsStateResponse, DevtoolsVisibilityInput,
 };
 use crate::commands::devtools::{
-    current_devtools_state_response, devtools_action_failure, devtools_action_success,
-    update_devtools_visibility,
+    current_devtools_state_response, run_devtools_mutation, update_devtools_visibility,
 };
-use crate::runtime::refresh_runtime_state;
-use crate::{commit_and_emit, DevtoolsState, GameRunState, GameState, LastEmittedSnapshot};
+use crate::{DevtoolsState, GameState, LastEmittedSnapshot};
 
 #[cfg(debug_assertions)]
 #[tauri::command]
@@ -42,16 +40,9 @@ pub fn game_devtools_apply_resources(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.lock();
-
-    match apply_devtools_resources(&mut guard.run, input.materials, input.data) {
-        Ok(()) => {
-            refresh_runtime_state(&mut guard.run);
-            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
-            Ok(devtools_action_success(&guard.run, &guard.profile))
-        }
-        Err(reason_code) => Ok(devtools_action_failure(&guard.run, &guard.profile, reason_code)),
-    }
+    run_devtools_mutation(&app, &game_state, &last_emitted, |run, _, _| {
+        apply_devtools_resources(run, input.materials, input.data)
+    })
 }
 
 #[cfg(debug_assertions)]
@@ -63,16 +54,9 @@ pub fn game_devtools_apply_crew(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.lock();
-
-    match apply_devtools_crew_total(&mut guard.run, input.crew_total) {
-        Ok(()) => {
-            refresh_runtime_state(&mut guard.run);
-            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
-            Ok(devtools_action_success(&guard.run, &guard.profile))
-        }
-        Err(reason_code) => Ok(devtools_action_failure(&guard.run, &guard.profile, reason_code)),
-    }
+    run_devtools_mutation(&app, &game_state, &last_emitted, |run, _, _| {
+        apply_devtools_crew_total(run, input.crew_total)
+    })
 }
 
 #[cfg(debug_assertions)]
@@ -84,16 +68,9 @@ pub fn game_devtools_apply_systems(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.lock();
-
-    match apply_devtools_system_levels(&mut guard.run, &input.systems) {
-        Ok(()) => {
-            refresh_runtime_state(&mut guard.run);
-            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
-            Ok(devtools_action_success(&guard.run, &guard.profile))
-        }
-        Err(reason_code) => Ok(devtools_action_failure(&guard.run, &guard.profile, reason_code)),
-    }
+    run_devtools_mutation(&app, &game_state, &last_emitted, |run, _, _| {
+        apply_devtools_system_levels(run, &input.systems)
+    })
 }
 
 #[cfg(debug_assertions)]
@@ -105,16 +82,9 @@ pub fn game_devtools_apply_services(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.lock();
-
-    match apply_devtools_services(&mut guard.run, &input.services) {
-        Ok(()) => {
-            refresh_runtime_state(&mut guard.run);
-            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
-            Ok(devtools_action_success(&guard.run, &guard.profile))
-        }
-        Err(reason_code) => Ok(devtools_action_failure(&guard.run, &guard.profile, reason_code)),
-    }
+    run_devtools_mutation(&app, &game_state, &last_emitted, |run, _, _| {
+        apply_devtools_services(run, &input.services)
+    })
 }
 
 #[cfg(debug_assertions)]
@@ -126,17 +96,9 @@ pub fn game_devtools_apply_progression(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.lock();
-    let GameRunState { run: run_state, profile, .. } = &mut *guard;
-
-    match apply_devtools_progression(run_state, profile, &input) {
-        Ok(()) => {
-            refresh_runtime_state(run_state);
-            let _ = commit_and_emit(&app, run_state, profile, &last_emitted);
-            Ok(devtools_action_success(run_state, profile))
-        }
-        Err(reason_code) => Ok(devtools_action_failure(run_state, profile, reason_code)),
-    }
+    run_devtools_mutation(&app, &game_state, &last_emitted, |run, profile, _| {
+        apply_devtools_progression(run, profile, &input)
+    })
 }
 
 #[cfg(debug_assertions)]
@@ -148,18 +110,11 @@ pub fn game_devtools_advance_ticks(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.lock();
-
-    // apply_devtools_advance_ticks runs the tick loop internally; we emit ONCE
-    // after all ticks complete (not per-tick) to avoid flooding the frontend.
-    match apply_devtools_advance_ticks(&mut guard.run, input.count) {
-        Ok(()) => {
-            guard.session_ticks = guard.session_ticks.saturating_add(input.count);
-            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
-            Ok(devtools_action_success(&guard.run, &guard.profile))
-        }
-        Err(reason_code) => Ok(devtools_action_failure(&guard.run, &guard.profile, reason_code)),
-    }
+    run_devtools_mutation(&app, &game_state, &last_emitted, |run, _, session_ticks| {
+        apply_devtools_advance_ticks(run, input.count)?;
+        *session_ticks = session_ticks.saturating_add(input.count);
+        Ok(())
+    })
 }
 
 #[cfg(debug_assertions)]
@@ -170,11 +125,8 @@ pub fn game_devtools_reset_to_starter(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    let mut guard = game_state.lock();
-    let GameRunState { run: run_state, profile, session_ticks } = &mut *guard;
-
-    reset_devtools_session(run_state, profile, session_ticks);
-    refresh_runtime_state(run_state);
-    let _ = commit_and_emit(&app, run_state, profile, &last_emitted);
-    Ok(devtools_action_success(run_state, profile))
+    run_devtools_mutation(&app, &game_state, &last_emitted, |run, profile, session_ticks| {
+        reset_devtools_session(run, profile, session_ticks);
+        Ok(())
+    })
 }
