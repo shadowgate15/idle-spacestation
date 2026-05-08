@@ -6,6 +6,8 @@ import {
   createGameGateway,
   gameGateway,
   previewFixtureNames,
+  PLANET_IDS,
+  DOCTRINE_IDS,
   type DevtoolsCommandName,
   type DevtoolsCommandPayloads,
   type DevtoolsCommandResponses,
@@ -647,6 +649,21 @@ describe('subscribeToStateChanges', () => {
 
     expect(typeof unsubscribe).toBe('function');
     expect(() => unsubscribe()).not.toThrow();
+  });
+
+  it('PLANET_IDS has expected length and values', () => {
+    expect(PLANET_IDS).toHaveLength(3);
+    expect(PLANET_IDS).toEqual(['solstice-anchor', 'cinder-forge', 'aurora-pier']);
+  });
+
+  it('DOCTRINE_IDS has expected length and values', () => {
+    expect(DOCTRINE_IDS).toHaveLength(4);
+    expect(DOCTRINE_IDS).toEqual([
+      'efficient-shifts',
+      'deep-survey-protocols',
+      'hardened-relays',
+      'frontier-charters',
+    ]);
   });
 });
 

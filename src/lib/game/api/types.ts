@@ -2,7 +2,9 @@ export const previewFixtureNames = ['starter', 'deficit', 'all-planets', 'presti
 
 export type PreviewFixtureName = (typeof previewFixtureNames)[number];
 
-export type PlanetId = 'solstice-anchor' | 'cinder-forge' | 'aurora-pier';
+export const PLANET_IDS = ['solstice-anchor', 'cinder-forge', 'aurora-pier'] as const;
+
+export type PlanetId = (typeof PLANET_IDS)[number];
 
 export type SystemId = 'reactor-core' | 'habitat-ring' | 'logistics-spine' | 'survey-array';
 
@@ -14,11 +16,14 @@ export type ServiceId =
   | 'command-relay'
   | 'fabrication-loop';
 
-export type DoctrineId =
-  | 'efficient-shifts'
-  | 'deep-survey-protocols'
-  | 'hardened-relays'
-  | 'frontier-charters';
+export const DOCTRINE_IDS = [
+  'efficient-shifts',
+  'deep-survey-protocols',
+  'hardened-relays',
+  'frontier-charters',
+] as const;
+
+export type DoctrineId = (typeof DOCTRINE_IDS)[number];
 
 export type ServiceFamily = 'production' | 'support' | 'conversion';
 
