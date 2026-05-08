@@ -16,6 +16,34 @@ The repo is no longer a thin template; treat the existing patterns as load-beari
 - `src/AGENTS.md` adds frontend, Svelte 5, shadcn-svelte, devtools, game-API, Storybook, and test guidance.
 - `src-tauri/AGENTS.md` adds Rust/Tauri command, simulation, persistence, event-emission, and packaging guidance.
 
+## SELF-MAINTENANCE (READ BEFORE FINISHING A TASK)
+
+Before declaring a task complete, decide whether your changes invalidate any AGENTS.md file. **You are responsible for keeping this hierarchy honest** — stale architecture docs cause measurably worse work from future agents.
+
+**You MUST update an AGENTS.md when your changes do any of the following** (smallest-scoped file first: `src/AGENTS.md` or `src-tauri/AGENTS.md` before root):
+
+- Change the data-flow contract between layers (e.g. polling → push, sync → async, new transport interface).
+- Rename, add, or remove a public type/function/event/command that the docs name explicitly (`gameState`, `commit_and_emit`, `STATE_CHANGED_EVENT`, any `#[tauri::command]`, etc.).
+- Add or remove a top-level subsystem under `src/lib/`, `src/lib/game/`, `src/lib/components/`, `src-tauri/src/`, or `src-tauri/src/game/`.
+- Introduce a new project-wide convention (test layout, file-naming rule, lifecycle owner) or invalidate one already documented.
+- Add or remove a directory referenced in the STRUCTURE block, or change a path/filename mentioned in WHERE TO LOOK.
+- Discover a new anti-pattern that bit you (footgun, deadlock, race) — write it down so the next agent doesn't repeat it.
+- Wire up something currently labelled "scaffolded" / "not wired" (e.g. `persistence/`).
+
+**You MAY skip the update when:**
+
+- Your change is a localized bugfix that touches no documented contract or path.
+- Line counts drift by <10% on a single file (treat absolute line numbers as approximate; rewrite them only when you're already in the section).
+- You are the agent reading this and the request is purely a question, exploration, or analysis with no committed changes.
+
+**When you do update:**
+
+1. Update the most-specific file first (`src/AGENTS.md` or `src-tauri/AGENTS.md`); only touch root `AGENTS.md` if the change crosses both halves or affects the project-wide overview/conventions/anti-patterns.
+2. Refresh the `**Generated:**` date and `**Commit:**` short hash at the top of the root file when you touch root. Use `date +%Y-%m-%d` and `git rev-parse --short HEAD`.
+3. Verify any line numbers, line counts, or file paths you cite by reading the actual file or running `wc -l` — never guess.
+4. Stage the AGENTS.md update **in the same commit** as the code change it documents. Don't leave it as a follow-up "docs:" commit; the docs and the code must travel together so `git blame` stays useful.
+5. If you are unsure whether an update is warranted, default to updating — a small inaccuracy compounds across future sessions.
+
 ## STRUCTURE
 
 ```text
