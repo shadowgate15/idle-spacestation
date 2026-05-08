@@ -11,6 +11,28 @@ pub enum PlanetModifierTarget {
     CrewCapacity,
 }
 
+impl PlanetModifierTarget {
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            PlanetModifierTarget::CrewEfficiency => "crew-efficiency",
+            PlanetModifierTarget::DataOutput => "data-output",
+            PlanetModifierTarget::MaterialsOutput => "materials-output",
+            PlanetModifierTarget::ServicePowerUpkeep => "service-power-upkeep",
+            PlanetModifierTarget::CrewCapacity => "crew-capacity",
+        }
+    }
+
+    pub(crate) fn label(&self) -> &'static str {
+        match self {
+            PlanetModifierTarget::CrewEfficiency => "Crew efficiency",
+            PlanetModifierTarget::DataOutput => "Data output",
+            PlanetModifierTarget::MaterialsOutput => "Materials output",
+            PlanetModifierTarget::ServicePowerUpkeep => "Service power upkeep",
+            PlanetModifierTarget::CrewCapacity => "Crew capacity",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlanetModifier {
     pub target: PlanetModifierTarget,

@@ -390,7 +390,7 @@ pub fn build_snapshot(run_state: &RunState, profile: &PrestigeProfile) -> RawGam
                 desired_active: service.desired_active,
                 is_active: service.is_active,
                 is_paused: service.is_paused,
-                pause_reason: service.pause_reason.map(service_pause_reason_code),
+                pause_reason: service.pause_reason.map(|r| r.code().to_string()),
                 priority: service.priority,
                 assigned_crew: service.assigned_crew,
             })
@@ -523,7 +523,7 @@ fn build_services_route(
                     id: definition.id.to_string(),
                     name: definition.label.to_string(),
                     description: service_description(definition.id).to_string(),
-                    family: service_family(definition.category).to_string(),
+                    family: definition.category.family().to_string(),
                     priority_order: service.priority,
                     status: status.to_string(),
                     status_label: title_case(status),
@@ -538,7 +538,7 @@ fn build_services_route(
                     },
                     disabled_reasons: service
                         .pause_reason
-                        .map(service_pause_reason_code)
+                        .map(|r| r.code().to_string())
                         .into_iter()
                         .collect(),
                 }
@@ -822,10 +822,10 @@ fn build_planet_entry(run_state: &RunState, planet: &PlanetDefinition) -> Planet
 }
 
 fn build_planet_modifier(modifier: &crate::game::content::planets::PlanetModifier) -> PlanetModifierSnapshot {
-    let label = planet_modifier_label(modifier.target);
+    let label = modifier.target.label();
 
     PlanetModifierSnapshot {
-        target: planet_modifier_target_code(modifier.target).to_string(),
+        target: modifier.target.code().to_string(),
         label: label.to_string(),
         percent: modifier.percent,
         effect_text: format!("{:+.0}% {label}", modifier.percent * 100.0),
@@ -965,7 +965,7 @@ fn build_prestige_reason_codes(run_state: &RunState) -> Vec<String> {
     let mut reason_codes = Vec::new();
 
     if station_tier < 4 {
-        reason_codes.push(prestige_reason_code(PrestigeIneligibleReason::StationTierBelowFour));
+        reason_codes.push(PrestigeIneligibleReason::StationTierBelowFour.code().to_string());
     }
     if run_state
         .station
@@ -975,13 +975,11 @@ fn build_prestige_reason_codes(run_state: &RunState) -> Vec<String> {
         .count()
         < 2
     {
-        reason_codes.push(prestige_reason_code(
-            PrestigeIneligibleReason::NeedsTwoNonStarterPlanets,
-        ));
+        reason_codes.push(PrestigeIneligibleReason::NeedsTwoNonStarterPlanets.code().to_string());
     }
     if !eligibility.eligible {
         if let Some(PrestigeIneligibleReason::UnstableNetPower) = eligibility.reason {
-            reason_codes.push(prestige_reason_code(PrestigeIneligibleReason::UnstableNetPower));
+            reason_codes.push(PrestigeIneligibleReason::UnstableNetPower.code().to_string());
         }
     }
 
@@ -1050,53 +1048,6 @@ fn service_description(service_id: &str) -> &'static str {
         "command-relay" => "Stabilizes priority handling and increases survey speed.",
         "fabrication-loop" => "Converts materials into research data.",
         _ => "",
-    }
-}
-
-fn service_family(category: ServiceCategory) -> &'static str {
-    match category {
-        ServiceCategory::Production => "production",
-        ServiceCategory::Support => "support",
-        ServiceCategory::Conversion => "conversion",
-    }
-}
-
-fn service_pause_reason_code(reason: ServicePauseReason) -> String {
-    match reason {
-        ServicePauseReason::Capacity => "capacity",
-        ServicePauseReason::Crew => "crew",
-        ServicePauseReason::Deficit => "deficit",
-        ServicePauseReason::PowerCap => "power-cap",
-    }
-    .to_string()
-}
-
-fn prestige_reason_code(reason: PrestigeIneligibleReason) -> String {
-    match reason {
-        PrestigeIneligibleReason::StationTierBelowFour => "station-tier-below-four",
-        PrestigeIneligibleReason::NeedsTwoNonStarterPlanets => "needs-two-non-starter-planets",
-        PrestigeIneligibleReason::UnstableNetPower => "unstable-net-power",
-    }
-    .to_string()
-}
-
-fn planet_modifier_target_code(target: PlanetModifierTarget) -> &'static str {
-    match target {
-        PlanetModifierTarget::CrewEfficiency => "crew-efficiency",
-        PlanetModifierTarget::DataOutput => "data-output",
-        PlanetModifierTarget::MaterialsOutput => "materials-output",
-        PlanetModifierTarget::ServicePowerUpkeep => "service-power-upkeep",
-        PlanetModifierTarget::CrewCapacity => "crew-capacity",
-    }
-}
-
-fn planet_modifier_label(target: PlanetModifierTarget) -> &'static str {
-    match target {
-        PlanetModifierTarget::CrewEfficiency => "Crew efficiency",
-        PlanetModifierTarget::DataOutput => "Data output",
-        PlanetModifierTarget::MaterialsOutput => "Materials output",
-        PlanetModifierTarget::ServicePowerUpkeep => "Service power upkeep",
-        PlanetModifierTarget::CrewCapacity => "Crew capacity",
     }
 }
 

@@ -27,6 +27,17 @@ pub enum ServicePauseReason {
     PowerCap,
 }
 
+impl ServicePauseReason {
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            ServicePauseReason::Capacity => "capacity",
+            ServicePauseReason::Crew => "crew",
+            ServicePauseReason::Deficit => "deficit",
+            ServicePauseReason::PowerCap => "power-cap",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RunState {
     pub tick_count: u64,

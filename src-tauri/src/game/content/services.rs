@@ -12,6 +12,16 @@ pub enum ServiceCategory {
     Conversion,
 }
 
+impl ServiceCategory {
+    pub(crate) fn family(&self) -> &'static str {
+        match self {
+            ServiceCategory::Production => "production",
+            ServiceCategory::Support => "support",
+            ServiceCategory::Conversion => "conversion",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ServiceDefinition {
     pub id: &'static str,

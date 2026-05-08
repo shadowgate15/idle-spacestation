@@ -47,6 +47,16 @@ pub enum PrestigeIneligibleReason {
     UnstableNetPower,
 }
 
+impl PrestigeIneligibleReason {
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            PrestigeIneligibleReason::StationTierBelowFour => "station-tier-below-four",
+            PrestigeIneligibleReason::NeedsTwoNonStarterPlanets => "needs-two-non-starter-planets",
+            PrestigeIneligibleReason::UnstableNetPower => "unstable-net-power",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PrestigeEligibility {
     pub eligible: bool,

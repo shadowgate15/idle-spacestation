@@ -698,22 +698,9 @@ fn game_execute_prestige(
             let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
             action_response(&guard.run, &guard.profile, true, None)
         }
-        Err(PrestigeExecutionError::Ineligible(reason)) => action_response(
-            &guard.run,
-            &guard.profile,
-            false,
-            Some(match reason {
-                crate::game::progression::PrestigeIneligibleReason::StationTierBelowFour => {
-                    "station-tier-below-four"
-                }
-                crate::game::progression::PrestigeIneligibleReason::NeedsTwoNonStarterPlanets => {
-                    "needs-two-non-starter-planets"
-                }
-                crate::game::progression::PrestigeIneligibleReason::UnstableNetPower => {
-                    "unstable-net-power"
-                }
-            }),
-        ),
+        Err(PrestigeExecutionError::Ineligible(reason)) => {
+            action_response(&guard.run, &guard.profile, false, Some(reason.code()))
+        }
         Err(PrestigeExecutionError::Save(_)) => {
             action_response(&guard.run, &guard.profile, false, Some("not-implemented"))
         }
@@ -1833,6 +1820,46 @@ mod tests {
     }
 }
 
+/// Single source of truth for the Tauri command list.
+///
+/// Production commands are always registered. Debug-only devtools commands carry
+/// `#[cfg(debug_assertions)]` and are stripped in release builds. This eliminates
+/// the footgun of maintaining two parallel `tauri::generate_handler!` invocations.
+macro_rules! all_commands {
+    () => {
+        tauri::generate_handler![
+            game_get_snapshot,
+            game_toggle_service,
+            game_upgrade_system,
+            game_assign_service_crew,
+            game_reprioritize_service,
+            game_start_survey,
+            game_purchase_doctrine,
+            game_execute_prestige,
+            game_request_save,
+            game_request_load,
+            #[cfg(debug_assertions)]
+            game_devtools_get_state,
+            #[cfg(debug_assertions)]
+            game_devtools_set_visibility,
+            #[cfg(debug_assertions)]
+            game_devtools_apply_resources,
+            #[cfg(debug_assertions)]
+            game_devtools_apply_crew,
+            #[cfg(debug_assertions)]
+            game_devtools_apply_systems,
+            #[cfg(debug_assertions)]
+            game_devtools_apply_services,
+            #[cfg(debug_assertions)]
+            game_devtools_apply_progression,
+            #[cfg(debug_assertions)]
+            game_devtools_advance_ticks,
+            #[cfg(debug_assertions)]
+            game_devtools_reset_to_starter,
+        ]
+    };
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
@@ -1874,42 +1901,7 @@ pub fn run() {
         Ok(())
     });
 
-    #[cfg(debug_assertions)]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        game_get_snapshot,
-        game_toggle_service,
-        game_upgrade_system,
-        game_assign_service_crew,
-        game_reprioritize_service,
-        game_start_survey,
-        game_purchase_doctrine,
-        game_execute_prestige,
-        game_request_save,
-        game_request_load,
-        game_devtools_get_state,
-        game_devtools_set_visibility,
-        game_devtools_apply_resources,
-        game_devtools_apply_crew,
-        game_devtools_apply_systems,
-        game_devtools_apply_services,
-        game_devtools_apply_progression,
-        game_devtools_advance_ticks,
-        game_devtools_reset_to_starter,
-    ]);
-
-    #[cfg(not(debug_assertions))]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        game_get_snapshot,
-        game_toggle_service,
-        game_upgrade_system,
-        game_assign_service_crew,
-        game_reprioritize_service,
-        game_start_survey,
-        game_purchase_doctrine,
-        game_execute_prestige,
-        game_request_save,
-        game_request_load,
-    ]);
+    let builder = builder.invoke_handler(all_commands!());
 
     builder
         .run(tauri::generate_context!())
