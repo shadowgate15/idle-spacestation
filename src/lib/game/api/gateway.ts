@@ -3,22 +3,15 @@ import type { InvokeArgs } from '@tauri-apps/api/core';
 
 import { adaptGameSnapshot } from './adapters';
 import type {
-  AssignServiceCrewInput,
   DevtoolsCommandName,
   DevtoolsCommandPayloads,
   DevtoolsCommandResponses,
   DevtoolsCommandTransport,
-  DevtoolsAdvanceTicksPayload,
   DevtoolsAdvanceTicksRejectionCode,
-  DevtoolsApplyCrewPayload,
   DevtoolsApplyCrewRejectionCode,
-  DevtoolsApplyProgressionPayload,
   DevtoolsApplyProgressionRejectionCode,
-  DevtoolsApplyResourcesPayload,
   DevtoolsApplyResourcesRejectionCode,
-  DevtoolsApplyServicesPayload,
   DevtoolsApplyServicesRejectionCode,
-  DevtoolsApplySystemsPayload,
   DevtoolsApplySystemsRejectionCode,
   DevtoolsGetStateResponse,
   DevtoolsResetToStarterPayload,
@@ -34,12 +27,8 @@ import type {
   GatewaySaveGameResponse,
   GameGatewayTransport,
   GameTransport,
-  PurchaseDoctrineInput,
   RawGameSnapshot,
-  ReprioritizeServiceInput,
-  SetServiceActivationInput,
   SystemUpgradeRejectionCode,
-  UpgradeSystemInput,
   ServiceActivationRejectionCode,
   ServiceCrewAssignmentRejectionCode,
   ServicePriorityRejectionCode,
@@ -47,7 +36,6 @@ import type {
   DoctrinePurchaseRejectionCode,
   PrestigeRejectionCode,
   RawDevtoolsStateSnapshot,
-  ConfirmPrestigeInput,
 } from './types';
 import { maybeCreatePreviewFixtureTransport } from './testing/transport';
 
@@ -60,14 +48,14 @@ const NO_INPUT_COMMANDS = new Set([
   'game_devtools_reset_to_starter',
 ]);
 
+const COMMAND_ALIASES: Partial<Record<GameCommandName | DevtoolsCommandName, string>> = {
+  game_set_service_activation: 'game_toggle_service',
+  game_confirm_prestige: 'game_execute_prestige',
+};
+
 const tauriTransport: GameGatewayTransport = {
   invoke(command, payload) {
-    const rustCommand =
-      command === 'game_set_service_activation'
-        ? 'game_toggle_service'
-        : command === 'game_confirm_prestige'
-          ? 'game_execute_prestige'
-          : command;
+    const rustCommand = COMMAND_ALIASES[command] ?? command;
 
     const args =
       NO_INPUT_COMMANDS.has(rustCommand) || payload === undefined ? undefined : { input: payload };
@@ -107,103 +95,76 @@ const tauriTransport: GameGatewayTransport = {
   },
 };
 
+type ActionCommandName = Exclude<
+  GameCommandName | DevtoolsCommandName,
+  | 'game_get_snapshot'
+  | 'game_request_save'
+  | 'game_request_load'
+  | 'game_devtools_get_state'
+  | 'game_devtools_set_visibility'
+>;
+
+type ActionPayload<C extends ActionCommandName> = (GameCommandPayloads &
+  DevtoolsCommandPayloads)[C];
+
 export function createGameGateway(transport: GameGatewayTransport = resolveDefaultTransport()) {
+  function action<C extends ActionCommandName, R extends string>(cmd: C) {
+    return (input: ActionPayload<C>) => invokeAction<C, R>(cmd, input, transport);
+  }
+
+  const startSurvey = action<'game_start_survey', SurveyStartRejectionCode>('game_start_survey');
+  const resetToStarter = action<
+    'game_devtools_reset_to_starter',
+    DevtoolsResetToStarterRejectionCode
+  >('game_devtools_reset_to_starter');
+
   return {
     transport,
     subscribeToStateChanges: (
-      callback: (raw: RawGameSnapshot) => void,
+      cb: (raw: RawGameSnapshot) => void,
       onError?: (err: Error) => void,
-    ) => transport.subscribeToStateChanges(callback, onError),
+    ) => transport.subscribeToStateChanges(cb, onError),
     getSnapshot: () => invokeSnapshot('game_get_snapshot', undefined, transport),
-    upgradeSystem: (input: UpgradeSystemInput) =>
-      invokeAction<'game_upgrade_system', SystemUpgradeRejectionCode>(
-        'game_upgrade_system',
-        input,
-        transport,
-      ),
-    setServiceActivation: (input: SetServiceActivationInput) =>
-      invokeAction<'game_set_service_activation', ServiceActivationRejectionCode>(
-        'game_set_service_activation',
-        input,
-        transport,
-      ),
-    assignServiceCrew: (input: AssignServiceCrewInput) =>
-      invokeAction<'game_assign_service_crew', ServiceCrewAssignmentRejectionCode>(
-        'game_assign_service_crew',
-        input,
-        transport,
-      ),
-    reprioritizeService: (input: ReprioritizeServiceInput) =>
-      invokeAction<'game_reprioritize_service', ServicePriorityRejectionCode>(
-        'game_reprioritize_service',
-        input,
-        transport,
-      ),
-    startSurvey: () =>
-      invokeAction<'game_start_survey', SurveyStartRejectionCode>(
-        'game_start_survey',
-        undefined,
-        transport,
-      ),
-    purchaseDoctrine: (input: PurchaseDoctrineInput) =>
-      invokeAction<'game_purchase_doctrine', DoctrinePurchaseRejectionCode>(
-        'game_purchase_doctrine',
-        input,
-        transport,
-      ),
-    confirmPrestige: (input: ConfirmPrestigeInput) =>
-      invokeAction<'game_confirm_prestige', PrestigeRejectionCode>(
-        'game_confirm_prestige',
-        input,
-        transport,
-      ),
     requestSave: () => invokeSaveLike('game_request_save', undefined, transport),
     requestLoad: () => invokeLoadLike('game_request_load', undefined, transport),
     getDevtoolsState: () => invokeDevtoolsState('game_devtools_get_state', undefined, transport),
     setDevtoolsVisibility: (input: DevtoolsSetVisibilityPayload) =>
       invokeDevtoolsState('game_devtools_set_visibility', input, transport),
-    applyResources: (input: DevtoolsApplyResourcesPayload) =>
-      invokeAction<'game_devtools_apply_resources', DevtoolsApplyResourcesRejectionCode>(
-        'game_devtools_apply_resources',
-        input,
-        transport,
-      ),
-    applyCrew: (input: DevtoolsApplyCrewPayload) =>
-      invokeAction<'game_devtools_apply_crew', DevtoolsApplyCrewRejectionCode>(
-        'game_devtools_apply_crew',
-        input,
-        transport,
-      ),
-    applySystems: (input: DevtoolsApplySystemsPayload) =>
-      invokeAction<'game_devtools_apply_systems', DevtoolsApplySystemsRejectionCode>(
-        'game_devtools_apply_systems',
-        input,
-        transport,
-      ),
-    applyServices: (input: DevtoolsApplyServicesPayload) =>
-      invokeAction<'game_devtools_apply_services', DevtoolsApplyServicesRejectionCode>(
-        'game_devtools_apply_services',
-        input,
-        transport,
-      ),
-    applyProgression: (input: DevtoolsApplyProgressionPayload) =>
-      invokeAction<'game_devtools_apply_progression', DevtoolsApplyProgressionRejectionCode>(
-        'game_devtools_apply_progression',
-        input,
-        transport,
-      ),
-    advanceTicks: (input: DevtoolsAdvanceTicksPayload) =>
-      invokeAction<'game_devtools_advance_ticks', DevtoolsAdvanceTicksRejectionCode>(
-        'game_devtools_advance_ticks',
-        input,
-        transport,
-      ),
-    resetToStarter: (input: DevtoolsResetToStarterPayload = {}) =>
-      invokeAction<'game_devtools_reset_to_starter', DevtoolsResetToStarterRejectionCode>(
-        'game_devtools_reset_to_starter',
-        input,
-        transport,
-      ),
+    upgradeSystem: action<'game_upgrade_system', SystemUpgradeRejectionCode>('game_upgrade_system'),
+    setServiceActivation: action<'game_set_service_activation', ServiceActivationRejectionCode>(
+      'game_set_service_activation',
+    ),
+    assignServiceCrew: action<'game_assign_service_crew', ServiceCrewAssignmentRejectionCode>(
+      'game_assign_service_crew',
+    ),
+    reprioritizeService: action<'game_reprioritize_service', ServicePriorityRejectionCode>(
+      'game_reprioritize_service',
+    ),
+    startSurvey: () => startSurvey(undefined),
+    purchaseDoctrine: action<'game_purchase_doctrine', DoctrinePurchaseRejectionCode>(
+      'game_purchase_doctrine',
+    ),
+    confirmPrestige: action<'game_confirm_prestige', PrestigeRejectionCode>('game_confirm_prestige'),
+    applyResources: action<'game_devtools_apply_resources', DevtoolsApplyResourcesRejectionCode>(
+      'game_devtools_apply_resources',
+    ),
+    applyCrew: action<'game_devtools_apply_crew', DevtoolsApplyCrewRejectionCode>(
+      'game_devtools_apply_crew',
+    ),
+    applySystems: action<'game_devtools_apply_systems', DevtoolsApplySystemsRejectionCode>(
+      'game_devtools_apply_systems',
+    ),
+    applyServices: action<'game_devtools_apply_services', DevtoolsApplyServicesRejectionCode>(
+      'game_devtools_apply_services',
+    ),
+    applyProgression: action<
+      'game_devtools_apply_progression',
+      DevtoolsApplyProgressionRejectionCode
+    >('game_devtools_apply_progression'),
+    advanceTicks: action<'game_devtools_advance_ticks', DevtoolsAdvanceTicksRejectionCode>(
+      'game_devtools_advance_ticks',
+    ),
+    resetToStarter: (input: DevtoolsResetToStarterPayload = {}) => resetToStarter(input),
   };
 }
 
@@ -248,19 +209,9 @@ async function invokeDevtoolsState<
     : DevtoolsSetVisibilityResponse;
 }
 
-async function invokeAction<
-  TCommand extends Exclude<
-    GameCommandName | DevtoolsCommandName,
-    | 'game_get_snapshot'
-    | 'game_request_save'
-    | 'game_request_load'
-    | 'game_devtools_get_state'
-    | 'game_devtools_set_visibility'
-  >,
-  TReason extends string,
->(
+async function invokeAction<TCommand extends ActionCommandName, TReason extends string>(
   command: TCommand,
-  payload: (GameCommandPayloads & DevtoolsCommandPayloads)[TCommand],
+  payload: ActionPayload<TCommand>,
   transport: GameGatewayTransport,
 ): Promise<GatewayActionResponse<TReason>> {
   const response = (

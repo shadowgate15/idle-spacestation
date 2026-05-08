@@ -605,6 +605,98 @@ function createRawActionSuccess(snapshot: RawGameSnapshot) {
   };
 }
 
+describe('tauri transport command aliases', () => {
+  it('rewrites game_set_service_activation to game_toggle_service when invoking Tauri', async () => {
+    const calls: Array<{ command: string; args: unknown }> = [];
+
+    vi.resetModules();
+    vi.doMock('@tauri-apps/api/core', () => ({
+      invoke: vi.fn(async (command: string, args: unknown) => {
+        calls.push({ command, args });
+        return {
+          ok: true,
+          snapshot: buildSnapshotFromFixtureState(createFixtureState('starter'), 'starter'),
+        };
+      }),
+    }));
+
+    const { createGameGateway: freshCreate } = await import('./gateway');
+    const gateway = freshCreate();
+
+    await gateway.setServiceActivation({ serviceId: 'solar-harvester', active: true });
+
+    expect(calls).toEqual([
+      {
+        command: 'game_toggle_service',
+        args: { input: { serviceId: 'solar-harvester', active: true } },
+      },
+    ]);
+
+    vi.doUnmock('@tauri-apps/api/core');
+    vi.resetModules();
+  });
+
+  it('rewrites game_confirm_prestige to game_execute_prestige when invoking Tauri', async () => {
+    const calls: Array<{ command: string; args: unknown }> = [];
+
+    vi.resetModules();
+    vi.doMock('@tauri-apps/api/core', () => ({
+      invoke: vi.fn(async (command: string, args: unknown) => {
+        calls.push({ command, args });
+        return {
+          ok: true,
+          snapshot: buildSnapshotFromFixtureState(createFixtureState('starter'), 'starter'),
+        };
+      }),
+    }));
+
+    const { createGameGateway: freshCreate } = await import('./gateway');
+    const gateway = freshCreate();
+
+    await gateway.confirmPrestige({ confirm: true });
+
+    expect(calls).toEqual([
+      {
+        command: 'game_execute_prestige',
+        args: { input: { confirm: true } },
+      },
+    ]);
+
+    vi.doUnmock('@tauri-apps/api/core');
+    vi.resetModules();
+  });
+
+  it('passes non-aliased commands through unchanged', async () => {
+    const calls: Array<{ command: string; args: unknown }> = [];
+
+    vi.resetModules();
+    vi.doMock('@tauri-apps/api/core', () => ({
+      invoke: vi.fn(async (command: string, args: unknown) => {
+        calls.push({ command, args });
+        return {
+          ok: true,
+          snapshot: buildSnapshotFromFixtureState(createFixtureState('starter'), 'starter'),
+        };
+      }),
+    }));
+
+    const { createGameGateway: freshCreate } = await import('./gateway');
+    const gateway = freshCreate();
+
+    await gateway.upgradeSystem({ systemId: 'reactor-core' });
+
+    expect(calls).toEqual([
+      {
+        command: 'game_upgrade_system',
+        args: { input: { systemId: 'reactor-core' } },
+      },
+    ]);
+
+    vi.doUnmock('@tauri-apps/api/core');
+    vi.resetModules();
+  });
+});
+
 describe('subscribeToStateChanges', () => {
   it('gateway exposes subscribeToStateChanges method and returns an unsubscribe function', async () => {
     const mockUnlisten = vi.fn();
