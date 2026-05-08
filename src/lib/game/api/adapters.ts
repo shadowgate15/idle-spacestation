@@ -9,12 +9,9 @@ import type {
   SystemsViewModel,
 } from './types';
 
-const ROUTE_KEYS = ['overview', 'systems', 'services', 'planets', 'prestige'] as const;
-
 export function adaptGameSnapshot(snapshot: RawGameSnapshot): GameSnapshot {
   const cloned = structuredClone(snapshot);
-  const routes = Object.fromEntries(ROUTE_KEYS.map((k) => [k, cloned.routeSnapshots[k]])) as unknown as GameViewModels;
-  return { ...cloned, routes };
+  return { ...cloned, routes: cloned.routeSnapshots };
 }
 
 export const adaptOverviewViewModel = (s: RawGameSnapshot): OverviewViewModel => adaptGameSnapshot(s).routes.overview;
