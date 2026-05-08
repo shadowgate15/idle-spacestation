@@ -341,9 +341,14 @@ pub struct ResetConsequenceSnapshot {
 pub fn build_snapshot(run_state: &RunState, profile: &PrestigeProfile) -> RawGameSnapshot {
     let station_tier = calculate_station_tier(run_state);
     let stable_power_seconds = stable_power_seconds(run_state.consecutive_stable_power_ticks);
-    let doctrine_ids = sorted_unique(merged_ids(&run_state.station.doctrine_ids, &profile.doctrine_ids));
-    let discovered_planet_ids =
-        sorted_unique(merged_ids(&run_state.station.discovered_planet_ids, &profile.discovered_planet_ids));
+    let doctrine_ids = sorted_unique(
+        run_state.station.doctrine_ids.iter().cloned()
+            .chain(profile.doctrine_ids.iter().cloned())
+    );
+    let discovered_planet_ids = sorted_unique(
+        run_state.station.discovered_planet_ids.iter().cloned()
+            .chain(profile.discovered_planet_ids.iter().cloned())
+    );
     let deficit_warnings = build_deficit_warnings(run_state);
     let service_utilization = build_service_utilization(run_state);
     let survey_progress = build_survey_progress(run_state);
@@ -1006,14 +1011,11 @@ fn make_resource_delta(id: &str, label: &str, delta_per_second: f32) -> Resource
     }
 }
 
-fn merged_ids(left: &[String], right: &[String]) -> Vec<String> {
-    left.iter().chain(right.iter()).cloned().collect()
-}
-
-fn sorted_unique(mut values: Vec<String>) -> Vec<String> {
-    values.sort();
-    values.dedup();
-    values
+fn sorted_unique<I: IntoIterator<Item = String>>(iter: I) -> Vec<String> {
+    let mut v: Vec<String> = iter.into_iter().collect();
+    v.sort();
+    v.dedup();
+    v
 }
 
 fn stable_power_seconds(stable_power_ticks: u32) -> f32 {
