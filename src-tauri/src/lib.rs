@@ -21,12 +21,40 @@ use crate::game::snapshot::{build_snapshot, ActionResponse, RawGameSnapshot, Sav
 use crate::game::sim::{tick, RunState};
 
 
-struct GameState(Mutex<(RunState, PrestigeProfile, u32)>);
+struct GameRunState {
+    run: RunState,
+    profile: PrestigeProfile,
+    session_ticks: u32,
+}
+
+struct GameState(Mutex<GameRunState>);
+
+impl GameState {
+    #[track_caller]
+    fn lock(&self) -> std::sync::MutexGuard<'_, GameRunState> {
+        self.0.lock().expect("game state mutex poisoned")
+    }
+}
 
 struct LastEmittedSnapshot(Mutex<Option<RawGameSnapshot>>);
 
+impl LastEmittedSnapshot {
+    #[track_caller]
+    fn lock(&self) -> std::sync::MutexGuard<'_, Option<RawGameSnapshot>> {
+        self.0.lock().expect("last_emitted mutex poisoned")
+    }
+}
+
 #[cfg(debug_assertions)]
 struct DevtoolsState(Mutex<bool>);
+
+#[cfg(debug_assertions)]
+impl DevtoolsState {
+    #[track_caller]
+    fn lock(&self) -> std::sync::MutexGuard<'_, bool> {
+        self.0.lock().expect("devtools state mutex poisoned")
+    }
+}
 
 #[cfg(debug_assertions)]
 const DEVTOOLS_TOGGLE_OVERLAY_MENU_ID: &str = "devtools-toggle-overlay";
@@ -150,13 +178,13 @@ fn game_devtools_apply_resources(
 ) -> Result<serde_json::Value, String> {
     let mut guard = game_state.0.lock().expect("game state mutex poisoned");
 
-    match apply_devtools_resources(&mut guard.0, input.materials, input.data) {
+    match apply_devtools_resources(&mut guard.run, input.materials, input.data) {
         Ok(()) => {
-            refresh_runtime_state(&mut guard.0);
-            let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-            Ok(devtools_action_success(&guard.0, &guard.1))
+            refresh_runtime_state(&mut guard.run);
+            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+            Ok(devtools_action_success(&guard.run, &guard.profile))
         }
-        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+        Err(reason_code) => Ok(devtools_action_failure(&guard.run, &guard.profile, reason_code)),
     }
 }
 
@@ -171,13 +199,13 @@ fn game_devtools_apply_crew(
 ) -> Result<serde_json::Value, String> {
     let mut guard = game_state.0.lock().expect("game state mutex poisoned");
 
-    match apply_devtools_crew_total(&mut guard.0, input.crew_total) {
+    match apply_devtools_crew_total(&mut guard.run, input.crew_total) {
         Ok(()) => {
-            refresh_runtime_state(&mut guard.0);
-            let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-            Ok(devtools_action_success(&guard.0, &guard.1))
+            refresh_runtime_state(&mut guard.run);
+            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+            Ok(devtools_action_success(&guard.run, &guard.profile))
         }
-        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+        Err(reason_code) => Ok(devtools_action_failure(&guard.run, &guard.profile, reason_code)),
     }
 }
 
@@ -192,13 +220,13 @@ fn game_devtools_apply_systems(
 ) -> Result<serde_json::Value, String> {
     let mut guard = game_state.0.lock().expect("game state mutex poisoned");
 
-    match apply_devtools_system_levels(&mut guard.0, &input.systems) {
+    match apply_devtools_system_levels(&mut guard.run, &input.systems) {
         Ok(()) => {
-            refresh_runtime_state(&mut guard.0);
-            let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-            Ok(devtools_action_success(&guard.0, &guard.1))
+            refresh_runtime_state(&mut guard.run);
+            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+            Ok(devtools_action_success(&guard.run, &guard.profile))
         }
-        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+        Err(reason_code) => Ok(devtools_action_failure(&guard.run, &guard.profile, reason_code)),
     }
 }
 
@@ -213,13 +241,13 @@ fn game_devtools_apply_services(
 ) -> Result<serde_json::Value, String> {
     let mut guard = game_state.0.lock().expect("game state mutex poisoned");
 
-    match apply_devtools_services(&mut guard.0, &input.services) {
+    match apply_devtools_services(&mut guard.run, &input.services) {
         Ok(()) => {
-            refresh_runtime_state(&mut guard.0);
-            let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-            Ok(devtools_action_success(&guard.0, &guard.1))
+            refresh_runtime_state(&mut guard.run);
+            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+            Ok(devtools_action_success(&guard.run, &guard.profile))
         }
-        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+        Err(reason_code) => Ok(devtools_action_failure(&guard.run, &guard.profile, reason_code)),
     }
 }
 
@@ -233,7 +261,7 @@ fn game_devtools_apply_progression(
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
     let mut guard = game_state.0.lock().expect("game state mutex poisoned");
-    let (run_state, profile, _) = &mut *guard;
+    let GameRunState { run: run_state, profile, .. } = &mut *guard;
 
     match apply_devtools_progression(run_state, profile, &input) {
         Ok(()) => {
@@ -258,13 +286,13 @@ fn game_devtools_advance_ticks(
 
     // apply_devtools_advance_ticks runs the tick loop internally; we emit ONCE
     // after all ticks complete (not per-tick) to avoid flooding the frontend.
-    match apply_devtools_advance_ticks(&mut guard.0, input.count) {
+    match apply_devtools_advance_ticks(&mut guard.run, input.count) {
         Ok(()) => {
-            guard.2 = guard.2.saturating_add(input.count);
-            let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-            Ok(devtools_action_success(&guard.0, &guard.1))
+            guard.session_ticks = guard.session_ticks.saturating_add(input.count);
+            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+            Ok(devtools_action_success(&guard.run, &guard.profile))
         }
-        Err(reason_code) => Ok(devtools_action_failure(&guard.0, &guard.1, reason_code)),
+        Err(reason_code) => Ok(devtools_action_failure(&guard.run, &guard.profile, reason_code)),
     }
 }
 
@@ -277,7 +305,7 @@ fn game_devtools_reset_to_starter(
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
     let mut guard = game_state.0.lock().expect("game state mutex poisoned");
-    let (run_state, profile, session_ticks) = &mut *guard;
+    let GameRunState { run: run_state, profile, session_ticks } = &mut *guard;
 
     reset_devtools_session(run_state, profile, session_ticks);
     refresh_runtime_state(run_state);
@@ -324,7 +352,7 @@ fn build_devtools_state_response(game_state: &GameState, visible: bool) -> Devto
     let guard = game_state.0.lock().expect("game state mutex poisoned");
     DevtoolsStateResponse {
         visible,
-        snapshot: build_snapshot(&guard.0, &guard.1),
+        snapshot: build_snapshot(&guard.run, &guard.profile),
     }
 }
 
@@ -480,7 +508,7 @@ enum ServicePriorityDirection {
 #[tauri::command]
 fn game_get_snapshot(state: tauri::State<GameState>) -> RawGameSnapshot {
     let guard = state.0.lock().expect("game state mutex poisoned");
-    build_snapshot(&guard.0, &guard.1)
+    build_snapshot(&guard.run, &guard.profile)
 }
 
 #[tauri::command]
@@ -492,88 +520,86 @@ fn game_toggle_service(
 ) -> ActionResponse {
     let mut guard = state.0.lock().expect("game state mutex poisoned");
 
-    let service_index = match guard
-        .0
-        .services
-        .iter()
-        .position(|service| service.service_id == input.service_id)
-    {
-        Some(index) => index,
-        None => return action_response(&guard.0, &guard.1, false, Some("unknown-service")),
+     let service_index = match guard
+         .run
+         .services
+         .iter()
+         .position(|service| service.service_id == input.service_id)
+     {
+         Some(index) => index,
+         None => return action_response(&guard.run, &guard.profile, false, Some("unknown-service")),
     };
 
     if !input.active {
-        let service = &mut guard.0.services[service_index];
+        let service = &mut guard.run.services[service_index];
         service.desired_active = false;
         service.is_active = false;
         service.is_paused = false;
         service.pause_reason = None;
         service.assigned_crew = 0;
-        refresh_runtime_state(&mut guard.0);
-        let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-        return action_response(&guard.0, &guard.1, true, None);
+        refresh_runtime_state(&mut guard.run);
+        let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+        return action_response(&guard.run, &guard.profile, true, None);
     }
 
-    let active_slots = active_service_slots(&guard.0);
-    let is_currently_active = guard.0.services[service_index].is_active;
-    let active_count = guard.0.services.iter().filter(|service| service.is_active).count() as u8;
+    let active_slots = active_service_slots(&guard.run);
+    let is_currently_active = guard.run.services[service_index].is_active;
+    let active_count = guard.run.services.iter().filter(|service| service.is_active).count() as u8;
     if !is_currently_active && active_count >= active_slots {
-        let service = &mut guard.0.services[service_index];
+        let service = &mut guard.run.services[service_index];
         service.desired_active = true;
         service.is_active = false;
         service.is_paused = true;
         service.pause_reason = Some(crate::game::sim::ServicePauseReason::Capacity);
-        return action_response(&guard.0, &guard.1, false, Some("capacity-reached"));
+        return action_response(&guard.run, &guard.profile, false, Some("capacity-reached"));
     }
 
     let required_crew = service_by_id(&input.service_id)
         .expect("service must exist in catalog")
         .crew_required;
-    let additional_crew_needed = required_crew.saturating_sub(guard.0.services[service_index].assigned_crew);
-    if guard.0.resources.crew_available < additional_crew_needed {
-        let service = &mut guard.0.services[service_index];
+    let additional_crew_needed = required_crew.saturating_sub(guard.run.services[service_index].assigned_crew);
+    if guard.run.resources.crew_available < additional_crew_needed {
+        let service = &mut guard.run.services[service_index];
         service.desired_active = true;
         service.is_active = false;
         service.is_paused = true;
         service.pause_reason = Some(crate::game::sim::ServicePauseReason::Crew);
-        return action_response(&guard.0, &guard.1, false, Some("insufficient-crew"));
+        return action_response(&guard.run, &guard.profile, false, Some("insufficient-crew"));
     }
 
-    let projected_reserved = guard.0.resources.power_reserved
-        + effective_service_power_upkeep(&guard.0, &input.service_id)
-        - if guard.0.services[service_index].is_active {
-            effective_service_power_upkeep(&guard.0, &input.service_id)
+    let projected_reserved = guard.run.resources.power_reserved
+        + effective_service_power_upkeep(&guard.run, &input.service_id)
+        - if guard.run.services[service_index].is_active {
+            effective_service_power_upkeep(&guard.run, &input.service_id)
         } else {
             0.0
         };
-    let projected_available = reactor_power_output(&guard.0)
+    let projected_available = reactor_power_output(&guard.run)
         - projected_reserved
-        + active_service_power_output(&guard.0)
-        + if guard.0.services[service_index].is_active {
+        + active_service_power_output(&guard.run)
+        + if guard.run.services[service_index].is_active {
             0.0
         } else {
-            service_by_id(&input.service_id)
-                .expect("service must exist in catalog")
-                .power_output
+            service_by_id_required(&input.service_id).power_output
         };
     if projected_available < 0.0 {
-        let service = &mut guard.0.services[service_index];
+        let service = &mut guard.run.services[service_index];
         service.desired_active = true;
         service.is_active = false;
         service.is_paused = true;
         service.pause_reason = Some(crate::game::sim::ServicePauseReason::Deficit);
-        return action_response(&guard.0, &guard.1, false, Some("power-deficit"));
+        return action_response(&guard.run, &guard.profile, false, Some("power-deficit"));
     }
 
-    let service = &mut guard.0.services[service_index];
+    let service = &mut guard.run.services[service_index];
     service.desired_active = true;
     service.is_active = true;
     service.is_paused = false;
     service.pause_reason = None;
     service.assigned_crew = required_crew;
-    refresh_runtime_state(&mut guard.0);
-    let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-    action_response(&guard.0, &guard.1, true, None)
+    refresh_runtime_state(&mut guard.run);
+    let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+    action_response(&guard.run, &guard.profile, true, None)
 }
 
 #[tauri::command]
@@ -585,20 +611,18 @@ fn game_upgrade_system(
 ) -> ActionResponse {
     let mut guard = state.0.lock().expect("game state mutex poisoned");
 
-    let system_index = match guard
-        .0
-        .systems
-        .iter()
-        .position(|system| system.system_id == input.system_id)
-    {
+     let system_index = match guard
+         .run
+         .systems
+         .iter()
+         .position(|system| system.system_id == input.system_id)
+     {
         Some(index) => index,
-        None => return action_response(&guard.0, &guard.1, false, Some("unknown-system")),
+        None => return action_response(&guard.run, &guard.profile, false, Some("unknown-system")),
     };
 
-    let current_level = guard.0.systems[system_index].level;
-    let upgrade_cost = match system_by_id(&input.system_id)
-        .expect("system must exist in catalog")
-        .progression
+    let current_level = guard.run.systems[system_index].level;
+    let upgrade_cost = match system_by_id_required(&input.system_id).progression
     {
         SystemProgression::ReactorCore(levels) => levels[(current_level - 1) as usize].upgrade_cost_materials,
         SystemProgression::HabitatRing(levels) => levels[(current_level - 1) as usize].upgrade_cost_materials,
@@ -608,18 +632,18 @@ fn game_upgrade_system(
 
     let upgrade_cost = match upgrade_cost {
         Some(cost) => cost,
-        None => return action_response(&guard.0, &guard.1, false, Some("max-level")),
+        None => return action_response(&guard.run, &guard.profile, false, Some("max-level")),
     };
 
-    if guard.0.resources.materials < upgrade_cost as f32 {
-        return action_response(&guard.0, &guard.1, false, Some("insufficient-materials"));
+    if guard.run.resources.materials < upgrade_cost as f32 {
+        return action_response(&guard.run, &guard.profile, false, Some("insufficient-materials"));
     }
 
-    guard.0.resources.materials -= upgrade_cost as f32;
-    guard.0.systems[system_index].level = guard.0.systems[system_index].level.saturating_add(1);
-    refresh_runtime_state(&mut guard.0);
-    let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-    action_response(&guard.0, &guard.1, true, None)
+    guard.run.resources.materials -= upgrade_cost as f32;
+    guard.run.systems[system_index].level = guard.run.systems[system_index].level.saturating_add(1);
+    refresh_runtime_state(&mut guard.run);
+    let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+    action_response(&guard.run, &guard.profile, true, None)
 }
 
 #[tauri::command]
@@ -632,24 +656,24 @@ fn game_purchase_doctrine(
     let mut guard = state.0.lock().expect("game state mutex poisoned");
 
     if doctrine_by_id(&input.doctrine_id).is_none() {
-        return action_response(&guard.0, &guard.1, false, Some("unknown-doctrine"));
+        return action_response(&guard.run, &guard.profile, false, Some("unknown-doctrine"));
     }
 
-    match crate::game::progression::purchase_doctrine(&mut guard.1, &input.doctrine_id) {
+    match crate::game::progression::purchase_doctrine(&mut guard.profile, &input.doctrine_id) {
         Ok(()) => {
-            guard.0.station.doctrine_ids = guard.1.doctrine_ids.clone();
-            guard.0.station.doctrine_fragments = guard.1.doctrine_fragments;
-            let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-            action_response(&guard.0, &guard.1, true, None)
+            guard.run.station.doctrine_ids = guard.profile.doctrine_ids.clone();
+            guard.run.station.doctrine_fragments = guard.profile.doctrine_fragments;
+            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+            action_response(&guard.run, &guard.profile, true, None)
         }
         Err(DoctrinePurchaseError::UnknownDoctrine) => {
-            action_response(&guard.0, &guard.1, false, Some("unknown-doctrine"))
+            action_response(&guard.run, &guard.profile, false, Some("unknown-doctrine"))
         }
         Err(DoctrinePurchaseError::AlreadyUnlocked) => {
-            action_response(&guard.0, &guard.1, false, Some("already-unlocked"))
+            action_response(&guard.run, &guard.profile, false, Some("already-unlocked"))
         }
         Err(DoctrinePurchaseError::InsufficientFragments) => {
-            action_response(&guard.0, &guard.1, false, Some("insufficient-fragments"))
+            action_response(&guard.run, &guard.profile, false, Some("insufficient-fragments"))
         }
     }
 }
@@ -664,21 +688,21 @@ fn game_execute_prestige(
     let mut guard = state.0.lock().expect("game state mutex poisoned");
 
     if !input.confirm {
-        return action_response(&guard.0, &guard.1, false, Some("confirmation-required"));
+        return action_response(&guard.run, &guard.profile, false, Some("confirmation-required"));
     }
 
-    match execute_prestige(&guard.0, &guard.1, guard.0.consecutive_stable_power_ticks) {
+    match execute_prestige(&guard.run, &guard.profile, guard.run.consecutive_stable_power_ticks) {
         Ok((run_state, profile, stable_ticks)) => {
-            guard.0 = run_state;
-            guard.1 = profile;
-            guard.2 = stable_ticks;
-            refresh_runtime_state(&mut guard.0);
-            let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-            action_response(&guard.0, &guard.1, true, None)
+            guard.run = run_state;
+            guard.profile = profile;
+            guard.session_ticks = stable_ticks;
+            refresh_runtime_state(&mut guard.run);
+            let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+            action_response(&guard.run, &guard.profile, true, None)
         }
         Err(PrestigeExecutionError::Ineligible(reason)) => action_response(
-            &guard.0,
-            &guard.1,
+            &guard.run,
+            &guard.profile,
             false,
             Some(match reason {
                 crate::game::progression::PrestigeIneligibleReason::StationTierBelowFour => {
@@ -693,7 +717,7 @@ fn game_execute_prestige(
             }),
         ),
         Err(PrestigeExecutionError::Save(_)) => {
-            action_response(&guard.0, &guard.1, false, Some("not-implemented"))
+            action_response(&guard.run, &guard.profile, false, Some("not-implemented"))
         }
     }
 }
@@ -707,30 +731,30 @@ fn game_assign_service_crew(
 ) -> ActionResponse {
     let mut guard = state.0.lock().expect("game state mutex poisoned");
 
-    let service_index = match guard
-        .0
-        .services
-        .iter()
-        .position(|service| service.service_id == input.service_id)
-    {
+     let service_index = match guard
+         .run
+         .services
+         .iter()
+         .position(|service| service.service_id == input.service_id)
+     {
         Some(index) => index,
-        None => return action_response(&guard.0, &guard.1, false, Some("unknown-service")),
+        None => return action_response(&guard.run, &guard.profile, false, Some("unknown-service")),
     };
     if input.assigned_crew < 0 {
-        return action_response(&guard.0, &guard.1, false, Some("invalid-assignment"));
+        return action_response(&guard.run, &guard.profile, false, Some("invalid-assignment"));
     }
 
     let next_assigned_crew = input.assigned_crew as u8;
-    let current_assigned_crew = guard.0.services[service_index].assigned_crew;
+    let current_assigned_crew = guard.run.services[service_index].assigned_crew;
     let delta = input.assigned_crew - current_assigned_crew as i32;
-    if delta > guard.0.resources.crew_available as i32 {
-        return action_response(&guard.0, &guard.1, false, Some("insufficient-crew"));
+    if delta > guard.run.resources.crew_available as i32 {
+        return action_response(&guard.run, &guard.profile, false, Some("insufficient-crew"));
     }
 
-    guard.0.services[service_index].assigned_crew = next_assigned_crew;
-    refresh_runtime_state(&mut guard.0);
-    let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-    action_response(&guard.0, &guard.1, true, None)
+    guard.run.services[service_index].assigned_crew = next_assigned_crew;
+    refresh_runtime_state(&mut guard.run);
+    let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+    action_response(&guard.run, &guard.profile, true, None)
 }
 
 #[tauri::command]
@@ -741,15 +765,15 @@ fn game_reprioritize_service(
     last_emitted: tauri::State<LastEmittedSnapshot>,
 ) -> ActionResponse {
     let mut guard = state.0.lock().expect("game state mutex poisoned");
-    let mut ordered_indices: Vec<_> = (0..guard.0.services.len()).collect();
-    ordered_indices.sort_by_key(|index| guard.0.services[*index].priority);
+    let mut ordered_indices: Vec<_> = (0..guard.run.services.len()).collect();
+    ordered_indices.sort_by_key(|index| guard.run.services[*index].priority);
 
     let current_order_index = match ordered_indices
         .iter()
-        .position(|index| guard.0.services[*index].service_id == input.service_id)
+        .position(|index| guard.run.services[*index].service_id == input.service_id)
     {
         Some(index) => index,
-        None => return action_response(&guard.0, &guard.1, false, Some("unknown-service")),
+        None => return action_response(&guard.run, &guard.profile, false, Some("unknown-service")),
     };
 
     let swap_order_index = match input.direction {
@@ -757,16 +781,16 @@ fn game_reprioritize_service(
         ServicePriorityDirection::Down if current_order_index + 1 < ordered_indices.len() => {
             current_order_index + 1
         }
-        _ => return action_response(&guard.0, &guard.1, false, Some("priority-limit")),
+        _ => return action_response(&guard.run, &guard.profile, false, Some("priority-limit")),
     };
 
     let current_index = ordered_indices[current_order_index];
     let swap_index = ordered_indices[swap_order_index];
-    let current_priority = guard.0.services[current_index].priority;
-    guard.0.services[current_index].priority = guard.0.services[swap_index].priority;
-    guard.0.services[swap_index].priority = current_priority;
-    let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-    action_response(&guard.0, &guard.1, true, None)
+    let current_priority = guard.run.services[current_index].priority;
+    guard.run.services[current_index].priority = guard.run.services[swap_index].priority;
+    guard.run.services[swap_index].priority = current_priority;
+    let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+    action_response(&guard.run, &guard.profile, true, None)
 }
 
 #[tauri::command]
@@ -777,27 +801,27 @@ fn game_start_survey(
 ) -> ActionResponse {
     let mut guard = state.0.lock().expect("game state mutex poisoned");
 
-    if guard
-        .0
-        .station
-        .discovered_planet_ids
-        .iter()
-        .any(|planet_id| planet_id == CINDER_FORGE_ID)
-        && guard
-            .0
-            .station
-            .discovered_planet_ids
-            .iter()
-            .any(|planet_id| planet_id == AURORA_PIER_ID)
-    {
-        return action_response(&guard.0, &guard.1, false, Some("all-planets-discovered"));
+     if guard
+         .run
+         .station
+         .discovered_planet_ids
+         .iter()
+         .any(|planet_id| planet_id == CINDER_FORGE_ID)
+         && guard
+             .run
+             .station
+             .discovered_planet_ids
+             .iter()
+             .any(|planet_id| planet_id == AURORA_PIER_ID)
+     {
+         return action_response(&guard.run, &guard.profile, false, Some("all-planets-discovered"));
     }
 
-    if let Some(service) = guard.0.service_state_mut("survey-uplink") {
+    if let Some(service) = guard.run.service_state_mut("survey-uplink") {
         service.desired_active = true;
     }
-    let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
-    action_response(&guard.0, &guard.1, true, None)
+    let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
+    action_response(&guard.run, &guard.profile, true, None)
 }
 
 #[tauri::command]
@@ -806,7 +830,7 @@ fn game_request_save(state: tauri::State<GameState>) -> SaveLoadResponse {
     SaveLoadResponse {
         ok: true,
         status: "saved".to_string(),
-        snapshot: build_snapshot(&guard.0, &guard.1),
+        snapshot: build_snapshot(&guard.run, &guard.profile),
     }
 }
 
@@ -817,8 +841,8 @@ fn game_request_load(
     last_emitted: tauri::State<LastEmittedSnapshot>,
 ) -> SaveLoadResponse {
     let guard = state.0.lock().expect("game state mutex poisoned");
-    let snapshot = build_snapshot(&guard.0, &guard.1);
-    let _ = commit_and_emit(&app, &guard.0, &guard.1, &last_emitted);
+    let snapshot = build_snapshot(&guard.run, &guard.profile);
+    let _ = commit_and_emit(&app, &guard.run, &guard.profile, &last_emitted);
     SaveLoadResponse {
         ok: true,
         status: "loaded".to_string(),
@@ -1229,7 +1253,7 @@ fn active_service_power_output(run_state: &RunState) -> f32 {
 }
 
 fn effective_service_power_upkeep(run_state: &RunState, service_id: &str) -> f32 {
-    let definition = service_by_id(service_id).expect("service must exist in catalog");
+    let definition = service_by_id_required(service_id);
     let planet_modifier = run_state
         .active_planet_definition()
         .modifiers
@@ -1832,11 +1856,11 @@ pub fn run() {
     }
 
     let builder = builder.setup(|app| {
-        app.manage(GameState(Mutex::new((
-            RunState::starter_fixture(),
-            PrestigeProfile::default(),
-            0u32,
-        ))));
+        app.manage(GameState(Mutex::new(GameRunState {
+            run: RunState::starter_fixture(),
+            profile: PrestigeProfile::default(),
+            session_ticks: 0u32,
+        })));
         app.manage(LastEmittedSnapshot(Mutex::new(None)));
 
         #[cfg(debug_assertions)]
@@ -1852,9 +1876,9 @@ pub fn run() {
             let game_state = app_handle.state::<GameState>();
             let last_emitted = app_handle.state::<LastEmittedSnapshot>();
             let mut guard = game_state.0.lock().expect("game state mutex poisoned");
-            tick(&mut guard.0);
+            tick(&mut guard.run);
             // Emit state-changed if game state changed. Log error, never panic.
-            if let Err(err) = commit_and_emit(&app_handle, &guard.0, &guard.1, &last_emitted) {
+            if let Err(err) = commit_and_emit(&app_handle, &guard.run, &guard.profile, &last_emitted) {
                 eprintln!("[tick_loop] commit_and_emit error: {err}");
             }
             drop(guard);
