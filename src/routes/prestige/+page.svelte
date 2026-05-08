@@ -1,5 +1,6 @@
 <script lang="ts">
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
+  import { StatTile } from '$lib/components/ui/stat-tile';
 
   let showResetConsequences = $state(false);
   let confirmPrestige = $state(false);
@@ -60,16 +61,14 @@
         </ul>
       {/if}
 
-      <div class="mt-4 flex items-center gap-4">
-        <div class="flex flex-col">
-          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Stable Power Time</dt>
-          <dd class="text-lg font-bold text-foreground">
-            {formatTime(prestige.eligibility.stablePowerSeconds)} / {formatTime(
-              prestige.eligibility.requiredStablePowerSeconds,
-            )}
-          </dd>
-        </div>
-      </div>
+      <dl class="mt-4 flex items-center gap-4">
+        <StatTile
+          label="Stable Power Time"
+          value="{formatTime(prestige.eligibility.stablePowerSeconds)} / {formatTime(
+            prestige.eligibility.requiredStablePowerSeconds,
+          )}"
+        />
+      </dl>
     </section>
 
     <section

@@ -1,5 +1,6 @@
 <script lang="ts">
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
+  import { StatTile, type StatTileVariant } from '$lib/components/ui/stat-tile';
   import type { ResourceDeltaSnapshot, WarningSnapshot } from '$lib/game/api/types';
 
   function formatDelta(delta: ResourceDeltaSnapshot): string {
@@ -7,15 +8,10 @@
     return `${sign}${delta.deltaPerSecond.toFixed(1)}/s`;
   }
 
-  function getTrendClass(trend: ResourceDeltaSnapshot['trend']): string {
-    switch (trend) {
-      case 'positive':
-        return 'text-emerald-400';
-      case 'negative':
-        return 'text-rose-400';
-      default:
-        return 'text-muted-foreground';
-    }
+  function trendVariant(trend: ResourceDeltaSnapshot['trend']): StatTileVariant | undefined {
+    if (trend === 'positive') return 'positive';
+    if (trend === 'negative') return 'negative';
+    return undefined;
   }
 
   function getWarningSeverityClass(severity: WarningSnapshot['severity']): string {
@@ -60,45 +56,29 @@
     >
       <dl class="flex flex-wrap gap-6">
         {#each overview.resourceDeltas as resource (resource.id)}
-          <div class="flex flex-col">
-            <dt class="text-xs tracking-wide text-muted-foreground uppercase">
-              {resource.label}
-            </dt>
-            <dd class="text-lg font-bold {getTrendClass(resource.trend)}">
-              {formatDelta(resource)}
-            </dd>
-          </div>
+          <StatTile
+            label={resource.label}
+            value={formatDelta(resource)}
+            variant={trendVariant(resource.trend)}
+          />
         {/each}
       </dl>
     </section>
 
     <section class="mb-8 rounded-lg border border-border bg-card p-4" data-testid="stockpile-strip">
       <dl class="flex flex-wrap gap-6">
-        <div class="flex flex-col">
-          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Materials</dt>
-          <dd class="text-lg font-bold text-foreground">
-            {Math.floor(snapshot.resources.materials)}
-          </dd>
-        </div>
-        <div class="flex flex-col">
-          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Data</dt>
-          <dd class="text-lg font-bold text-foreground">
-            {Math.floor(snapshot.resources.data)}
-          </dd>
-        </div>
-        <div class="flex flex-col">
-          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Crew</dt>
-          <dd class="text-lg font-bold text-foreground">
-            {snapshot.resources.crew.assigned} / {snapshot.resources.crew.total}
-          </dd>
-        </div>
-        <div class="flex flex-col">
-          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Power</dt>
-          <dd class="text-lg font-bold text-foreground">
-            {snapshot.resources.power.available.toFixed(1)} available of
-            {snapshot.resources.power.generated.toFixed(1)} generated
-          </dd>
-        </div>
+        <StatTile label="Materials" value={Math.floor(snapshot.resources.materials)} />
+        <StatTile label="Data" value={Math.floor(snapshot.resources.data)} />
+        <StatTile
+          label="Crew"
+          value="{snapshot.resources.crew.assigned} / {snapshot.resources.crew.total}"
+        />
+        <StatTile
+          label="Power"
+          value="{snapshot.resources.power.available.toFixed(
+            1,
+          )} available of {snapshot.resources.power.generated.toFixed(1)} generated"
+        />
       </dl>
     </section>
 
@@ -145,24 +125,9 @@
         >
           <h2 class="mb-3 text-base font-semibold text-foreground">Service Utilization</h2>
           <dl class="flex gap-6">
-            <div class="flex flex-col">
-              <dt class="text-xs tracking-wide text-muted-foreground uppercase">Active</dt>
-              <dd class="text-lg font-bold text-foreground">
-                {overview.serviceUtilization.active}
-              </dd>
-            </div>
-            <div class="flex flex-col">
-              <dt class="text-xs tracking-wide text-muted-foreground uppercase">Capacity</dt>
-              <dd class="text-lg font-bold text-foreground">
-                {overview.serviceUtilization.capacity}
-              </dd>
-            </div>
-            <div class="flex flex-col">
-              <dt class="text-xs tracking-wide text-muted-foreground uppercase">Available</dt>
-              <dd class="text-lg font-bold text-foreground">
-                {overview.serviceUtilization.available}
-              </dd>
-            </div>
+            <StatTile label="Active" value={overview.serviceUtilization.active} />
+            <StatTile label="Capacity" value={overview.serviceUtilization.capacity} />
+            <StatTile label="Available" value={overview.serviceUtilization.available} />
           </dl>
         </section>
       </div>
@@ -174,26 +139,11 @@
       >
         <h2 class="mb-3 text-base font-semibold text-foreground">Survey Progress</h2>
         <dl class="flex gap-6">
-          <div class="flex flex-col">
-            <dt class="text-xs tracking-wide text-muted-foreground uppercase">Current</dt>
-            <dd class="text-lg font-bold text-foreground">
-              {overview.surveyProgress.current}
-            </dd>
-          </div>
+          <StatTile label="Current" value={overview.surveyProgress.current} />
           {#if overview.surveyProgress.nextPlanetName}
-            <div class="flex flex-col">
-              <dt class="text-xs tracking-wide text-muted-foreground uppercase">Next Target</dt>
-              <dd class="text-lg font-bold text-foreground">
-                {overview.surveyProgress.nextPlanetName}
-              </dd>
-            </div>
+            <StatTile label="Next Target" value={overview.surveyProgress.nextPlanetName} />
             {#if overview.surveyProgress.nextThreshold}
-              <div class="flex flex-col">
-                <dt class="text-xs tracking-wide text-muted-foreground uppercase">Threshold</dt>
-                <dd class="text-lg font-bold text-foreground">
-                  {overview.surveyProgress.nextThreshold}
-                </dd>
-              </div>
+              <StatTile label="Threshold" value={overview.surveyProgress.nextThreshold} />
             {/if}
           {/if}
         </dl>

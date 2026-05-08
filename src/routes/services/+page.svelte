@@ -10,6 +10,7 @@
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
   import * as Card from '$lib/components/ui/card';
   import Button from '$lib/components/ui/button/button.svelte';
+  import { StatTile } from '$lib/components/ui/stat-tile';
 
   let acting = $state<Set<string>>(new Set());
 
@@ -84,20 +85,11 @@
     </section>
 
     <section class="mb-8 rounded-lg border border-border bg-card p-4">
-      <div class="flex flex-wrap gap-6">
-        <div class="flex flex-col">
-          <span class="text-xs tracking-wide text-muted-foreground uppercase">Active</span>
-          <span class="text-lg font-bold text-foreground">{services.utilization.active}</span>
-        </div>
-        <div class="flex flex-col">
-          <span class="text-xs tracking-wide text-muted-foreground uppercase">Capacity</span>
-          <span class="text-lg font-bold text-foreground">{services.utilization.capacity}</span>
-        </div>
-        <div class="flex flex-col">
-          <span class="text-xs tracking-wide text-muted-foreground uppercase">Available</span>
-          <span class="text-lg font-bold text-foreground">{services.utilization.available}</span>
-        </div>
-      </div>
+      <dl class="flex flex-wrap gap-6">
+        <StatTile label="Active" value={services.utilization.active} />
+        <StatTile label="Capacity" value={services.utilization.capacity} />
+        <StatTile label="Available" value={services.utilization.available} />
+      </dl>
     </section>
 
     {#if services.deficitWarnings.length > 0}

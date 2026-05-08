@@ -1,5 +1,6 @@
 <script lang="ts">
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
+  import { StatTile } from '$lib/components/ui/stat-tile';
 
   function getPlanetStatusClass(discovered: boolean, active: boolean): string {
     if (active) return 'border-emerald-500 bg-emerald-950/30';
@@ -21,26 +22,11 @@
     <section data-testid="survey-progress" class="mb-8 rounded-lg border border-border bg-card p-4">
       <h3 class="mb-3 text-base font-semibold text-foreground">Survey Progress</h3>
       <dl class="flex flex-wrap gap-6">
-        <div class="flex flex-col">
-          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Current</dt>
-          <dd class="text-lg font-bold text-foreground">
-            {planets.surveyProgress.current}
-          </dd>
-        </div>
+        <StatTile label="Current" value={planets.surveyProgress.current} />
         {#if planets.surveyProgress.nextPlanetName}
-          <div class="flex flex-col">
-            <dt class="text-xs tracking-wide text-muted-foreground uppercase">Next Target</dt>
-            <dd class="text-lg font-bold text-foreground">
-              {planets.surveyProgress.nextPlanetName}
-            </dd>
-          </div>
+          <StatTile label="Next Target" value={planets.surveyProgress.nextPlanetName} />
           {#if planets.surveyProgress.nextThreshold}
-            <div class="flex flex-col">
-              <dt class="text-xs tracking-wide text-muted-foreground uppercase">Threshold</dt>
-              <dd class="text-lg font-bold text-foreground">
-                {planets.surveyProgress.nextThreshold}
-              </dd>
-            </div>
+            <StatTile label="Threshold" value={planets.surveyProgress.nextThreshold} />
           {/if}
         {/if}
       </dl>
