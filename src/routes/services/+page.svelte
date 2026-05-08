@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { gameState } from '$lib/game/api/state.svelte';
   import { gameGateway } from '$lib/game/api';
-  import type { ServiceId, ServiceStatus } from '$lib/game/api/types';
+  import type { ServiceId, ServiceStatus, ServiceDisabledReasonCode, ServiceFamily } from '$lib/game/api/types';
   import * as Card from '$lib/components/ui/card';
   import Button from '$lib/components/ui/button/button.svelte';
 
@@ -14,14 +14,14 @@
   const error = $derived(gameState.error?.message ?? null);
   let acting = $state<Set<string>>(new Set());
 
-  const disabledReasonLabels: Record<string, string> = {
+  const disabledReasonLabels: Record<ServiceDisabledReasonCode, string> = {
     capacity: 'No service slots available',
     crew: 'Not enough crew assigned',
     deficit: 'Power deficit in progress',
     'power-cap': 'Power reserve insufficient',
   };
 
-  const familyLabels: Record<string, string> = {
+  const familyLabels: Record<ServiceFamily, string> = {
     production: 'Production',
     support: 'Support',
     command: 'Command',

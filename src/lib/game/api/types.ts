@@ -25,7 +25,7 @@ export const DOCTRINE_IDS = [
 
 export type DoctrineId = (typeof DOCTRINE_IDS)[number];
 
-export type ServiceFamily = 'production' | 'support' | 'conversion';
+export type ServiceFamily = 'production' | 'support' | 'conversion' | 'command';
 
 export type PlanetModifierTarget =
   | 'crew-efficiency'
