@@ -84,7 +84,10 @@ pub(crate) fn apply_devtools_resources(
 /// # Errors
 /// - `invalid_range`: `crew_total < 1` or `crew_total < crew_assigned`.
 /// - `constraint_violation`: `crew_total > habitat_crew_capacity(run_state)`.
-pub(crate) fn apply_devtools_crew_total(run_state: &mut RunState, crew_total: u8) -> Result<(), &'static str> {
+pub(crate) fn apply_devtools_crew_total(
+    run_state: &mut RunState,
+    crew_total: u8,
+) -> Result<(), &'static str> {
     if crew_total < 1 || crew_total < run_state.resources.crew_assigned {
         return Err("invalid_range");
     }
@@ -136,7 +139,11 @@ pub(crate) fn apply_devtools_system_levels(
             return Err("invalid_range");
         }
 
-        if !run_state.systems.iter().any(|system| system.system_id == entry.id) {
+        if !run_state
+            .systems
+            .iter()
+            .any(|system| system.system_id == entry.id)
+        {
             return Err("unknown_id");
         }
     }
@@ -186,7 +193,11 @@ pub(crate) fn apply_devtools_services(
             return Err("unknown_id");
         };
 
-        if !run_state.services.iter().any(|service| service.service_id == entry.id) {
+        if !run_state
+            .services
+            .iter()
+            .any(|service| service.service_id == entry.id)
+        {
             return Err("unknown_id");
         }
 
@@ -244,7 +255,7 @@ pub(crate) fn total_survey_progress_from_map(
     survey_progress: &std::collections::HashMap<String, f32>,
 ) -> f32 {
     use crate::game::content::planets::survey_threshold;
-    
+
     let discovered_floor = discovered_planets
         .iter()
         .filter_map(|planet_id| survey_threshold(planet_id))
@@ -360,7 +371,10 @@ pub(crate) fn apply_devtools_progression(
 /// # Errors
 /// - `invalid_range`: `count` is outside `1..=240` (one minute at the
 ///   4 Hz tick cadence in `lib.rs::TICK_INTERVAL_MS`).
-pub(crate) fn apply_devtools_advance_ticks(run_state: &mut RunState, count: u32) -> Result<(), &'static str> {
+pub(crate) fn apply_devtools_advance_ticks(
+    run_state: &mut RunState,
+    count: u32,
+) -> Result<(), &'static str> {
     if !(1..=240).contains(&count) {
         return Err("invalid_range");
     }
@@ -645,7 +659,10 @@ mod tests {
             &mut profile,
             &DevtoolsApplyProgressionInput {
                 doctrine_fragments: 3,
-                unlocked_doctrines: vec!["hardened-relays".to_string(), "efficient-shifts".to_string()],
+                unlocked_doctrines: vec![
+                    "hardened-relays".to_string(),
+                    "efficient-shifts".to_string(),
+                ],
                 discovered_planets: vec!["cinder-forge".to_string(), "solstice-anchor".to_string()],
                 active_planet: "cinder-forge".to_string(),
                 survey_progress,
@@ -656,7 +673,10 @@ mod tests {
         assert_eq!(run_state.station.doctrine_fragments, 3);
         assert_eq!(
             run_state.station.doctrine_ids,
-            vec!["efficient-shifts".to_string(), "hardened-relays".to_string()]
+            vec![
+                "efficient-shifts".to_string(),
+                "hardened-relays".to_string()
+            ]
         );
         assert_eq!(
             run_state.station.discovered_planet_ids,
@@ -666,7 +686,10 @@ mod tests {
         assert!((run_state.station.survey_progress - 700.0).abs() < 0.000_001);
         assert_eq!(profile.doctrine_fragments, 3);
         assert_eq!(profile.doctrine_ids, run_state.station.doctrine_ids);
-        assert_eq!(profile.discovered_planet_ids, run_state.station.discovered_planet_ids);
+        assert_eq!(
+            profile.discovered_planet_ids,
+            run_state.station.discovered_planet_ids
+        );
     }
 
     #[test]
@@ -780,11 +803,13 @@ mod tests {
 
         run_state.tick_count = 42;
         run_state.station.active_planet_id = "cinder-forge".to_string();
-        run_state.station.discovered_planet_ids = vec!["solstice-anchor".to_string(), "cinder-forge".to_string()];
+        run_state.station.discovered_planet_ids =
+            vec!["solstice-anchor".to_string(), "cinder-forge".to_string()];
         run_state.station.doctrine_ids = vec!["efficient-shifts".to_string()];
         run_state.station.doctrine_fragments = 4;
         run_state.station.survey_progress = 800.0;
-        profile.discovered_planet_ids = vec!["solstice-anchor".to_string(), "aurora-pier".to_string()];
+        profile.discovered_planet_ids =
+            vec!["solstice-anchor".to_string(), "aurora-pier".to_string()];
         profile.doctrine_ids = vec!["hardened-relays".to_string()];
         profile.doctrine_fragments = 2;
 

@@ -62,7 +62,12 @@ pub fn game_start_survey(
             .iter()
             .any(|planet_id| planet_id == AURORA_PIER_ID)
     {
-        return action_response(&guard.run, &guard.profile, false, Some("all-planets-discovered"));
+        return action_response(
+            &guard.run,
+            &guard.profile,
+            false,
+            Some("all-planets-discovered"),
+        );
     }
 
     if let Some(service) = guard.run.service_state_mut("survey-uplink") {

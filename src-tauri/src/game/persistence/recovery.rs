@@ -175,7 +175,9 @@ pub fn recover_save(primary: SaveSource, backup: SaveSource) -> SaveLoadOutcome 
 /// code so the recovery layer's match arms stay simple.
 fn load_from_source(source: SaveSource) -> Result<SaveData, SaveFailureCode> {
     match source {
-        SaveSource::Available(raw) => deserialize_with_migration(&raw).map_err(SaveFailureCode::from),
+        SaveSource::Available(raw) => {
+            deserialize_with_migration(&raw).map_err(SaveFailureCode::from)
+        }
         SaveSource::Unavailable(code) => Err(code),
     }
 }

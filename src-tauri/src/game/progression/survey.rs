@@ -19,7 +19,7 @@ use crate::game::content::services::SURVEY_UPLINK_ID;
 use crate::game::content::systems::{system_by_id, SystemProgression, SURVEY_ARRAY_ID};
 use crate::game::progression::doctrines::survey_progress_doctrine_multiplier;
 use crate::game::sim::state::{
-    AURORA_PIER_SURVEY_THRESHOLD, CINDER_FORGE_SURVEY_THRESHOLD, RunState,
+    RunState, AURORA_PIER_SURVEY_THRESHOLD, CINDER_FORGE_SURVEY_THRESHOLD,
 };
 
 /// Result of a single survey-progress accumulation step.
@@ -108,7 +108,10 @@ fn survey_array_multiplier(run_state: &RunState) -> f32 {
         .progression
     {
         SystemProgression::SurveyArray(levels) => {
-            let level = run_state.system_level(SURVEY_ARRAY_ID).unwrap_or(1).clamp(1, levels.len() as u8);
+            let level = run_state
+                .system_level(SURVEY_ARRAY_ID)
+                .unwrap_or(1)
+                .clamp(1, levels.len() as u8);
             levels[(level - 1) as usize].survey_multiplier
         }
         _ => unreachable!("survey-array progression must be survey levels"),
@@ -133,7 +136,10 @@ fn unlock_planet_if_ready(
         return;
     }
 
-    if !discovered_planet_ids.iter().any(|candidate| candidate == planet_id) {
+    if !discovered_planet_ids
+        .iter()
+        .any(|candidate| candidate == planet_id)
+    {
         discovered_planet_ids.push(planet_id.to_string());
         discovered_planet_ids.sort();
         newly_discovered.push(planet_id.to_string());
@@ -150,8 +156,14 @@ mod tests {
     #[test]
     fn progression_survey_accumulates_correctly_and_discovers_planets_at_exact_thresholds() {
         let mut run_state = RunState::starter_fixture();
-        run_state.service_state_mut(SURVEY_UPLINK_ID).unwrap().desired_active = true;
-        run_state.service_state_mut(SURVEY_UPLINK_ID).unwrap().is_active = true;
+        run_state
+            .service_state_mut(SURVEY_UPLINK_ID)
+            .unwrap()
+            .desired_active = true;
+        run_state
+            .service_state_mut(SURVEY_UPLINK_ID)
+            .unwrap()
+            .is_active = true;
 
         let pre_threshold = accumulate_survey_progress(&mut run_state, 599.0);
         assert_eq!(pre_threshold.progress_gained, 599.0);
@@ -160,12 +172,18 @@ mod tests {
 
         let cinder_forge = accumulate_survey_progress(&mut run_state, 1.0);
         assert_eq!(cinder_forge.progress_gained, 1.0);
-        assert_eq!(cinder_forge.discovered_planet_ids, vec![CINDER_FORGE_ID.to_string()]);
+        assert_eq!(
+            cinder_forge.discovered_planet_ids,
+            vec![CINDER_FORGE_ID.to_string()]
+        );
         assert_eq!(run_state.station.survey_progress, 600.0);
 
         let aurora_pier = accumulate_survey_progress(&mut run_state, 800.0);
         assert_eq!(aurora_pier.progress_gained, 800.0);
-        assert_eq!(aurora_pier.discovered_planet_ids, vec![AURORA_PIER_ID.to_string()]);
+        assert_eq!(
+            aurora_pier.discovered_planet_ids,
+            vec![AURORA_PIER_ID.to_string()]
+        );
         assert_eq!(run_state.station.survey_progress, 1400.0);
         assert_eq!(
             run_state.station.discovered_planet_ids,
@@ -180,8 +198,14 @@ mod tests {
     #[test]
     fn progression_survey_uses_survey_array_and_doctrine_multipliers() {
         let mut run_state = RunState::starter_fixture();
-        run_state.service_state_mut(SURVEY_UPLINK_ID).unwrap().desired_active = true;
-        run_state.service_state_mut(SURVEY_UPLINK_ID).unwrap().is_active = true;
+        run_state
+            .service_state_mut(SURVEY_UPLINK_ID)
+            .unwrap()
+            .desired_active = true;
+        run_state
+            .service_state_mut(SURVEY_UPLINK_ID)
+            .unwrap()
+            .is_active = true;
         run_state.station.doctrine_ids = vec![DEEP_SURVEY_PROTOCOLS_ID.to_string()];
         run_state.systems = vec![
             SystemState::new("reactor-core", 1),

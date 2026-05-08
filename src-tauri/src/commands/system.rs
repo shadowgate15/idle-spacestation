@@ -58,7 +58,12 @@ pub fn game_upgrade_system(
     };
 
     if guard.run.resources.materials < upgrade_cost as f32 {
-        return action_response(&guard.run, &guard.profile, false, Some("insufficient-materials"));
+        return action_response(
+            &guard.run,
+            &guard.profile,
+            false,
+            Some("insufficient-materials"),
+        );
     }
 
     guard.run.resources.materials -= upgrade_cost as f32;

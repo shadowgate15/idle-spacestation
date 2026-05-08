@@ -165,7 +165,8 @@ pub fn apply_frontier_charters_starting_level(
     system_id: &str,
     current_level: u8,
 ) -> u8 {
-    if planet_id == SOLSTICE_ANCHOR_ID || !doctrine_ids.iter().any(|id| id == FRONTIER_CHARTERS_ID) {
+    if planet_id == SOLSTICE_ANCHOR_ID || !doctrine_ids.iter().any(|id| id == FRONTIER_CHARTERS_ID)
+    {
         return current_level;
     }
 
@@ -214,15 +215,31 @@ mod tests {
 
     #[test]
     fn progression_doctrines_effect_helpers_apply_expected_modifiers() {
-        let doctrine_ids = vec![DEEP_SURVEY_PROTOCOLS_ID.to_string(), FRONTIER_CHARTERS_ID.to_string()];
+        let doctrine_ids = vec![
+            DEEP_SURVEY_PROTOCOLS_ID.to_string(),
+            FRONTIER_CHARTERS_ID.to_string(),
+        ];
 
-        assert!((survey_progress_doctrine_multiplier(&doctrine_ids, "survey-uplink") - 1.2).abs() < 0.000_001);
+        assert!(
+            (survey_progress_doctrine_multiplier(&doctrine_ids, "survey-uplink") - 1.2).abs()
+                < 0.000_001
+        );
         assert_eq!(
-            apply_frontier_charters_starting_level(&doctrine_ids, "cinder-forge", REACTOR_CORE_ID, 1),
+            apply_frontier_charters_starting_level(
+                &doctrine_ids,
+                "cinder-forge",
+                REACTOR_CORE_ID,
+                1
+            ),
             2
         );
         assert_eq!(
-            apply_frontier_charters_starting_level(&doctrine_ids, SOLSTICE_ANCHOR_ID, REACTOR_CORE_ID, 1),
+            apply_frontier_charters_starting_level(
+                &doctrine_ids,
+                SOLSTICE_ANCHOR_ID,
+                REACTOR_CORE_ID,
+                1
+            ),
             1
         );
     }

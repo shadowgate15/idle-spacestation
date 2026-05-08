@@ -99,8 +99,14 @@ mod tests {
             resource_by_id(POWER_ID).unwrap().model,
             ResourceModel::ThroughputBudget { storable: false }
         );
-        assert_eq!(resource_by_id(MATERIALS_ID).unwrap().model, ResourceModel::Stockpile);
-        assert_eq!(resource_by_id(DATA_ID).unwrap().model, ResourceModel::Stockpile);
+        assert_eq!(
+            resource_by_id(MATERIALS_ID).unwrap().model,
+            ResourceModel::Stockpile
+        );
+        assert_eq!(
+            resource_by_id(DATA_ID).unwrap().model,
+            ResourceModel::Stockpile
+        );
         assert_eq!(
             resource_by_id(CREW_ID).unwrap().model,
             ResourceModel::AssignmentPool(CrewPoolSemantics {

@@ -84,10 +84,9 @@ mod tests {
 
     #[test]
     fn toggle_service_input_accepts_camel_case_payload() {
-        let input: ToggleServiceInput = serde_json::from_str(
-            r#"{"serviceId":"solar-harvester","active":true}"#,
-        )
-        .expect("camelCase payload should deserialize");
+        let input: ToggleServiceInput =
+            serde_json::from_str(r#"{"serviceId":"solar-harvester","active":true}"#)
+                .expect("camelCase payload should deserialize");
 
         assert_eq!(input.service_id, "solar-harvester");
         assert!(input.active);

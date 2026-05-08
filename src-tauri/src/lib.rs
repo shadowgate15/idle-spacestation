@@ -42,8 +42,8 @@ use std::time::Duration;
 
 pub(crate) use commands::*;
 use game::progression::PrestigeProfile;
-use game::snapshot::RawGameSnapshot;
 use game::sim::{tick, RunState};
+use game::snapshot::RawGameSnapshot;
 use tauri::{Emitter, Manager};
 
 #[cfg(debug_assertions)]
@@ -291,7 +291,8 @@ pub fn run() {
             let mut guard = game_state.lock();
             tick(&mut guard.run);
             // Emit state-changed if game state changed. Log error, never panic.
-            if let Err(err) = commit_and_emit(&app_handle, &guard.run, &guard.profile, &last_emitted)
+            if let Err(err) =
+                commit_and_emit(&app_handle, &guard.run, &guard.profile, &last_emitted)
             {
                 eprintln!("[tick_loop] commit_and_emit error: {err}");
             }
@@ -337,25 +338,37 @@ mod tests {
         #[test]
         fn first_call_emits() {
             let cache = LastEmittedSnapshot(Mutex::new(None));
-            let snapshot = build_snapshot(&RunState::starter_fixture(), &PrestigeProfile::default());
-            assert!(should_emit(&cache, &snapshot), "first call should always emit");
+            let snapshot =
+                build_snapshot(&RunState::starter_fixture(), &PrestigeProfile::default());
+            assert!(
+                should_emit(&cache, &snapshot),
+                "first call should always emit"
+            );
         }
         #[test]
         fn unchanged_skips() {
             let cache = LastEmittedSnapshot(Mutex::new(None));
-            let snapshot = build_snapshot(&RunState::starter_fixture(), &PrestigeProfile::default());
+            let snapshot =
+                build_snapshot(&RunState::starter_fixture(), &PrestigeProfile::default());
             update_cache(&cache, snapshot.clone());
-            assert!(!should_emit(&cache, &snapshot), "second call with same state should skip emit");
+            assert!(
+                !should_emit(&cache, &snapshot),
+                "second call with same state should skip emit"
+            );
         }
         #[test]
         fn changed_emits() {
             let cache = LastEmittedSnapshot(Mutex::new(None));
-            let snapshot = build_snapshot(&RunState::starter_fixture(), &PrestigeProfile::default());
+            let snapshot =
+                build_snapshot(&RunState::starter_fixture(), &PrestigeProfile::default());
             update_cache(&cache, snapshot);
             let mut changed_run = RunState::starter_fixture();
             changed_run.resources.materials += 100.0;
             let changed_snapshot = build_snapshot(&changed_run, &PrestigeProfile::default());
-            assert!(should_emit(&cache, &changed_snapshot), "changed state should emit");
+            assert!(
+                should_emit(&cache, &changed_snapshot),
+                "changed state should emit"
+            );
         }
         #[test]
         #[cfg(debug_assertions)]

@@ -47,7 +47,10 @@ pub fn game_devtools_get_state(
     game_state: tauri::State<GameState>,
     devtools_state: tauri::State<DevtoolsState>,
 ) -> Result<DevtoolsStateResponse, String> {
-    Ok(current_devtools_state_response(&game_state, &devtools_state))
+    Ok(current_devtools_state_response(
+        &game_state,
+        &devtools_state,
+    ))
 }
 
 /// Sets the overlay visibility flag and emits `devtools:visibility-changed`.
@@ -304,8 +307,13 @@ pub fn game_devtools_reset_to_starter(
     _devtools_state: tauri::State<'_, DevtoolsState>,
     last_emitted: tauri::State<'_, LastEmittedSnapshot>,
 ) -> Result<serde_json::Value, String> {
-    run_devtools_mutation(&app, &game_state, &last_emitted, |run, profile, session_ticks| {
-        reset_devtools_session(run, profile, session_ticks);
-        Ok(())
-    })
+    run_devtools_mutation(
+        &app,
+        &game_state,
+        &last_emitted,
+        |run, profile, session_ticks| {
+            reset_devtools_session(run, profile, session_ticks);
+            Ok(())
+        },
+    )
 }

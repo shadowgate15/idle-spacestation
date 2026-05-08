@@ -207,7 +207,9 @@ impl SaveManager {
 
         match fs::read_to_string(&primary_path) {
             Ok(existing_primary) => fs::write(&backup_path, existing_primary)?,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => fs::write(&backup_path, &serialized)?,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                fs::write(&backup_path, &serialized)?
+            }
             Err(error) => return Err(error.into()),
         }
 
@@ -298,7 +300,12 @@ impl SaveManager {
         profile_state: &ProfileState,
         settings: &SaveSettings,
     ) -> Result<SaveWriteSummary, SaveManagerError> {
-        self.save(run_state, profile_state, settings, SaveTrigger::BeforePrestige)
+        self.save(
+            run_state,
+            profile_state,
+            settings,
+            SaveTrigger::BeforePrestige,
+        )
     }
 
     /// Absolute path of the primary save file inside `root`.
@@ -419,8 +426,11 @@ mod tests {
             .save(&run_state, &profile, &settings, SaveTrigger::WindowClose)
             .expect("save should succeed");
 
-        fs::write(save_dir.join("profile-primary.json"), "{ definitely-not-json }")
-            .expect("corrupted primary should be written");
+        fs::write(
+            save_dir.join("profile-primary.json"),
+            "{ definitely-not-json }",
+        )
+        .expect("corrupted primary should be written");
 
         let outcome = manager.load();
         let (recovered, _, _) = outcome.data.clone().into_runtime();
@@ -452,13 +462,24 @@ mod tests {
         let profile = fixture_profile(&run_state);
 
         manager
-            .save(&run_state, &profile, &settings, SaveTrigger::VisibilityHidden)
+            .save(
+                &run_state,
+                &profile,
+                &settings,
+                SaveTrigger::VisibilityHidden,
+            )
             .expect("save should succeed");
 
-        fs::write(save_dir.join("profile-primary.json"), "{ definitely-not-json }")
-            .expect("corrupted primary should be written");
-        fs::write(save_dir.join("profile-backup.json"), "{ definitely-not-json }")
-            .expect("corrupted backup should be written");
+        fs::write(
+            save_dir.join("profile-primary.json"),
+            "{ definitely-not-json }",
+        )
+        .expect("corrupted primary should be written");
+        fs::write(
+            save_dir.join("profile-backup.json"),
+            "{ definitely-not-json }",
+        )
+        .expect("corrupted backup should be written");
 
         let outcome = manager.load();
         let (fresh_run, fresh_profile, fresh_settings) = outcome.data.clone().into_runtime();
@@ -481,8 +502,14 @@ mod tests {
             }
         );
         assert_eq!(outcome.data, expected_fresh);
-        assert_eq!(fresh_run.state_hash(), RunState::starter_fixture().state_hash());
-        assert_eq!(fresh_profile, ProfileState::from_run_state(&RunState::starter_fixture()));
+        assert_eq!(
+            fresh_run.state_hash(),
+            RunState::starter_fixture().state_hash()
+        );
+        assert_eq!(
+            fresh_profile,
+            ProfileState::from_run_state(&RunState::starter_fixture())
+        );
         assert!(fresh_settings.autosave_enabled);
 
         fs::remove_dir_all(save_dir).expect("temp save dir should be removed");

@@ -274,7 +274,10 @@ pub fn evaluate_prestige_eligibility(
 /// The total is capped at `6` to prevent runaway scaling. `lifetime_data_produced`
 /// is the post-update profile value (i.e. **including** the current run's
 /// contribution), matching what [`execute_prestige`] passes in.
-pub fn doctrine_fragment_reward(discovered_planet_count: usize, lifetime_data_produced: u64) -> u32 {
+pub fn doctrine_fragment_reward(
+    discovered_planet_count: usize,
+    lifetime_data_produced: u64,
+) -> u32 {
     let discovered_component = discovered_planet_count.saturating_sub(1) as u32;
     let data_component = (lifetime_data_produced / 1_500) as u32;
     (1 + discovered_component + data_component).min(6)
@@ -310,9 +313,12 @@ pub fn execute_prestige(
     }
 
     let mut next_profile = profile.clone();
-    next_profile.discovered_planet_ids = sorted_unique(run_state.station.discovered_planet_ids.clone());
+    next_profile.discovered_planet_ids =
+        sorted_unique(run_state.station.discovered_planet_ids.clone());
     next_profile.doctrine_ids = sorted_unique(run_state.station.doctrine_ids.clone());
-    next_profile.lifetime_ticks = next_profile.lifetime_ticks.saturating_add(run_state.tick_count);
+    next_profile.lifetime_ticks = next_profile
+        .lifetime_ticks
+        .saturating_add(run_state.tick_count);
     next_profile.lifetime_prestiges = next_profile.lifetime_prestiges.saturating_add(1);
     next_profile.lifetime_data_produced = next_profile
         .lifetime_data_produced
@@ -354,13 +360,17 @@ pub fn execute_prestige_with_persistence(
     profile: &PrestigeProfile,
     consecutive_stable_power_ticks: u32,
 ) -> Result<(RunState, PrestigeProfile, u32), PrestigeExecutionError> {
-    save_manager.save_before_prestige(run_state, &crate::game::persistence::ProfileState {
-        discovered_planet_ids: profile.discovered_planet_ids.clone(),
-        doctrine_ids: profile.doctrine_ids.clone(),
-        doctrine_fragments: profile.doctrine_fragments,
-        lifetime_ticks: profile.lifetime_ticks,
-        lifetime_prestiges: profile.lifetime_prestiges,
-    }, &profile.settings)?;
+    save_manager.save_before_prestige(
+        run_state,
+        &crate::game::persistence::ProfileState {
+            discovered_planet_ids: profile.discovered_planet_ids.clone(),
+            doctrine_ids: profile.doctrine_ids.clone(),
+            doctrine_fragments: profile.doctrine_fragments,
+            lifetime_ticks: profile.lifetime_ticks,
+            lifetime_prestiges: profile.lifetime_prestiges,
+        },
+        &profile.settings,
+    )?;
 
     execute_prestige(run_state, profile, consecutive_stable_power_ticks)
 }
@@ -536,10 +546,14 @@ mod tests {
 
         let unstable_power = eligible_fixture();
 
-        let eligible_result = evaluate_prestige_eligibility(&eligible, POWER_STABILITY_TICKS_REQUIRED);
-        let tier_result = evaluate_prestige_eligibility(&below_tier, POWER_STABILITY_TICKS_REQUIRED);
-        let planet_result = evaluate_prestige_eligibility(&only_starter, POWER_STABILITY_TICKS_REQUIRED);
-        let power_result = evaluate_prestige_eligibility(&unstable_power, POWER_STABILITY_TICKS_REQUIRED - 1);
+        let eligible_result =
+            evaluate_prestige_eligibility(&eligible, POWER_STABILITY_TICKS_REQUIRED);
+        let tier_result =
+            evaluate_prestige_eligibility(&below_tier, POWER_STABILITY_TICKS_REQUIRED);
+        let planet_result =
+            evaluate_prestige_eligibility(&only_starter, POWER_STABILITY_TICKS_REQUIRED);
+        let power_result =
+            evaluate_prestige_eligibility(&unstable_power, POWER_STABILITY_TICKS_REQUIRED - 1);
 
         println!(
             "prestige-gate\nfixture=eligible eligible={} reason={:?}\nfixture=below-tier eligible={} reason={:?}\nfixture=starter-only eligible={} reason={:?}\nfixture=unstable-power eligible={} reason={:?}",
@@ -553,10 +567,25 @@ mod tests {
             power_result.reason,
         );
 
-        assert_eq!(eligible_result, PrestigeEligibility { eligible: true, reason: None });
-        assert_eq!(tier_result.reason, Some(PrestigeIneligibleReason::StationTierBelowFour));
-        assert_eq!(planet_result.reason, Some(PrestigeIneligibleReason::NeedsTwoNonStarterPlanets));
-        assert_eq!(power_result.reason, Some(PrestigeIneligibleReason::UnstableNetPower));
+        assert_eq!(
+            eligible_result,
+            PrestigeEligibility {
+                eligible: true,
+                reason: None
+            }
+        );
+        assert_eq!(
+            tier_result.reason,
+            Some(PrestigeIneligibleReason::StationTierBelowFour)
+        );
+        assert_eq!(
+            planet_result.reason,
+            Some(PrestigeIneligibleReason::NeedsTwoNonStarterPlanets)
+        );
+        assert_eq!(
+            power_result.reason,
+            Some(PrestigeIneligibleReason::UnstableNetPower)
+        );
     }
 
     #[test]
@@ -630,7 +659,10 @@ mod tests {
                 SOLSTICE_ANCHOR_ID.to_string(),
             ]
         );
-        assert_eq!(next_profile.doctrine_ids, vec![EFFICIENT_SHIFTS_ID.to_string()]);
+        assert_eq!(
+            next_profile.doctrine_ids,
+            vec![EFFICIENT_SHIFTS_ID.to_string()]
+        );
         assert_eq!(next_profile.doctrine_fragments, 8);
         assert_eq!(next_profile.lifetime_ticks, 2_340);
         assert_eq!(next_profile.lifetime_prestiges, 3);
@@ -645,12 +677,21 @@ mod tests {
         assert_eq!(reset_run_state.resources.materials, 0.0);
         assert_eq!(reset_run_state.resources.data, 0.0);
         assert_eq!(reset_run_state.resources.crew_assigned, 0);
-        assert_eq!(reset_run_state.resources.crew_available, reset_run_state.resources.crew_total);
+        assert_eq!(
+            reset_run_state.resources.crew_available,
+            reset_run_state.resources.crew_total
+        );
         assert_eq!(reset_run_state.autosave_count, 0);
         assert_eq!(reset_run_state.last_autosave_tick, None);
         assert!(reset_run_state.services.iter().all(|service| {
-            !service.desired_active && !service.is_active && !service.is_paused && service.assigned_crew == 0
+            !service.desired_active
+                && !service.is_active
+                && !service.is_paused
+                && service.assigned_crew == 0
         }));
-        assert!(reset_run_state.systems.iter().all(|system| system.level == 1));
+        assert!(reset_run_state
+            .systems
+            .iter()
+            .all(|system| system.level == 1));
     }
 }

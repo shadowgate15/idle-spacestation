@@ -258,8 +258,16 @@ impl From<&RunState> for RunStateSnapshot {
             tick_count: value.tick_count,
             station: StationStateSnapshot::from(&value.station),
             resources: ResourceStateSnapshot::from(&value.resources),
-            services: value.services.iter().map(ServiceStateSnapshot::from).collect(),
-            systems: value.systems.iter().map(SystemStateSnapshot::from).collect(),
+            services: value
+                .services
+                .iter()
+                .map(ServiceStateSnapshot::from)
+                .collect(),
+            systems: value
+                .systems
+                .iter()
+                .map(SystemStateSnapshot::from)
+                .collect(),
             consecutive_stable_power_ticks: value.consecutive_stable_power_ticks,
             lifetime_data_produced: value.lifetime_data_produced,
             autosave_due: value.autosave_due,

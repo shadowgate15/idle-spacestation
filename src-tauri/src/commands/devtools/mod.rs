@@ -104,7 +104,10 @@ pub(crate) fn devtools_visibility_payload(visible: bool) -> DevtoolsVisibilityCh
 /// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
 /// **Mutates state**: no — acquires the [`GameState`] mutex read-only.
 #[cfg(debug_assertions)]
-pub(crate) fn build_devtools_state_response(game_state: &GameState, visible: bool) -> DevtoolsStateResponse {
+pub(crate) fn build_devtools_state_response(
+    game_state: &GameState,
+    visible: bool,
+) -> DevtoolsStateResponse {
     let guard = game_state.lock();
     DevtoolsStateResponse {
         visible,
@@ -139,8 +142,11 @@ pub(crate) fn emit_devtools_visibility_changed<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     visible: bool,
 ) -> Result<(), String> {
-    app.emit(DEVTOOLS_VISIBILITY_CHANGED_EVENT, devtools_visibility_payload(visible))
-        .map_err(|error| error.to_string())
+    app.emit(
+        DEVTOOLS_VISIBILITY_CHANGED_EVENT,
+        devtools_visibility_payload(visible),
+    )
+    .map_err(|error| error.to_string())
 }
 
 /// Sets the overlay visibility, builds the response snapshot, then emits the
@@ -248,7 +254,10 @@ pub(crate) fn devtools_enabled() -> bool {
 /// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
 /// **Mutates state**: no.
 #[cfg(debug_assertions)]
-pub(crate) fn devtools_action_success(run_state: &RunState, profile: &PrestigeProfile) -> serde_json::Value {
+pub(crate) fn devtools_action_success(
+    run_state: &RunState,
+    profile: &PrestigeProfile,
+) -> serde_json::Value {
     serde_json::json!({
         "ok": true,
         "snapshot": crate::game::snapshot::build_snapshot(run_state, profile),
@@ -315,7 +324,11 @@ where
     F: FnOnce(&mut RunState, &mut PrestigeProfile, &mut u32) -> Result<(), &'static str>,
 {
     let mut guard = game_state.lock();
-    let crate::GameRunState { run, profile, session_ticks } = &mut *guard;
+    let crate::GameRunState {
+        run,
+        profile,
+        session_ticks,
+    } = &mut *guard;
 
     match mutate(run, profile, session_ticks) {
         Ok(()) => {

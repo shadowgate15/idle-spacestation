@@ -18,8 +18,8 @@ use crate::game::content::systems::{
 };
 use crate::game::sim::deficit::{resolve_power_deficit, PendingServiceDelta};
 use crate::game::sim::state::{
-    AUTOSAVE_CADENCE_TICKS, AURORA_PIER_SURVEY_THRESHOLD, CINDER_FORGE_SURVEY_THRESHOLD,
-    HOUSEKEEPING_POWER_PER_SECOND, RunState, SECONDS_PER_TICK, ServicePauseReason,
+    RunState, ServicePauseReason, AURORA_PIER_SURVEY_THRESHOLD, AUTOSAVE_CADENCE_TICKS,
+    CINDER_FORGE_SURVEY_THRESHOLD, HOUSEKEEPING_POWER_PER_SECOND, SECONDS_PER_TICK,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -72,7 +72,10 @@ fn allocation_phase(state: &mut RunState) -> AllocationState {
 
     state.resources.materials = state.resources.materials.clamp(0.0, materials_capacity);
     state.resources.crew_total = state.resources.crew_total.min(crew_capacity);
-    state.resources.crew_assigned = state.resources.crew_assigned.min(state.resources.crew_total);
+    state.resources.crew_assigned = state
+        .resources
+        .crew_assigned
+        .min(state.resources.crew_total);
     state.resources.crew_available = state
         .resources
         .crew_total
@@ -165,7 +168,8 @@ fn service_activation_phase(state: &mut RunState, allocation: AllocationState) {
     state.resources.power_generated = allocation.reactor.power_output;
     state.resources.power_reserved =
         HOUSEKEEPING_POWER_PER_SECOND + total_active_service_power_upkeep(state);
-    state.resources.power_available = state.resources.power_generated - state.resources.power_reserved;
+    state.resources.power_available =
+        state.resources.power_generated - state.resources.power_reserved;
 }
 
 /// Phase 3: stages per-service production and conversion deltas without committing them.
@@ -189,8 +193,9 @@ fn production_conversion_phase(
         }
 
         let definition = service_state.definition();
-        let materials_drain_per_tick =
-            (definition.materials_upkeep + (-definition.materials_input).max(0.0)) * SECONDS_PER_TICK;
+        let materials_drain_per_tick = (definition.materials_upkeep
+            + (-definition.materials_input).max(0.0))
+            * SECONDS_PER_TICK;
 
         let scale = if materials_drain_per_tick > 0.0 {
             (shadow_materials / materials_drain_per_tick).clamp(0.0, 1.0)
@@ -210,7 +215,8 @@ fn production_conversion_phase(
             materials_delta.max(-shadow_materials)
         };
 
-        shadow_materials = (shadow_materials + clamped_material_delta).clamp(0.0, allocation.materials_capacity);
+        shadow_materials =
+            (shadow_materials + clamped_material_delta).clamp(0.0, allocation.materials_capacity);
 
         pending[index] = PendingServiceDelta {
             power_upkeep: effective_service_power_upkeep(state, &service_state.service_id),
@@ -253,9 +259,15 @@ fn surveys_unlocks_phase(
     pending: &[PendingServiceDelta],
 ) {
     state.resources.materials = (state.resources.materials
-        + pending.iter().map(|service| service.materials_delta).sum::<f32>())
-        .clamp(0.0, allocation.materials_capacity);
-    state.resources.data += pending.iter().map(|service| service.data_delta).sum::<f32>();
+        + pending
+            .iter()
+            .map(|service| service.materials_delta)
+            .sum::<f32>())
+    .clamp(0.0, allocation.materials_capacity);
+    state.resources.data += pending
+        .iter()
+        .map(|service| service.data_delta)
+        .sum::<f32>();
 
     let data_delta: f32 = pending.iter().map(|service| service.data_delta).sum();
     if data_delta > 0.0 {
@@ -264,7 +276,10 @@ fn surveys_unlocks_phase(
             .saturating_add(data_delta.floor() as u64);
     }
 
-    state.station.survey_progress += pending.iter().map(|service| service.survey_delta).sum::<f32>();
+    state.station.survey_progress += pending
+        .iter()
+        .map(|service| service.survey_delta)
+        .sum::<f32>();
 
     unlock_planet_if_ready(state, CINDER_FORGE_ID, CINDER_FORGE_SURVEY_THRESHOLD);
     unlock_planet_if_ready(state, AURORA_PIER_ID, AURORA_PIER_SURVEY_THRESHOLD);
@@ -314,7 +329,10 @@ fn unlock_planet_if_ready(state: &mut RunState, planet_id: &str, threshold: f32)
         .iter()
         .any(|candidate| candidate == planet_id)
     {
-        state.station.discovered_planet_ids.push(planet_id.to_string());
+        state
+            .station
+            .discovered_planet_ids
+            .push(planet_id.to_string());
         state.station.discovered_planet_ids.sort();
     }
 }
@@ -392,7 +410,8 @@ pub(crate) fn effective_materials_output_multiplier(state: &RunState) -> f32 {
 
 /// Computes the data output multiplier from Survey Array level and planet modifiers.
 pub(crate) fn effective_data_output_multiplier(state: &RunState) -> f32 {
-    survey_array_level(state).data_multiplier * (1.0 + planet_modifier_total(state, PlanetModifierTarget::DataOutput))
+    survey_array_level(state).data_multiplier
+        * (1.0 + planet_modifier_total(state, PlanetModifierTarget::DataOutput))
 }
 
 /// Computes survey progress multiplier for a service.
@@ -442,14 +461,16 @@ pub(crate) fn planet_modifier_total(state: &RunState, target: PlanetModifierTarg
 /// Activation queries this while walking services in priority order so the first
 /// support service that successfully activates owns the one-off crew reduction.
 fn first_support_service_discount(state: &RunState) -> Option<(u8, u8)> {
-    state.station
+    state
+        .station
         .doctrine_ids
         .iter()
         .filter_map(|doctrine_id| doctrine_by_id(doctrine_id))
         .find_map(|doctrine| match doctrine.effect {
-            DoctrineEffect::FirstSupportServiceCrewDiscount { reduction, minimum_crew } => {
-                Some((reduction, minimum_crew))
-            }
+            DoctrineEffect::FirstSupportServiceCrewDiscount {
+                reduction,
+                minimum_crew,
+            } => Some((reduction, minimum_crew)),
             _ => None,
         })
 }
@@ -462,7 +483,9 @@ pub(crate) fn reactor_level(state: &RunState) -> ReactorCoreLevel {
         .expect("reactor-core system must exist")
         .progression
     {
-        SystemProgression::ReactorCore(levels) => levels[(state.system_level(REACTOR_CORE_ID).unwrap_or(1) - 1) as usize],
+        SystemProgression::ReactorCore(levels) => {
+            levels[(state.system_level(REACTOR_CORE_ID).unwrap_or(1) - 1) as usize]
+        }
         _ => unreachable!("reactor-core progression must be reactor levels"),
     }
 }
@@ -475,7 +498,9 @@ pub(crate) fn habitat_level(state: &RunState) -> HabitatRingLevel {
         .expect("habitat-ring system must exist")
         .progression
     {
-        SystemProgression::HabitatRing(levels) => levels[(state.system_level(HABITAT_RING_ID).unwrap_or(1) - 1) as usize],
+        SystemProgression::HabitatRing(levels) => {
+            levels[(state.system_level(HABITAT_RING_ID).unwrap_or(1) - 1) as usize]
+        }
         _ => unreachable!("habitat-ring progression must be habitat levels"),
     }
 }
@@ -503,7 +528,9 @@ pub(crate) fn survey_array_level(state: &RunState) -> SurveyArrayLevel {
         .expect("survey-array system must exist")
         .progression
     {
-        SystemProgression::SurveyArray(levels) => levels[(state.system_level(SURVEY_ARRAY_ID).unwrap_or(1) - 1) as usize],
+        SystemProgression::SurveyArray(levels) => {
+            levels[(state.system_level(SURVEY_ARRAY_ID).unwrap_or(1) - 1) as usize]
+        }
         _ => unreachable!("survey-array progression must be survey-array levels"),
     }
 }
@@ -551,13 +578,28 @@ mod tests {
             service.is_active = false;
         }
 
-        state.service_state_mut(ORE_RECLAIMER_ID).unwrap().desired_active = true;
+        state
+            .service_state_mut(ORE_RECLAIMER_ID)
+            .unwrap()
+            .desired_active = true;
         state.service_state_mut(ORE_RECLAIMER_ID).unwrap().priority = 1;
-        state.service_state_mut(SURVEY_UPLINK_ID).unwrap().desired_active = true;
+        state
+            .service_state_mut(SURVEY_UPLINK_ID)
+            .unwrap()
+            .desired_active = true;
         state.service_state_mut(SURVEY_UPLINK_ID).unwrap().priority = 2;
-        state.service_state_mut(FABRICATION_LOOP_ID).unwrap().desired_active = true;
-        state.service_state_mut(FABRICATION_LOOP_ID).unwrap().priority = 3;
-        state.service_state_mut(SOLAR_HARVESTER_ID).unwrap().desired_active = false;
+        state
+            .service_state_mut(FABRICATION_LOOP_ID)
+            .unwrap()
+            .desired_active = true;
+        state
+            .service_state_mut(FABRICATION_LOOP_ID)
+            .unwrap()
+            .priority = 3;
+        state
+            .service_state_mut(SOLAR_HARVESTER_ID)
+            .unwrap()
+            .desired_active = false;
 
         state
     }
@@ -636,7 +678,10 @@ mod tests {
         assert!(!state.service_state(FABRICATION_LOOP_ID).unwrap().is_active);
         assert!(state.service_state(FABRICATION_LOOP_ID).unwrap().is_paused);
         assert_eq!(
-            state.service_state(FABRICATION_LOOP_ID).unwrap().pause_reason,
+            state
+                .service_state(FABRICATION_LOOP_ID)
+                .unwrap()
+                .pause_reason,
             Some(ServicePauseReason::Deficit)
         );
         assert!(state.resources.power_available >= 0.0);

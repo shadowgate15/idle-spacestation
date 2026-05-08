@@ -26,7 +26,9 @@ pub(crate) mod devtools;
 
 pub use progression::{game_execute_prestige, game_purchase_doctrine};
 pub use service::{game_assign_service_crew, game_reprioritize_service, game_toggle_service};
-pub use snapshot_cmds::{game_get_snapshot, game_request_load, game_request_save, game_start_survey};
+pub use snapshot_cmds::{
+    game_get_snapshot, game_request_load, game_request_save, game_start_survey,
+};
 pub use system::game_upgrade_system;
 
 #[cfg(debug_assertions)]

@@ -57,9 +57,12 @@ pub fn game_purchase_doctrine(
         Err(DoctrinePurchaseError::AlreadyUnlocked) => {
             action_response(&guard.run, &guard.profile, false, Some("already-unlocked"))
         }
-        Err(DoctrinePurchaseError::InsufficientFragments) => {
-            action_response(&guard.run, &guard.profile, false, Some("insufficient-fragments"))
-        }
+        Err(DoctrinePurchaseError::InsufficientFragments) => action_response(
+            &guard.run,
+            &guard.profile,
+            false,
+            Some("insufficient-fragments"),
+        ),
     }
 }
 
@@ -93,10 +96,19 @@ pub fn game_execute_prestige(
     let mut guard = state.lock();
 
     if !input.confirm {
-        return action_response(&guard.run, &guard.profile, false, Some("confirmation-required"));
+        return action_response(
+            &guard.run,
+            &guard.profile,
+            false,
+            Some("confirmation-required"),
+        );
     }
 
-    match execute_prestige(&guard.run, &guard.profile, guard.run.consecutive_stable_power_ticks) {
+    match execute_prestige(
+        &guard.run,
+        &guard.profile,
+        guard.run.consecutive_stable_power_ticks,
+    ) {
         Ok((run_state, profile, stable_ticks)) => {
             guard.run = run_state;
             guard.profile = profile;

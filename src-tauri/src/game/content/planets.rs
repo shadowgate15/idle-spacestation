@@ -145,8 +145,8 @@ pub fn planet_by_id_required(id: &str) -> &'static PlanetDefinition {
 /// AURORA_PIER returns `Some(1400.0)`.
 /// Unknown planets return `None`.
 pub fn survey_threshold(planet_id: &str) -> Option<f32> {
-    use crate::game::sim::state::{CINDER_FORGE_SURVEY_THRESHOLD, AURORA_PIER_SURVEY_THRESHOLD};
-    
+    use crate::game::sim::state::{AURORA_PIER_SURVEY_THRESHOLD, CINDER_FORGE_SURVEY_THRESHOLD};
+
     match planet_id {
         SOLSTICE_ANCHOR_ID => None,
         CINDER_FORGE_ID => Some(CINDER_FORGE_SURVEY_THRESHOLD),
@@ -223,9 +223,25 @@ mod tests {
 
     #[test]
     fn survey_threshold_semantics() {
-        assert_eq!(survey_threshold(SOLSTICE_ANCHOR_ID), None, "SOLSTICE has no threshold");
-        assert_eq!(survey_threshold(CINDER_FORGE_ID), Some(600.0), "Cinder Forge threshold");
-        assert_eq!(survey_threshold(AURORA_PIER_ID), Some(1400.0), "Aurora Pier threshold");
-        assert_eq!(survey_threshold("unknown-planet"), None, "Unknown planet has no threshold");
+        assert_eq!(
+            survey_threshold(SOLSTICE_ANCHOR_ID),
+            None,
+            "SOLSTICE has no threshold"
+        );
+        assert_eq!(
+            survey_threshold(CINDER_FORGE_ID),
+            Some(600.0),
+            "Cinder Forge threshold"
+        );
+        assert_eq!(
+            survey_threshold(AURORA_PIER_ID),
+            Some(1400.0),
+            "Aurora Pier threshold"
+        );
+        assert_eq!(
+            survey_threshold("unknown-planet"),
+            None,
+            "Unknown planet has no threshold"
+        );
     }
 }

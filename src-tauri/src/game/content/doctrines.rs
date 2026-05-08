@@ -69,7 +69,8 @@ pub const DOCTRINES: &[DoctrineDefinition] = &[
     DoctrineDefinition {
         id: HARDENED_RELAYS_ID,
         label: "Hardened Relays",
-        description: "Disabled services refund 50% of current-tick power upkeep back to the same tick.",
+        description:
+            "Disabled services refund 50% of current-tick power upkeep back to the same tick.",
         effect: DoctrineEffect::SameTickPowerRefundOnDisable { refund_ratio: 0.50 },
     },
     DoctrineDefinition {
