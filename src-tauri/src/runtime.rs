@@ -1,6 +1,8 @@
 use crate::game::content::planets::PlanetModifierTarget;
 use crate::game::content::services::service_by_id_required;
-use crate::game::content::systems::{system_by_id_required, SystemProgression, HABITAT_RING_ID, REACTOR_CORE_ID};
+use crate::game::content::systems::{
+    system_by_id_required, SystemProgression, HABITAT_RING_ID, REACTOR_CORE_ID,
+};
 use crate::game::sim::RunState;
 
 pub(crate) fn refresh_runtime_state(run_state: &mut RunState) {
@@ -24,8 +26,9 @@ pub(crate) fn refresh_runtime_state(run_state: &mut RunState) {
             .filter(|service| service.is_active)
             .map(|service| effective_service_power_upkeep(run_state, &service.service_id))
             .sum::<f32>();
-    run_state.resources.power_available =
-        run_state.resources.power_generated - run_state.resources.power_reserved + active_service_power_output(run_state);
+    run_state.resources.power_available = run_state.resources.power_generated
+        - run_state.resources.power_reserved
+        + active_service_power_output(run_state);
     run_state.station.station_tier = crate::game::progression::calculate_station_tier(run_state);
     let eligibility = crate::game::progression::evaluate_prestige_eligibility(
         run_state,
@@ -66,7 +69,9 @@ pub(crate) fn habitat_crew_capacity(run_state: &RunState) -> u8 {
         .map(|modifier| modifier.percent)
         .sum::<f32>();
 
-    ((base_capacity as f32) * (1.0 + planet_modifier)).floor().max(1.0) as u8
+    ((base_capacity as f32) * (1.0 + planet_modifier))
+        .floor()
+        .max(1.0) as u8
 }
 
 pub(crate) fn reactor_power_output(run_state: &RunState) -> f32 {
@@ -91,6 +96,25 @@ pub(crate) fn active_service_power_output(run_state: &RunState) -> f32 {
         .sum()
 }
 
+pub(crate) fn projected_power_after_toggle(
+    run_state: &RunState,
+    service_id: &str,
+    currently_active: bool,
+) -> f32 {
+    let upkeep = effective_service_power_upkeep(run_state, service_id);
+    let definition = service_by_id_required(service_id);
+    let upkeep_delta = if currently_active { -upkeep } else { upkeep };
+    let output_delta = if currently_active {
+        -definition.power_output
+    } else {
+        definition.power_output
+    };
+    let new_reserved = run_state.resources.power_reserved + upkeep_delta;
+    reactor_power_output(run_state) - new_reserved
+        + active_service_power_output(run_state)
+        + output_delta
+}
+
 pub(crate) fn effective_service_power_upkeep(run_state: &RunState, service_id: &str) -> f32 {
     let definition = service_by_id_required(service_id);
     let planet_modifier = run_state
@@ -101,7 +125,8 @@ pub(crate) fn effective_service_power_upkeep(run_state: &RunState, service_id: &
         .map(|modifier| modifier.percent)
         .sum::<f32>();
 
-    (definition.power_upkeep * (1.0 + planet_modifier + active_service_power_modifier(run_state))).max(0.0)
+    (definition.power_upkeep * (1.0 + planet_modifier + active_service_power_modifier(run_state)))
+        .max(0.0)
 }
 
 pub(crate) fn active_service_power_modifier(run_state: &RunState) -> f32 {

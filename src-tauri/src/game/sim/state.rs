@@ -263,6 +263,29 @@ impl ServiceState {
             .find(|service| service.id == self.service_id)
             .expect("service state must reference catalog service")
     }
+
+    pub fn pause_with(&mut self, reason: ServicePauseReason) {
+        self.desired_active = true;
+        self.is_active = false;
+        self.is_paused = true;
+        self.pause_reason = Some(reason);
+    }
+
+    pub fn deactivate(&mut self) {
+        self.desired_active = false;
+        self.is_active = false;
+        self.is_paused = false;
+        self.pause_reason = None;
+        self.assigned_crew = 0;
+    }
+
+    pub fn activate(&mut self, assigned_crew: u8) {
+        self.desired_active = true;
+        self.is_active = true;
+        self.is_paused = false;
+        self.pause_reason = None;
+        self.assigned_crew = assigned_crew;
+    }
 }
 
 impl SystemState {
