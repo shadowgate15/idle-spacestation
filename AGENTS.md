@@ -1,12 +1,12 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-05-07
-**Commit:** 42c4cb7
+**Generated:** 2026-05-08
+**Commit:** f9fc3a0
 **Branch:** main
 
 ## OVERVIEW
 
-Desktop-first Tauri 2 app: a SvelteKit 2 + Svelte 5 SPA frontend wired to a Rust idle-game simulation backend. The Rust side runs a tick loop (~250 ms cadence) over a stateful `RunState` and exposes 10 production + 9 debug-only `#[tauri::command]` functions. The frontend talks to the backend exclusively through `src/lib/game/api/gateway.ts`, which can also swap in an in-memory fixture transport for tests and previews. A debug-only devtools overlay (mounted by the root layout, gated by `cfg(debug_assertions)` and the MCP bridge plugin) lets developers mutate game state live across six panels.
+Desktop-first Tauri 2 app: a SvelteKit 2 + Svelte 5 SPA frontend wired to a Rust idle-game simulation backend. The Rust side runs a tick loop (~250 ms cadence) over a stateful `RunState` and exposes 10 production + 9 debug-only `#[tauri::command]` functions. The frontend talks to the backend exclusively through `src/lib/game/api/gateway.ts` and consumes state via a **push-based reactive store** (`gameState` in `src/lib/game/api/state.svelte.ts`) that subscribes to a `game://state-changed` Tauri event. Polling is gone: the Rust tick loop and every mutating command call a `commit_and_emit()` helper that diffs against a last-emitted snapshot cache and only fires the event when state actually changes. A debug-only devtools overlay (mounted by the root layout, gated by `cfg(debug_assertions)` and the MCP bridge plugin) lets developers mutate game state live across six panels, with a focus-aware deferral so in-flight edits aren't clobbered by inbound snapshots.
 
 The repo is no longer a thin template; treat the existing patterns as load-bearing.
 
@@ -14,14 +14,14 @@ The repo is no longer a thin template; treat the existing patterns as load-beari
 
 - Root rules apply everywhere.
 - `src/AGENTS.md` adds frontend, Svelte 5, shadcn-svelte, devtools, game-API, Storybook, and test guidance.
-- `src-tauri/AGENTS.md` adds Rust/Tauri command, simulation, persistence, and packaging guidance.
+- `src-tauri/AGENTS.md` adds Rust/Tauri command, simulation, persistence, event-emission, and packaging guidance.
 
 ## STRUCTURE
 
 ```text
 ./
-├── src/                 # SvelteKit SPA, game-API gateway, devtools panels, colocated tests
-├── src-tauri/           # Rust simulation backend, Tauri commands, packaging
+├── src/                 # SvelteKit SPA, game-API gateway, gameState store, devtools panels, colocated tests
+├── src-tauri/           # Rust simulation backend, Tauri commands, event emission, packaging
 ├── .storybook/          # Storybook 10 config (sveltekit framework, addon-vitest, addon-a11y)
 ├── .opencode/           # Per-repo OpenCode config (skills/ directory exists but is empty)
 ├── .sisyphus/           # Agent workspace: plans/, evidence/, drafts/, notepads/, boulder.json
@@ -34,32 +34,37 @@ The repo is no longer a thin template; treat the existing patterns as load-beari
 
 ## WHERE TO LOOK
 
-| Task                       | Location                                                           | Notes                                                                              |
-| -------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| Frontend route/layout work | `src/routes/`                                                      | SPA routes: `/`, `/systems`, `/services`, `/planets`, `/prestige`, `/demo`         |
-| Game state & commands (FE) | `src/lib/game/api/`                                                | `gateway.ts`, `adapters.ts`, `types.ts` (651 lines), `testing/` fixtures+transport |
-| Devtools overlay & panels  | `src/lib/components/DevtoolsOverlay.svelte`, `…/devtools/`         | 6 panels, each `Panel.svelte` + `panel-state.svelte.ts` + tests                    |
-| Shared UI primitives       | `src/lib/components/ui/`                                           | shadcn-svelte primitives: `button/`, `card/` (7 parts), `input/`                   |
-| Shared frontend helpers    | `src/lib/utils.ts`                                                 | `cn()` plus `WithoutChild`, `WithoutChildren`, `WithElementRef` type helpers       |
-| Rust commands & state      | `src-tauri/src/lib.rs`                                             | 1711 lines: 19 `#[tauri::command]` fns, `GameState` mutex, tick thread, plugin reg |
-| Game simulation core       | `src-tauri/src/game/sim/`                                          | `state.rs`, `tick.rs` (6-phase loop), `deficit.rs`                                 |
-| Game content (static data) | `src-tauri/src/game/content/`                                      | `systems.rs`, `services.rs`, `planets.rs`, `doctrines.rs`, `resources.rs`          |
-| Progression & prestige     | `src-tauri/src/game/progression/`                                  | `prestige.rs` (PrestigeProfile), `doctrines.rs`, `survey.rs`                       |
-| Persistence (scaffolded)   | `src-tauri/src/game/persistence/`                                  | `SaveManager`, versioned `SaveData`, recovery; not wired into commands yet         |
-| IPC DTO layer              | `src-tauri/src/game/snapshot.rs`                                   | 1214 lines of camelCase serde DTOs returned to the frontend                        |
-| Tauri runtime config       | `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json` | Window 800×600, `withGlobalTauri: true`, `csp: null`, opener + mcp-bridge perms    |
-| Dev/build/test commands    | `package.json`, `playwright.config.ts`, `vite.config.js`           | pnpm-driven; vitest config embedded in `vite.config.js`                            |
+| Task                       | Location                                                           | Notes                                                                                |
+| -------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Frontend route/layout work | `src/routes/`                                                      | SPA routes: `/`, `/systems`, `/services`, `/planets`, `/prestige`, `/demo`           |
+| Game state & commands (FE) | `src/lib/game/api/`                                                | `gateway.ts` (318), `adapters.ts`, `types.ts` (647), `state.svelte.ts` (124, store)  |
+| Reactive snapshot store    | `src/lib/game/api/state.svelte.ts`                                 | `gameState` rune singleton: `init/dispose/snapshot/status/error/applySnapshot`       |
+| Test fixtures + transport  | `src/lib/game/api/testing/`                                        | `fixtures.ts` + `transport.ts` (971, fixture transport notifies subscribers)         |
+| Devtools overlay & panels  | `src/lib/components/DevtoolsOverlay.svelte`, `…/devtools/`         | 6 panels, each `Panel.svelte` + `panel-state.svelte.ts` + tests; `sync(snapshot)`    |
+| Shared UI primitives       | `src/lib/components/ui/`                                           | shadcn-svelte primitives: `button/`, `card/` (7 parts), `input/`                     |
+| Shared frontend helpers    | `src/lib/utils.ts`                                                 | `cn()` plus `WithoutChild`, `WithoutChildren`, `WithElementRef` type helpers         |
+| Rust commands & state      | `src-tauri/src/lib.rs`                                             | 1906 lines: 19 `#[tauri::command]` fns, `GameState`, `LastEmittedSnapshot`, tick     |
+| Event emission helper      | `src-tauri/src/lib.rs` (`commit_and_emit`)                         | Fires `game://state-changed` only when `state_equals()` reports a diff               |
+| Game simulation core       | `src-tauri/src/game/sim/`                                          | `state.rs`, `tick.rs` (6-phase loop), `deficit.rs`                                   |
+| Game content (static data) | `src-tauri/src/game/content/`                                      | `systems.rs`, `services.rs`, `planets.rs`, `doctrines.rs`, `resources.rs`            |
+| Progression & prestige     | `src-tauri/src/game/progression/`                                  | `prestige.rs` (PrestigeProfile), `doctrines.rs`, `survey.rs`                         |
+| Persistence (scaffolded)   | `src-tauri/src/game/persistence/`                                  | `SaveManager`, versioned `SaveData`, recovery; not wired into commands yet           |
+| IPC DTO + state diff       | `src-tauri/src/game/snapshot.rs`                                   | 1533 lines: camelCase serde DTOs + `state_equals()` (uses `f32::to_bits()`)          |
+| Tauri runtime config       | `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json` | Window 800×600, `withGlobalTauri: true`, `csp: null`, opener + mcp-bridge perms      |
+| Dev/build/test commands    | `package.json`, `playwright.config.ts`, `vite.config.js`           | pnpm-driven; vitest config embedded in `vite.config.js`                              |
 
 ## CONVENTIONS
 
 - Package manager is **pnpm**. `pnpm-workspace.yaml` is single-project (only configures `allowBuilds` + `onlyBuiltDependencies` for `@hugeicons/svelte` and `esbuild`); it is not a multi-package monorepo.
 - Frontend runs as SPA: `adapter-static` with `fallback: 'index.html'` in `svelte.config.js`, and `ssr = false` in `src/routes/+layout.ts`.
 - Tests are colocated with source. Three flavors:
-  - `*.spec.ts` — Vitest Node-environment unit tests (gateway, panel state machines).
+  - `*.spec.ts` — Vitest Node-environment unit tests (gateway, panel state machines, `state.svelte.spec.ts`).
   - `*.svelte.spec.ts` — Vitest browser tests via `vitest-browser-svelte` + Chromium.
   - `*.e2e.ts` — Playwright tests against `pnpm preview` on port 4173.
 - Frontend → Rust calls go through **`gameGateway`** from `src/lib/game/api`. Do not call `@tauri-apps/api/core` `invoke` directly from components; the gateway aliases command names (e.g. `game_set_service_activation` → `game_toggle_service`, `game_confirm_prestige` → `game_execute_prestige`) and handles the `{ input: payload }` envelope.
-- Devtools panels follow a strict `Panel.svelte` + `panel-state.svelte.ts` split. State files use Svelte 5 runes (`$state`, `$derived`) inside a `createXxxPanelState()` factory; the `.svelte` file owns presentation only.
+- Frontend → state reads go through **`gameState`** from `$lib/game/api/state.svelte`. Routes derive their data with `$derived(gameState.snapshot?.routes.*)`; they never poll `gameGateway.getSnapshot()` on a timer. The root layout owns `gameState.init()` / `dispose()` lifecycle.
+- After a successful mutation (any command that returns a fresh snapshot in `result.snapshot`), the calling component **must** call `gameState.applySnapshot(result.snapshot)` for zero-latency UI updates. The store reconciles by `meta.tickCount` and ignores stale snapshots.
+- Devtools panels follow a strict `Panel.svelte` + `panel-state.svelte.ts` split. State files use Svelte 5 runes (`$state`, `$derived`) inside a `createXxxPanelState()` factory; the `.svelte` file owns presentation only. Each factory exposes `sync(snapshot)` which the parent (`DevtoolsOverlay`) calls when its snapshot prop changes — panels do **not** subscribe to `gameState` directly.
 - UI primitives live under `src/lib/components/ui/<component>/` with a `.svelte` implementation and `index.ts` re-export, matching shadcn-svelte conventions.
 - Repo-local OpenCode skills live under `.opencode/skills/` — currently empty, so there is nothing to prefer over built-in skills yet.
 
@@ -67,19 +72,26 @@ The repo is no longer a thin template; treat the existing patterns as load-beari
 
 - Do not edit generated output: `.svelte-kit/`, `build/`, `storybook-static/`, `src-tauri/target/`, `src-tauri/gen/`.
 - Do not call `invoke()` directly from Svelte components; route everything through `gameGateway`. The gateway is also the one place that knows which Rust command name a frontend command maps to.
-- Do not add a new Tauri command without also adding it to **both** `invoke_handler` lists in `src-tauri/src/lib.rs::run()` (debug and release branches are separate `tauri::generate_handler!` macros).
+- Do not poll `gameGateway.getSnapshot()` on a timer in routes or layouts. Subscribe via `gameState` (which subscribes once to `game://state-changed`) and react with `$derived`.
+- Do not add a new Tauri command without also adding it to **both** `invoke_handler` lists in `src-tauri/src/lib.rs::run()` (debug branch ~`lib.rs:1867`, release branch ~`lib.rs:1890`).
+- Do not add a new mutating Rust command without calling `commit_and_emit(&app, &run, &profile, &last_emitted)` after the mutation. Bypassing it leaves the frontend stale until the next tick.
+- Do not emit `game://state-changed` directly from a command; always go through `commit_and_emit` so the diff cache and lock order stay correct.
+- Do not invert the lock order. `commit_and_emit` acquires `LastEmittedSnapshot` only after the caller has dropped (or never held) `GameState`'s mutex. Holding both in the wrong order will deadlock.
 - Do not treat `src/stories/`, `src/lib/vitest-examples/`, or `src/routes/demo/` as production patterns unless the task explicitly targets examples/demo code.
 - Do not remove the Windows subsystem guard in `src-tauri/src/main.rs` (`DO NOT REMOVE!!`).
 - Do not add SSR-dependent code; the SPA-only assumption is load-bearing for the Tauri integration.
 - Do not bypass the `gameGateway` rejection-code pattern by parsing error strings; failure modes are typed (`SystemUpgradeRejectionCode`, `ServiceActivationRejectionCode`, …).
 - Do not route TypeScript fixes through `no-undef`; ESLint intentionally disables it (see `eslint.config.js`).
+- Do not compare snapshot floats with raw `==` in Rust — use `f32::to_bits()` (or the helpers in `snapshot.rs`) so NaN bit patterns and FP equality stay deterministic.
 
 ## UNIQUE STYLES
 
 - Svelte 5 runes are pervasive: `$state`, `$props`, `$derived`, `$bindable`, `$effect`, plus `Snippet`-typed `children`. Match that style.
 - Tailwind v4 is driven through `src/routes/layout.css` with shadcn-svelte theme tokens and Inter Variable font. `components.json` is authoritative for aliases (`components`, `ui`, `utils`, `hooks`, `lib`) and the `mira` style + hugeicons icon library.
-- Backend tick loop runs at ~250 ms (4 Hz) on a daemon thread spawned in `setup()` (`lib.rs:1638-…`); the frontend reflects state by polling `gameGateway.getSnapshot()` from each route's `onMount`/`$effect`.
-- Devtools mode is unlocked by `#[cfg(debug_assertions)]` in Rust **and** is also enable-able from the frontend by setting `localStorage['idle-spacestation.transport-mode'] = 'fixture'`, which routes the gateway through the in-memory `createFixtureTransport()` instead of Tauri. E2E tests rely on this fixture transport.
+- **Push-based snapshot distribution**: backend tick loop runs at 250 ms (4 Hz) on a daemon thread spawned in `setup()` and calls `commit_and_emit()` on every tick. The helper diffs against `LastEmittedSnapshot` via `state_equals()` and only fires `game://state-changed` when something actually changed. Tick errors are logged, never panicked.
+- **Float-bit equality**: `state_equals()` (in `snapshot.rs`) uses `f32::to_bits()` for every f32 field so NaN-vs-NaN and rounding noise are handled consistently. Plain integers/strings/enums use `==`.
+- **Devtools focus deferral**: while an editable input inside `[data-testid="devtools-overlay"]` has focus, the layout calls `gameState.deferUntilBlur(true)`. Inbound snapshots are buffered and applied on blur so the user's draft isn't overwritten mid-edit.
+- Devtools mode is unlocked by `#[cfg(debug_assertions)]` in Rust **and** is also enable-able from the frontend by setting `localStorage['idle-spacestation.transport-mode'] = 'fixture'`, which routes the gateway through the in-memory `createFixtureTransport()` instead of Tauri. The fixture transport notifies all `subscribeToStateChanges` subscribers on every mutation, mirroring real backend events. E2E tests rely on this transport.
 
 ## COMMANDS
 
@@ -106,4 +118,5 @@ pnpm tauri build      # tauri build (uses pnpm build as beforeBuildCommand)
 - `src/lib/hooks/` does not exist on disk even though `components.json` aliases `hooks → $lib/hooks`. Verify before importing from that alias.
 - `src/lib/server/` does not exist; the SPA mode means there is no server-side route code.
 - Vitest config is embedded in `vite.config.js` (no standalone `vitest.config.*`); it defines two projects: `client` (browser/Chromium) and `server` (Node). Don't add a separate config without removing this one.
+- `src/lib/game/api/state.svelte.ts` (`gameState`) and `src/lib/game/api/state.svelte.spec.ts` are the canonical entry points for understanding the push-based store. `src/lib/game/api/testing/transport.subscribe.spec.ts` exercises the fixture transport's notify path.
 - A future split is justified if `src/lib/game/api/` or `src-tauri/src/game/` grows new top-level subsystems; today, three AGENTS files cover the surface.
