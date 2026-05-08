@@ -115,9 +115,6 @@ function createGameState() {
         snapshot = adapted;
       }
     },
-    _setSnapshot(s: GameSnapshot | null): void {
-      snapshot = s;
-    },
   };
 }
 
