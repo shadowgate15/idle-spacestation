@@ -1,11 +1,11 @@
 # TAURI / RUST KNOWLEDGE BASE
 
 **Generated:** 2026-05-08
-**Commit:** 0b2a29c
+**Commit:** 2243bda
 
 ## OVERVIEW
 
-The Rust side is the idle-game simulation engine plus the Tauri command surface that the SvelteKit SPA talks to. It is **not** template-tiny: `src/lib.rs` is ~150 lines of canonical state, emit, command registration, and builder glue; command handlers live under `src/commands/`, runtime projection helpers live in `src/runtime.rs`, and the full backend is split into a `game/` module covering simulation, content, progression, persistence, and IPC DTOs. A background thread drives the simulation tick at ~250 ms cadence, mutating shared state held under a `Mutex` and surfaced to the frontend via 19 `#[tauri::command]` functions (10 production, 9 debug-only). State changes are pushed to the SPA via a single `game://state-changed` Tauri event; every mutating command and the tick loop itself funnel through a `commit_and_emit()` helper that diffs against a `LastEmittedSnapshot` cache and only fires the event when state actually changed.
+The Rust side is the idle-game simulation engine plus the Tauri command surface that the SvelteKit SPA talks to. It is **not** template-tiny: `src/lib.rs` is 247 lines of canonical state, emit, command registration, and builder glue; command handlers live under `src/commands/` (production) and `src/commands/devtools/` (debug-only), runtime projection helpers live in `src/runtime.rs` (116 lines), and the full backend is split into a `game/` module covering simulation, content, progression, persistence, and IPC DTOs. A background thread drives the simulation tick at ~250 ms cadence, mutating shared state held under a `Mutex` and surfaced to the frontend via 19 `#[tauri::command]` functions (10 production, 9 debug-only). State changes are pushed to the SPA via a single `game://state-changed` Tauri event; every mutating command and the tick loop itself funnel through a `commit_and_emit()` helper that diffs against a `LastEmittedSnapshot` cache and only fires the event when state actually changed.
 
 ## STRUCTURE
 
@@ -13,21 +13,21 @@ The Rust side is the idle-game simulation engine plus the Tauri command surface 
 src-tauri/
 ├── idle-spacestation-bit-eq-derive/ # In-repo proc-macro crate for BitEq/BitHash derives
 ├── src/
-│   ├── main.rs               # Windows-subsystem guarded entrypoint → idle_spacestation_lib::run()
-│   ├── lib.rs                # ~150 lines: state structs, commit_and_emit, all_commands!, Tauri builder, tick thread
-│   ├── runtime.rs            # Runtime projection helpers: crew/power/service slots, active modifiers, refresh_runtime_state
+│   ├── main.rs               # 6 lines: Windows-subsystem guarded entrypoint → idle_spacestation_lib::run()
+│   ├── lib.rs                # 247 lines: state structs, commit_and_emit, all_commands!, Tauri builder, tick thread
+│   ├── runtime.rs            # 116 lines: runtime projection helpers (crew/power/service slots, refresh_runtime_state, projected_power_after_toggle)
 │   ├── commands/
-│   │   ├── mod.rs            # Command re-exports + action_response helper
-│   │   ├── inputs.rs         # Production command input DTOs
-│   │   ├── service.rs        # Service activation, crew assignment, priority handlers
-│   │   ├── system.rs         # System upgrade handler
-│   │   ├── progression.rs    # Doctrine purchase + prestige handlers
-│   │   ├── snapshot_cmds.rs  # Snapshot, save/load stubs, survey handler
-│   │   └── devtools/         # Debug-only devtools inputs, handlers, state helpers, apply helpers
+│   │   ├── mod.rs            # 36 lines: command re-exports + action_response helper
+│   │   ├── inputs.rs         # 71 lines: production command input DTOs
+│   │   ├── service.rs        # 310 lines: service activation, crew assignment, priority handlers
+│   │   ├── system.rs         # 46 lines: system upgrade handler
+│   │   ├── progression.rs    # 70 lines: doctrine purchase + prestige handlers
+│   │   ├── snapshot_cmds.rs  # 67 lines: snapshot, save/load stubs, survey handler
+│   │   └── devtools/         # Debug-only: mod.rs (208), handlers.rs (132), apply.rs (659), inputs.rs (77)
 │   └── game/
 │       ├── mod.rs            # Re-exports: bit_eq, content, persistence, progression, snapshot, sim
-│       ├── bit_eq.rs         # BitEq/BitHash traits; floats compare/hash by raw bit pattern
-│       ├── snapshot.rs       # ~1240 lines: serde DTOs (camelCase) + derived state_equals() bit-stable diffing
+│       ├── bit_eq.rs         # 96 lines: BitEq/BitHash traits; floats compare/hash by raw bit pattern
+│       ├── snapshot.rs       # 1303 lines: serde DTOs (camelCase) + derived state_equals() bit-stable diffing
 │       ├── sim/
 │       │   ├── mod.rs
 │       │   ├── state.rs      # RunState, StationState, ResourceState, ServiceState, SystemState

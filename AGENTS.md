@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
 **Generated:** 2026-05-08
-**Commit:** f9fc3a0
+**Commit:** 2243bda
 **Branch:** main
 
 ## OVERVIEW
@@ -48,16 +48,24 @@ Before declaring a task complete, decide whether your changes invalidate any AGE
 
 ```text
 ./
-├── src/                 # SvelteKit SPA, game-API gateway, gameState store, devtools panels, colocated tests
-├── src-tauri/           # Rust simulation backend, Tauri commands, event emission, packaging
-├── .storybook/          # Storybook 10 config (sveltekit framework, addon-vitest, addon-a11y)
-├── .opencode/           # Per-repo OpenCode config (skills/ directory exists but is empty)
-├── .sisyphus/           # Agent workspace: plans/, evidence/, drafts/, notepads/, boulder.json
-├── .worktree/           # Plugin-managed worktrees; gitignored
-├── static/              # Public assets served by SvelteKit
-├── build/               # Generated frontend output (consumed by Tauri as frontendDist)
-├── storybook-static/    # Generated Storybook output
-└── .svelte-kit/         # Generated SvelteKit output
+├── src/                                      # SvelteKit SPA, game-API gateway, gameState store, devtools panels, colocated tests
+├── src-tauri/                                # Rust simulation backend (root crate `idle_spacestation_lib`)
+│   ├── src/
+│   │   ├── main.rs                           # Windows-subsystem guarded entrypoint
+│   │   ├── lib.rs                            # Builder, GameState, commit_and_emit, all_commands! macro, tick thread
+│   │   ├── runtime.rs                        # Runtime projection helpers (refresh_runtime_state, power/crew calc)
+│   │   ├── commands/                         # Production + devtools Tauri command handlers (split by domain)
+│   │   │   └── devtools/                     # Debug-only devtools handlers, inputs, apply helpers
+│   │   └── game/                             # Simulation, content, progression, persistence, snapshot DTOs
+│   └── idle-spacestation-bit-eq-derive/      # In-repo proc-macro crate for BitEq/BitHash derives
+├── .storybook/                               # Storybook 10 config (sveltekit framework, addon-vitest, addon-a11y)
+├── .opencode/                                # Per-repo OpenCode config (skills/ directory exists but is empty)
+├── .sisyphus/                                # Agent workspace: plans/, evidence/, drafts/, notepads/, boulder.json
+├── .worktree/                                # Plugin-managed worktrees; gitignored
+├── static/                                   # Public assets served by SvelteKit
+├── build/                                    # Generated frontend output (consumed by Tauri as frontendDist)
+├── storybook-static/                         # Generated Storybook output
+└── .svelte-kit/                              # Generated SvelteKit output
 ```
 
 ## WHERE TO LOOK
@@ -71,13 +79,17 @@ Before declaring a task complete, decide whether your changes invalidate any AGE
 | Devtools overlay & panels  | `src/lib/components/DevtoolsOverlay.svelte`, `…/devtools/`         | 6 panels, each `Panel.svelte` + `panel-state.svelte.ts` + tests; `sync(snapshot)`    |
 | Shared UI primitives       | `src/lib/components/ui/`                                           | shadcn-svelte primitives: `button/`, `card/` (7 parts), `input/`                     |
 | Shared frontend helpers    | `src/lib/utils.ts`                                                 | `cn()` plus `WithoutChild`, `WithoutChildren`, `WithElementRef` type helpers         |
-| Rust commands & state      | `src-tauri/src/lib.rs`                                             | 1906 lines: 19 `#[tauri::command]` fns, `GameState`, `LastEmittedSnapshot`, tick     |
+| Rust commands & state      | `src-tauri/src/lib.rs`                                             | 247 lines: builder, `GameState`, `LastEmittedSnapshot`, `commit_and_emit`, tick      |
 | Event emission helper      | `src-tauri/src/lib.rs` (`commit_and_emit`)                         | Fires `game://state-changed` only when `state_equals()` reports a diff               |
-| Game simulation core       | `src-tauri/src/game/sim/`                                          | `state.rs`, `tick.rs` (6-phase loop), `deficit.rs`                                   |
+| Tauri command handlers     | `src-tauri/src/commands/`                                          | Production handlers split by domain: `service.rs` (310), `system.rs`, `progression.rs`, `snapshot_cmds.rs`, plus shared `inputs.rs` + `action_response()` helper in `mod.rs` |
+| Devtools command handlers  | `src-tauri/src/commands/devtools/`                                 | Debug-only: `mod.rs` (208), `handlers.rs` (132), `apply.rs` (659), `inputs.rs` (77); gated by `#[cfg(debug_assertions)]` |
+| Runtime projection helpers | `src-tauri/src/runtime.rs`                                         | 116 lines: `refresh_runtime_state`, crew/power capacity, projected_power_after_toggle |
+| BitEq/BitHash proc-macros  | `src-tauri/idle-spacestation-bit-eq-derive/src/lib.rs`             | 130 lines: in-repo proc-macro crate; expands `#[derive(BitEq)]` / `#[derive(BitHash)]` field-by-field with `#[bit_hash(order = N)]` and `#[bit_hash(sort)]` attrs |
+| Game simulation core       | `src-tauri/src/game/sim/`                                          | `state.rs` (326), `tick.rs` (562, 6-phase loop), `deficit.rs`                        |
 | Game content (static data) | `src-tauri/src/game/content/`                                      | `systems.rs`, `services.rs`, `planets.rs`, `doctrines.rs`, `resources.rs`            |
-| Progression & prestige     | `src-tauri/src/game/progression/`                                  | `prestige.rs` (PrestigeProfile), `doctrines.rs`, `survey.rs`                         |
+| Progression & prestige     | `src-tauri/src/game/progression/`                                  | `prestige.rs` (450, PrestigeProfile), `doctrines.rs`, `survey.rs`                    |
 | Persistence (scaffolded)   | `src-tauri/src/game/persistence/`                                  | `SaveManager`, versioned `SaveData`, recovery; not wired into commands yet           |
-| IPC DTO + state diff       | `src-tauri/src/game/snapshot.rs`                                   | 1533 lines: camelCase serde DTOs + `state_equals()` (uses `f32::to_bits()`)          |
+| IPC DTO + state diff       | `src-tauri/src/game/snapshot.rs`                                   | 1303 lines: camelCase serde DTOs + `state_equals()` (derived `BitEq`, uses `f32::to_bits()`) |
 | Tauri runtime config       | `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json` | Window 800×600, `withGlobalTauri: true`, `csp: null`, opener + mcp-bridge perms      |
 | Dev/build/test commands    | `package.json`, `playwright.config.ts`, `vite.config.js`           | pnpm-driven; vitest config embedded in `vite.config.js`                              |
 
@@ -101,7 +113,7 @@ Before declaring a task complete, decide whether your changes invalidate any AGE
 - Do not edit generated output: `.svelte-kit/`, `build/`, `storybook-static/`, `src-tauri/target/`, `src-tauri/gen/`.
 - Do not call `invoke()` directly from Svelte components; route everything through `gameGateway`. The gateway is also the one place that knows which Rust command name a frontend command maps to.
 - Do not poll `gameGateway.getSnapshot()` on a timer in routes or layouts. Subscribe via `gameState` (which subscribes once to `game://state-changed`) and react with `$derived`.
-- Do not add a new Tauri command without registering it inside the `all_commands!` macro in `src-tauri/src/lib.rs` (~`lib.rs:1828`). Devtools commands must carry `#[cfg(debug_assertions)]` immediately before the identifier so they are stripped from release builds; production commands are unconditional. The macro expands to a single `tauri::generate_handler![...]` — do not split it back into two invocations.
+- Do not add a new Tauri command without registering it inside the `all_commands!` macro in `src-tauri/src/lib.rs` (~`lib.rs:86`). Devtools commands must carry `#[cfg(debug_assertions)]` immediately before the identifier so they are stripped from release builds; production commands are unconditional. The macro expands to a single `tauri::generate_handler![...]` — do not split it back into two invocations. Handler implementations themselves live under `src-tauri/src/commands/` (production) and `src-tauri/src/commands/devtools/` (debug-only), not in `lib.rs`.
 - Do not add a new mutating Rust command without calling `commit_and_emit(&app, &run, &profile, &last_emitted)` after the mutation. Bypassing it leaves the frontend stale until the next tick.
 - Do not emit `game://state-changed` directly from a command; always go through `commit_and_emit` so the diff cache and lock order stay correct.
 - Do not invert the lock order. `commit_and_emit` acquires `LastEmittedSnapshot` only after the caller has dropped (or never held) `GameState`'s mutex. Holding both in the wrong order will deadlock.
