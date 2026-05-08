@@ -209,6 +209,8 @@ export function createGameGateway(transport: GameGatewayTransport = resolveDefau
 
 export const gameGateway = createGameGateway();
 
+export type GameGateway = ReturnType<typeof createGameGateway>;
+
 export function resolveDefaultTransport(): GameGatewayTransport {
   return maybeCreatePreviewFixtureTransport() ?? tauriTransport;
 }

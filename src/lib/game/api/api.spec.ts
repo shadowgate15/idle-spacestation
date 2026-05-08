@@ -4,11 +4,13 @@ import {
   adaptGameSnapshot,
   adaptGameViewModels,
   createGameGateway,
+  gameGateway,
   previewFixtureNames,
   type DevtoolsCommandName,
   type DevtoolsCommandPayloads,
   type DevtoolsCommandResponses,
   type DevtoolsApplyResourcesRejectionCode,
+  type GameGateway,
   type GameSnapshot,
   type GameCommandName,
   type GameCommandPayloads,
@@ -24,6 +26,8 @@ import {
   createFixtureTransport,
   starter,
 } from './testing';
+
+const _: GameGateway = gameGateway;
 
 describe('game api fixtures and adapters', () => {
   it('sends camelCase payloads for service activation commands', async () => {
