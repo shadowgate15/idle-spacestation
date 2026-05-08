@@ -1,8 +1,11 @@
 # TAURI / RUST KNOWLEDGE BASE
 
+**Generated:** 2026-05-08
+**Commit:** 0b2a29c
+
 ## OVERVIEW
 
-The Rust side is the idle-game simulation engine plus the Tauri command surface that the SvelteKit SPA talks to. It is **not** template-tiny: `src/lib.rs` is ~1900 lines, and the full backend is split into a `game/` module covering simulation, content, progression, persistence, and IPC DTOs. A background thread drives the simulation tick at ~250 ms cadence, mutating shared state held under a `Mutex` and surfaced to the frontend via 19 `#[tauri::command]` functions (10 production, 9 debug-only). State changes are pushed to the SPA via a single `game://state-changed` Tauri event; every mutating command and the tick loop itself funnel through a `commit_and_emit()` helper that diffs against a `LastEmittedSnapshot` cache and only fires the event when state actually changed.
+The Rust side is the idle-game simulation engine plus the Tauri command surface that the SvelteKit SPA talks to. It is **not** template-tiny: `src/lib.rs` is ~150 lines of canonical state, emit, command registration, and builder glue; command handlers live under `src/commands/`, runtime projection helpers live in `src/runtime.rs`, and the full backend is split into a `game/` module covering simulation, content, progression, persistence, and IPC DTOs. A background thread drives the simulation tick at ~250 ms cadence, mutating shared state held under a `Mutex` and surfaced to the frontend via 19 `#[tauri::command]` functions (10 production, 9 debug-only). State changes are pushed to the SPA via a single `game://state-changed` Tauri event; every mutating command and the tick loop itself funnel through a `commit_and_emit()` helper that diffs against a `LastEmittedSnapshot` cache and only fires the event when state actually changed.
 
 ## STRUCTURE
 
@@ -10,10 +13,19 @@ The Rust side is the idle-game simulation engine plus the Tauri command surface 
 src-tauri/
 ├── src/
 │   ├── main.rs               # Windows-subsystem guarded entrypoint → idle_spacestation_lib::run()
-│   ├── lib.rs                # 1906 lines: command handlers, Tauri builder, state, tick thread, commit_and_emit
+│   ├── lib.rs                # ~150 lines: state structs, commit_and_emit, all_commands!, Tauri builder, tick thread
+│   ├── runtime.rs            # Runtime projection helpers: crew/power/service slots, active modifiers, refresh_runtime_state
+│   ├── commands/
+│   │   ├── mod.rs            # Command re-exports + action_response helper
+│   │   ├── inputs.rs         # Production command input DTOs
+│   │   ├── service.rs        # Service activation, crew assignment, priority handlers
+│   │   ├── system.rs         # System upgrade handler
+│   │   ├── progression.rs    # Doctrine purchase + prestige handlers
+│   │   ├── snapshot_cmds.rs  # Snapshot, save/load stubs, survey handler
+│   │   └── devtools/         # Debug-only devtools inputs, handlers, state helpers, apply helpers
 │   └── game/
 │       ├── mod.rs            # Re-exports: content, persistence, progression, snapshot, sim
-│       ├── snapshot.rs       # 1533 lines: serde DTOs (camelCase) + state_equals() bit-stable diffing
+│       ├── snapshot.rs       # 1480 lines: serde DTOs (camelCase) + state_equals() bit-stable diffing
 │       ├── sim/
 │       │   ├── mod.rs
 │       │   ├── state.rs      # RunState, StationState, ResourceState, ServiceState, SystemState
@@ -48,9 +60,10 @@ src-tauri/
 | Task                       | Location                                                  | Notes                                                                          |
 | -------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | App entrypoint             | `src/main.rs`                                             | Calls `idle_spacestation_lib::run()`; preserves Windows subsystem guard        |
-| Tauri commands & builder   | `src/lib.rs`                                              | All `#[tauri::command]` fns + `run()`; single `all_commands!` macro registers them |
+| Tauri commands & builder   | `src/lib.rs`, `src/commands/**`                           | `run()` + single `all_commands!` macro in `lib.rs`; handlers split by domain under `commands/` |
 | Shared backend state       | `src/lib.rs` (`GameState`, `LastEmittedSnapshot`)         | `Mutex<(RunState, PrestigeProfile, u32 session_ticks)>` + last-emitted cache   |
-| Devtools overlay state     | `src/lib.rs` (`DevtoolsState`)                            | Visibility flag, emitted via `devtools:visibility-changed` event               |
+| Devtools overlay state     | `src/lib.rs` (`DevtoolsState`), `src/commands/devtools/`  | Visibility flag, emitted via `devtools:visibility-changed` event               |
+| Runtime projection helpers | `src/runtime.rs`                                          | Recomputes crew/power/service derived runtime fields after command mutations   |
 | State-change emit          | `src/lib.rs` (`commit_and_emit`)                          | Single helper that diffs + emits `game://state-changed`; called by every mutator and the tick loop |
 | State diff (bit-stable)    | `src/game/snapshot.rs` (`state_equals`)                   | Uses `f32::to_bits()` so NaN bit patterns + FP rounding are deterministic      |
 | Simulation tick            | `src/game/sim/tick.rs`                                    | Six-phase loop; called every 250 ms by the background thread                   |
@@ -64,7 +77,7 @@ src-tauri/
 
 ## TAURI COMMAND SURFACE
 
-The Tauri builder in `lib.rs::run()` registers all commands via a single `all_commands!` macro defined just above `run()` (`lib.rs` ~1828). The macro expands to one `tauri::generate_handler![...]` invocation containing 10 production commands (always registered) plus 9 devtools commands each prefixed with `#[cfg(debug_assertions)]` so they are stripped from release builds. There is exactly one handler-registration call site to maintain.
+The Tauri builder in `lib.rs::run()` registers all commands via a single `all_commands!` macro defined just above `run()`. The macro expands to one `tauri::generate_handler![...]` invocation containing 10 production commands (always registered) plus 9 devtools commands each prefixed with `#[cfg(debug_assertions)]` so they are stripped from release builds. Handler implementations are split under `src/commands/`, but there is still exactly one handler-registration call site to maintain.
 
 **Production commands (always registered):**
 
@@ -126,7 +139,7 @@ The frontend gateway (`src/lib/game/api/gateway.ts`) issues two of these command
 ## ANTI-PATTERNS
 
 - Do not edit `target/` or `gen/`; both are generated and ignored by `eslint.config.js`, `.prettierignore`, and `.gitignore`.
-- Do not add a new `#[tauri::command]` without registering it inside the `all_commands!` macro in `src-tauri/src/lib.rs` (~`lib.rs:1828`). Devtools commands must carry `#[cfg(debug_assertions)]` immediately before the identifier; production commands are unconditional. Do **not** reintroduce two parallel `tauri::generate_handler!` invocations — the macro is the single source of truth.
+- Do not add a new `#[tauri::command]` without registering it inside the `all_commands!` macro in `src-tauri/src/lib.rs`. Devtools commands must carry `#[cfg(debug_assertions)]` immediately before the identifier; production commands are unconditional. Do **not** reintroduce two parallel `tauri::generate_handler!` invocations — the macro is the single source of truth.
 - Do not add a new mutating command without calling `commit_and_emit(&app, &run, &profile, &last_emitted)` after the mutation. Skipping it leaves the frontend stale until the next tick fires the event for unrelated reasons.
 - Do not emit `game://state-changed` directly via `app.emit(...)`. The diff cache + lock order live inside `commit_and_emit`; bypassing it produces spurious events and risks deadlocks.
 - Do not invert the lock order. Always drop the `GameState` lock before calling `commit_and_emit` (which acquires `LastEmittedSnapshot`). Holding both simultaneously can deadlock against the tick thread.
@@ -135,7 +148,7 @@ The frontend gateway (`src/lib/game/api/gateway.ts`) issues two of these command
 - Do not hold `GameState`'s `Mutex` across an `await` or any I/O.
 - Do not change `RunState` or `PrestigeProfile` field shapes without bumping the `SAVE_VERSION` and adding a migration in `persistence/migration.rs` — even though save/load aren't wired yet, the on-disk format is the contract.
 - Do not surface raw `panic!`/`unwrap` errors to the frontend; use `ActionResponse.reason_code`.
-- Do not document a Rust module split that does not exist; today the boundaries are `game/{sim, content, progression, persistence, snapshot}` and that's it.
+- Do not put new command-handler bulk back into `lib.rs`; keep production handlers in `src/commands/{service,system,progression,snapshot_cmds}.rs`, devtools handlers/helpers in `src/commands/devtools/`, and runtime projection helpers in `src/runtime.rs`.
 - Do not add frontend assumptions here; UI rules belong in `src/AGENTS.md`.
 
 ## UNIQUE STYLES
@@ -149,6 +162,6 @@ The frontend gateway (`src/lib/game/api/gateway.ts`) issues two of these command
 
 ## NOTES
 
-- Tests live inside `src/lib.rs` (`#[cfg(test)] mod tests`) and across the `game/` submodules. Run with `cargo test --manifest-path src-tauri/Cargo.toml` (or `cd src-tauri && cargo test`).
+- Tests live beside their Rust modules (`src/lib.rs`, `src/commands/**`, and `src/game/**`). Run with `cargo test --manifest-path src-tauri/Cargo.toml` (or `cd src-tauri && cargo test`).
 - Persistence integration (writing `SaveData` to disk on `Autosave`/`VisibilityHidden`/`WindowClose`/`BeforePrestige` triggers) is the obvious next wiring task; `SaveManager` already handles primary/backup files and recovery.
-- If commands grow past ~25 or `lib.rs` becomes unmanageable, split command handlers into a `commands/` module before splitting the simulation; the simulation already lives under `game/`.
+- If commands grow past ~25, add focused files under `src/commands/` before splitting the simulation; the simulation already lives under `game/`.
