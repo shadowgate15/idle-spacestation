@@ -48,7 +48,7 @@ src-tauri/
 | Task                       | Location                                                  | Notes                                                                          |
 | -------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | App entrypoint             | `src/main.rs`                                             | Calls `idle_spacestation_lib::run()`; preserves Windows subsystem guard        |
-| Tauri commands & builder   | `src/lib.rs`                                              | All `#[tauri::command]` fns + `run()` with split debug/release handler         |
+| Tauri commands & builder   | `src/lib.rs`                                              | All `#[tauri::command]` fns + `run()`; single `all_commands!` macro registers them |
 | Shared backend state       | `src/lib.rs` (`GameState`, `LastEmittedSnapshot`)         | `Mutex<(RunState, PrestigeProfile, u32 session_ticks)>` + last-emitted cache   |
 | Devtools overlay state     | `src/lib.rs` (`DevtoolsState`)                            | Visibility flag, emitted via `devtools:visibility-changed` event               |
 | State-change emit          | `src/lib.rs` (`commit_and_emit`)                          | Single helper that diffs + emits `game://state-changed`; called by every mutator and the tick loop |
@@ -64,7 +64,7 @@ src-tauri/
 
 ## TAURI COMMAND SURFACE
 
-The Tauri builder in `lib.rs::run()` registers two distinct command sets — one for debug builds (`tauri::generate_handler!` ~`lib.rs:1867`) and one for release (~`lib.rs:1890`). Both must be kept in sync when adding/removing commands.
+The Tauri builder in `lib.rs::run()` registers all commands via a single `all_commands!` macro defined just above `run()` (`lib.rs` ~1828). The macro expands to one `tauri::generate_handler![...]` invocation containing 10 production commands (always registered) plus 9 devtools commands each prefixed with `#[cfg(debug_assertions)]` so they are stripped from release builds. There is exactly one handler-registration call site to maintain.
 
 **Production commands (always registered):**
 
@@ -126,7 +126,7 @@ The frontend gateway (`src/lib/game/api/gateway.ts`) issues two of these command
 ## ANTI-PATTERNS
 
 - Do not edit `target/` or `gen/`; both are generated and ignored by `eslint.config.js`, `.prettierignore`, and `.gitignore`.
-- Do not add a new `#[tauri::command]` and forget to register it in **both** `tauri::generate_handler!` macros inside `run()` (debug branch ~`lib.rs:1867`, release branch ~`lib.rs:1890`).
+- Do not add a new `#[tauri::command]` without registering it inside the `all_commands!` macro in `src-tauri/src/lib.rs` (~`lib.rs:1828`). Devtools commands must carry `#[cfg(debug_assertions)]` immediately before the identifier; production commands are unconditional. Do **not** reintroduce two parallel `tauri::generate_handler!` invocations — the macro is the single source of truth.
 - Do not add a new mutating command without calling `commit_and_emit(&app, &run, &profile, &last_emitted)` after the mutation. Skipping it leaves the frontend stale until the next tick fires the event for unrelated reasons.
 - Do not emit `game://state-changed` directly via `app.emit(...)`. The diff cache + lock order live inside `commit_and_emit`; bypassing it produces spurious events and risks deadlocks.
 - Do not invert the lock order. Always drop the `GameState` lock before calling `commit_and_emit` (which acquires `LastEmittedSnapshot`). Holding both simultaneously can deadlock against the tick thread.

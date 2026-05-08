@@ -1824,7 +1824,7 @@ mod tests {
 ///
 /// Production commands are always registered. Debug-only devtools commands carry
 /// `#[cfg(debug_assertions)]` and are stripped in release builds. This eliminates
-/// the footgun of maintaining two parallel `tauri::generate_handler!` invocations.
+/// the footgun of maintaining two parallel handler-registration call sites.
 macro_rules! all_commands {
     () => {
         tauri::generate_handler![

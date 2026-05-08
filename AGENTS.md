@@ -101,7 +101,7 @@ Before declaring a task complete, decide whether your changes invalidate any AGE
 - Do not edit generated output: `.svelte-kit/`, `build/`, `storybook-static/`, `src-tauri/target/`, `src-tauri/gen/`.
 - Do not call `invoke()` directly from Svelte components; route everything through `gameGateway`. The gateway is also the one place that knows which Rust command name a frontend command maps to.
 - Do not poll `gameGateway.getSnapshot()` on a timer in routes or layouts. Subscribe via `gameState` (which subscribes once to `game://state-changed`) and react with `$derived`.
-- Do not add a new Tauri command without also adding it to **both** `invoke_handler` lists in `src-tauri/src/lib.rs::run()` (debug branch ~`lib.rs:1867`, release branch ~`lib.rs:1890`).
+- Do not add a new Tauri command without registering it inside the `all_commands!` macro in `src-tauri/src/lib.rs` (~`lib.rs:1828`). Devtools commands must carry `#[cfg(debug_assertions)]` immediately before the identifier so they are stripped from release builds; production commands are unconditional. The macro expands to a single `tauri::generate_handler![...]` — do not split it back into two invocations.
 - Do not add a new mutating Rust command without calling `commit_and_emit(&app, &run, &profile, &last_emitted)` after the mutation. Bypassing it leaves the frontend stale until the next tick.
 - Do not emit `game://state-changed` directly from a command; always go through `commit_and_emit` so the diff cache and lock order stay correct.
 - Do not invert the lock order. `commit_and_emit` acquires `LastEmittedSnapshot` only after the caller has dropped (or never held) `GameState`'s mutex. Holding both in the wrong order will deadlock.
