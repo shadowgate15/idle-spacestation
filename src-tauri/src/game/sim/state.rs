@@ -4,7 +4,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 use crate::game::content::doctrines::HARDENED_RELAYS_ID;
-use crate::game::content::planets::{planet_by_id, planet_by_id_required, SOLSTICE_ANCHOR_ID};
+use crate::game::content::planets::{planet_by_id, planet_by_id_required, AURORA_PIER_ID, CINDER_FORGE_ID, SOLSTICE_ANCHOR_ID};
 use crate::game::content::services::{
     ServiceDefinition, COMMAND_RELAY_ID, FABRICATION_LOOP_ID, MAINTENANCE_BAY_ID, ORE_RECLAIMER_ID,
     SERVICES, SOLAR_HARVESTER_ID, SURVEY_UPLINK_ID,
@@ -244,6 +244,14 @@ impl RunState {
     }
 }
 
+impl StationState {
+    pub fn has_discovered(&self, planet_id: &str) -> bool {
+        self.discovered_planet_ids
+            .iter()
+            .any(|id| id == planet_id)
+    }
+}
+
 impl ServiceState {
     pub fn new(service_id: &str, desired_active: bool, priority: u8) -> Self {
         Self {
@@ -308,4 +316,29 @@ pub fn catalog_service_order(service_id: &str) -> usize {
         .iter()
         .position(|service| service.id == service_id)
         .expect("service must exist in canonical catalog order")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn station_has_discovered_returns_true_for_starter_planet() {
+        let run = RunState::starter_fixture();
+        assert!(run.station.has_discovered(SOLSTICE_ANCHOR_ID));
+    }
+
+    #[test]
+    fn station_has_discovered_returns_false_for_undiscovered() {
+        let run = RunState::starter_fixture();
+        assert!(!run.station.has_discovered(CINDER_FORGE_ID));
+        assert!(!run.station.has_discovered(AURORA_PIER_ID));
+    }
+
+    #[test]
+    fn station_has_discovered_returns_true_when_discovered() {
+        let mut run = RunState::starter_fixture();
+        run.station.discovered_planet_ids.push(CINDER_FORGE_ID.to_string());
+        assert!(run.station.has_discovered(CINDER_FORGE_ID));
+    }
 }

@@ -8,6 +8,24 @@ use crate::game::content::systems::{SystemProgression, SYSTEMS};
 use crate::game::progression::PrestigeProfile;
 use crate::game::sim::{tick, RunState};
 use crate::runtime::habitat_crew_capacity;
+use std::collections::HashSet;
+use std::hash::Hash;
+
+/// Validates that all items in an iterator are unique (no duplicates).
+/// Returns an error code if any duplicate is found.
+fn ensure_unique<T, I>(items: I) -> Result<(), &'static str>
+where
+    T: Eq + Hash,
+    I: IntoIterator<Item = T>,
+{
+    let mut seen = HashSet::new();
+    for item in items {
+        if !seen.insert(item) {
+            return Err("constraint_violation");
+        }
+    }
+    Ok(())
+}
 
 pub(crate) fn apply_devtools_resources(
     run_state: &mut RunState,
@@ -52,13 +70,9 @@ pub(crate) fn apply_devtools_system_levels(
     run_state: &mut RunState,
     systems: &[DevtoolsApplySystemEntry],
 ) -> Result<(), &'static str> {
-    let mut seen_ids = std::collections::HashSet::new();
+    ensure_unique(systems.iter().map(|e| e.id.as_str()))?;
 
     for entry in systems {
-        if !seen_ids.insert(entry.id.as_str()) {
-            return Err("constraint_violation");
-        }
-
         let Some(max_level) = system_max_level(&entry.id) else {
             return Err("unknown_id");
         };
@@ -88,14 +102,10 @@ pub(crate) fn apply_devtools_services(
     run_state: &mut RunState,
     services: &[DevtoolsServiceEntry],
 ) -> Result<(), &'static str> {
-    let mut seen_ids = std::collections::HashSet::new();
-    let mut seen_priorities = std::collections::HashSet::new();
+    ensure_unique(services.iter().map(|e| e.id.as_str()))?;
+    ensure_unique(services.iter().map(|e| e.priority))?;
 
     for entry in services {
-        if !seen_ids.insert(entry.id.as_str()) {
-            return Err("constraint_violation");
-        }
-
         let Some(definition) = service_by_id(&entry.id) else {
             return Err("unknown_id");
         };
@@ -111,13 +121,9 @@ pub(crate) fn apply_devtools_services(
         if entry.priority < 1 || entry.priority > run_state.services.len() as u8 {
             return Err("invalid_range");
         }
-
-        if !seen_priorities.insert(entry.priority) {
-            return Err("constraint_violation");
-        }
     }
 
-    let mut resulting_priorities = std::collections::HashSet::new();
+    let mut resulting_priorities = HashSet::new();
     for service in &run_state.services {
         let next_priority = services
             .iter()
@@ -176,23 +182,15 @@ pub(crate) fn apply_devtools_progression(
     profile: &mut PrestigeProfile,
     input: &DevtoolsApplyProgressionInput,
 ) -> Result<(), &'static str> {
-    let mut seen_doctrines = std::collections::HashSet::new();
+    ensure_unique(input.unlocked_doctrines.iter().map(|s| s.as_str()))?;
     for doctrine_id in &input.unlocked_doctrines {
-        if !seen_doctrines.insert(doctrine_id.as_str()) {
-            return Err("constraint_violation");
-        }
-
         if doctrine_by_id(doctrine_id).is_none() {
             return Err("unknown_id");
         }
     }
 
-    let mut seen_planets = std::collections::HashSet::new();
+    ensure_unique(input.discovered_planets.iter().map(|s| s.as_str()))?;
     for planet_id in &input.discovered_planets {
-        if !seen_planets.insert(planet_id.as_str()) {
-            return Err("constraint_violation");
-        }
-
         if planet_by_id(planet_id).is_none() {
             return Err("unknown_id");
         }
