@@ -7,9 +7,7 @@ use idle_spacestation_bit_eq_derive::BitHash;
 
 use crate::game::bit_eq::BitHash as _;
 use crate::game::content::doctrines::HARDENED_RELAYS_ID;
-use crate::game::content::planets::{
-    planet_by_id, planet_by_id_required, AURORA_PIER_ID, CINDER_FORGE_ID, SOLSTICE_ANCHOR_ID,
-};
+use crate::game::content::planets::{planet_by_id_required, SOLSTICE_ANCHOR_ID};
 use crate::game::content::services::{
     ServiceDefinition, COMMAND_RELAY_ID, FABRICATION_LOOP_ID, MAINTENANCE_BAY_ID, ORE_RECLAIMER_ID,
     SERVICES, SOLAR_HARVESTER_ID, SURVEY_UPLINK_ID,
@@ -302,6 +300,7 @@ pub fn catalog_service_order(service_id: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::game::content::planets::{AURORA_PIER_ID, CINDER_FORGE_ID};
 
     #[test]
     fn station_has_discovered_returns_true_for_starter_planet() {

@@ -768,7 +768,7 @@ fn build_system_route_entry(
         .unwrap_or(false);
     let upgrade_blocked_reason = match upgrade_cost_materials {
         None => Some("Max level reached.".to_string()),
-        Some(cost) if can_upgrade => None,
+        Some(_) if can_upgrade => None,
         Some(cost) => Some(format!("Needs {cost} Materials.")),
     };
 
