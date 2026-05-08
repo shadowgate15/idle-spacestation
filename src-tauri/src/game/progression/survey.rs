@@ -1,3 +1,17 @@
+//! Survey progress accumulation and threshold-driven planet discovery.
+//!
+//! Survey progress is the resource that gates non-starter planet discovery
+//! (Cinder Forge at [`crate::game::sim::state::CINDER_FORGE_SURVEY_THRESHOLD`],
+//! Aurora Pier at [`crate::game::sim::state::AURORA_PIER_SURVEY_THRESHOLD`]).
+//! It accumulates only while the
+//! `survey-uplink` service is desired-or-active, scaled by the survey-array
+//! system level and any matching doctrine multipliers.
+//!
+//! Called per tick by the simulation loop with `elapsed_seconds = tick_dt`.
+//!
+//! See also: [`crate::game::progression::doctrines::survey_progress_doctrine_multiplier`]
+//! for the doctrine multiplier helper, [`crate::game::sim`] for the tick loop.
+
 #![allow(dead_code)]
 
 use crate::game::content::planets::{AURORA_PIER_ID, CINDER_FORGE_ID};
@@ -8,12 +22,27 @@ use crate::game::sim::state::{
     AURORA_PIER_SURVEY_THRESHOLD, CINDER_FORGE_SURVEY_THRESHOLD, RunState,
 };
 
+/// Result of a single survey-progress accumulation step.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SurveyOutcome {
+    /// Progress added to `run_state.station.survey_progress` this call. Zero
+    /// when `elapsed_seconds <= 0.0` or the survey-uplink service is inactive.
     pub progress_gained: f32,
+    /// Planet ids that crossed their threshold during this call. Empty when no
+    /// new planet was unlocked. Already-discovered planets are never re-listed.
     pub discovered_planet_ids: Vec<String>,
 }
 
+/// Advance survey progress on `run_state` by `elapsed_seconds` and unlock any
+/// planets whose threshold is reached.
+///
+/// No-op (returns zeros) when `elapsed_seconds <= 0.0` or when the survey-uplink
+/// service is neither active nor desired-active. Otherwise adds
+/// `elapsed_seconds * survey_array_multiplier(level) * doctrine_multiplier`
+/// to `run_state.station.survey_progress`, then checks every threshold
+/// ([`CINDER_FORGE_SURVEY_THRESHOLD`], [`AURORA_PIER_SURVEY_THRESHOLD`]) and
+/// pushes any newly crossed planet id into both `run_state.station.discovered_planet_ids`
+/// (sorted, deduplicated) and the returned [`SurveyOutcome::discovered_planet_ids`].
 pub fn accumulate_survey_progress(run_state: &mut RunState, elapsed_seconds: f32) -> SurveyOutcome {
     if elapsed_seconds <= 0.0 {
         return SurveyOutcome {
@@ -62,6 +91,17 @@ pub fn accumulate_survey_progress(run_state: &mut RunState, elapsed_seconds: f32
     }
 }
 
+/// Survey-array progression multiplier for the current run.
+///
+/// Looks up the survey-array system, clamps the level into the level table's
+/// valid range, and returns the level's `survey_multiplier`. Defaults to level
+/// `1` when the system is missing from `run_state`.
+///
+/// # Panics
+/// Panics via `expect` if the survey-array system is absent from the static
+/// content catalog, or via `unreachable!` if its progression variant is not
+/// [`SystemProgression::SurveyArray`]. Both indicate a content/state mismatch
+/// bug, never a runtime input issue.
 fn survey_array_multiplier(run_state: &RunState) -> f32 {
     match system_by_id(SURVEY_ARRAY_ID)
         .expect("survey-array system must exist")
@@ -75,6 +115,13 @@ fn survey_array_multiplier(run_state: &RunState) -> f32 {
     }
 }
 
+/// Append `planet_id` to `discovered_planet_ids` (sorted) and to
+/// `newly_discovered` if `survey_progress` has crossed `threshold` and the
+/// planet is not yet discovered.
+///
+/// Uses `survey_progress + f32::EPSILON < threshold` as the gate so a value
+/// that lands exactly on the threshold counts as crossed. No-op when the
+/// threshold has not been reached or the planet is already in the list.
 fn unlock_planet_if_ready(
     discovered_planet_ids: &mut Vec<String>,
     survey_progress: f32,
