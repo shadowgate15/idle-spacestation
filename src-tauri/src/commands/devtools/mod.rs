@@ -12,8 +12,10 @@
 //! - Wrap mutating helpers in `run_devtools_mutation`, which preserves the
 //!   `GameState` → `LastEmittedSnapshot` lock order required by
 //!   [`crate::commit_and_emit`] and emits `game://state-changed` on success.
-//! - Install the native "Debug → Toggle Game State Overlay" menu via
-//!   `install_debug_menu`.
+//! - Provide [`toggle_devtools_visibility`], invoked from the native
+//!   "Debug → Toggle Game State Overlay" menu item (the menu itself is owned
+//!   by [`crate::commands::menu`], which is the single `app.set_menu` call
+//!   site).
 //!
 //! # Frontend coupling
 //! The Svelte devtools overlay (`src/lib/components/DevtoolsOverlay.svelte` plus
@@ -36,14 +38,8 @@ use crate::{DevtoolsState, GameState, LastEmittedSnapshot};
 use tauri::Emitter;
 
 #[cfg(debug_assertions)]
-use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder};
-#[cfg(debug_assertions)]
 use tauri::Manager;
 
-/// Native menu id for the "Debug → Toggle Game State Overlay" item installed by
-/// [`install_debug_menu`]. Must match the string compared in `on_menu_event`.
-#[cfg(debug_assertions)]
-const DEVTOOLS_TOGGLE_OVERLAY_MENU_ID: &str = "devtools-toggle-overlay";
 /// Tauri event name fired when the devtools overlay visibility flips.
 ///
 /// Frontend listens via `gameGateway.subscribeToDevtoolsVisibilityChanges()`.
@@ -189,40 +185,6 @@ pub(crate) fn toggle_devtools_visibility<R: tauri::Runtime>(
     let devtools_state = app.state::<DevtoolsState>();
     let visible = !read_devtools_visibility(&devtools_state);
     update_devtools_visibility(app, visible)
-}
-
-/// Installs the native "Debug → Toggle Game State Overlay" menu and wires its
-/// click handler to [`toggle_devtools_visibility`].
-///
-/// **Debug builds only**: stripped from release via `#[cfg(debug_assertions)]`.
-/// **Mutates state**: yes (registers a Tauri menu and event handler on `app`).
-///
-/// Called once from `lib.rs::run()`'s `setup` closure.
-///
-/// # Errors
-/// Returns `tauri::Error` if menu/submenu construction or `app.set_menu` fails.
-#[cfg(debug_assertions)]
-pub(crate) fn install_debug_menu<R: tauri::Runtime>(app: &mut tauri::App<R>) -> tauri::Result<()> {
-    let toggle_overlay = MenuItem::with_id(
-        app,
-        DEVTOOLS_TOGGLE_OVERLAY_MENU_ID,
-        "Toggle Game State Overlay",
-        true,
-        None::<&str>,
-    )?;
-    let debug_menu = SubmenuBuilder::new(app, "Debug")
-        .item(&toggle_overlay)
-        .build()?;
-    let menu = MenuBuilder::new(app).items(&[&debug_menu]).build()?;
-
-    app.set_menu(menu)?;
-    app.on_menu_event(|app_handle, event| {
-        if event.id().0.as_str() == DEVTOOLS_TOGGLE_OVERLAY_MENU_ID {
-            let _ = toggle_devtools_visibility(app_handle);
-        }
-    });
-
-    Ok(())
 }
 
 /// Returns `true` in debug builds — devtools commands are wired up.

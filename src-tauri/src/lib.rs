@@ -43,13 +43,11 @@ use std::thread;
 use std::time::Duration;
 
 pub(crate) use commands::*;
+use commands::menu::install_app_menu;
 use game::progression::PrestigeProfile;
 use game::sim::{tick, RunState};
 use game::snapshot::RawGameSnapshot;
 use tauri::{Emitter, Manager};
-
-#[cfg(debug_assertions)]
-use commands::devtools::install_debug_menu;
 
 /// Mutable game-runtime payload guarded by [`GameState`].
 ///
@@ -248,8 +246,10 @@ macro_rules! all_commands {
 ///    - Manage `GameState` seeded from `RunState::starter_fixture` and a
 ///      default `PrestigeProfile`.
 ///    - Manage an empty `LastEmittedSnapshot`.
-///    - In debug builds, manage `DevtoolsState` (defaulting to hidden) and
-///      install the debug menu via `install_debug_menu`.
+///    - In debug builds, manage `DevtoolsState` (defaulting to hidden).
+///    - Install the native window menu (File → Close Window / Quit, plus an
+///      app-name submenu on macOS and a Debug submenu in debug builds) via
+///      [`commands::menu::install_app_menu`].
 ///    - Spawn a background **daemon thread** that runs an infinite loop:
 ///      sleep 250 ms (≈4 Hz cadence), lock `GameState`, advance the
 ///      simulation via `tick`, then call `commit_and_emit` to push any
@@ -279,10 +279,9 @@ pub fn run() {
         app.manage(LastEmittedSnapshot(Mutex::new(None)));
 
         #[cfg(debug_assertions)]
-        {
-            app.manage(DevtoolsState(Mutex::new(false)));
-            install_debug_menu(app)?;
-        }
+        app.manage(DevtoolsState(Mutex::new(false)));
+
+        install_app_menu(app)?;
 
         let app_handle = app.handle().clone();
         thread::spawn(move || loop {

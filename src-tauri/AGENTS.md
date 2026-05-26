@@ -1,7 +1,7 @@
 # TAURI / RUST KNOWLEDGE BASE
 
-**Generated:** 2026-05-08
-**Commit:** f4e433a
+**Generated:** 2026-05-26
+**Commit:** 1e8d99f
 
 ## OVERVIEW
 
@@ -14,16 +14,17 @@ src-tauri/
 ├── idle-spacestation-bit-eq-derive/ # In-repo proc-macro crate for BitEq/BitHash derives
 ├── src/
 │   ├── main.rs               # 32 lines: Windows-subsystem guarded entrypoint → idle_spacestation_lib::run()
-│   ├── lib.rs                # 405 lines: state structs, commit_and_emit, all_commands!, Tauri builder, tick thread
+│   ├── lib.rs                # 404 lines: state structs, commit_and_emit, all_commands!, Tauri builder, tick thread
 │   ├── runtime.rs            # 190 lines: runtime projection helpers (crew/power/service slots, refresh_runtime_state, projected_power_after_toggle)
 │   ├── commands/
-│   │   ├── mod.rs            # 61 lines: command re-exports + action_response helper
+│   │   ├── mod.rs            # 62 lines: command re-exports + action_response helper
+│   │   ├── menu.rs           # 123 lines: native window menu (File → Close Window / Quit; macOS app-name submenu; debug-only Debug submenu); single app.set_menu call site
 │   │   ├── inputs.rs         # 102 lines: production command input DTOs
 │   │   ├── service.rs        # 367 lines: service activation, crew assignment, priority handlers
 │   │   ├── system.rs         # 74 lines: system upgrade handler
 │   │   ├── progression.rs    # 127 lines: doctrine purchase + prestige handlers
 │   │   ├── snapshot_cmds.rs  # 125 lines: snapshot, save/load stubs, survey handler
-│   │   └── devtools/         # Debug-only: mod.rs (373), handlers.rs (319), apply.rs (822), inputs.rs (142)
+│   │   └── devtools/         # Debug-only: mod.rs (335), handlers.rs (319), apply.rs (822), inputs.rs (142)
 │   └── game/
 │       ├── mod.rs            # Re-exports: bit_eq, content, persistence, progression, snapshot, sim
 │       ├── bit_eq.rs         # 115 lines: BitEq/BitHash traits; floats compare/hash by raw bit pattern
@@ -63,6 +64,7 @@ src-tauri/
 | -------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | App entrypoint             | `src/main.rs`                                            | Calls `idle_spacestation_lib::run()`; preserves Windows subsystem guard                            |
 | Tauri commands & builder   | `src/lib.rs`, `src/commands/**`                          | `run()` + single `all_commands!` macro in `lib.rs`; handlers split by domain under `commands/`     |
+| Native window menu         | `src/commands/menu.rs` (`install_app_menu`)              | Single `app.set_menu` call site; platform-aware (macOS app-name submenu + File; Win/Linux: File). Close Window / Quit are `PredefinedMenuItem`s with native `CmdOrCtrl+W` / `CmdOrCtrl+Q` accelerators. Debug submenu (overlay toggle) appended under `#[cfg(debug_assertions)]` |
 | Shared backend state       | `src/lib.rs` (`GameState`, `LastEmittedSnapshot`)        | `Mutex<(RunState, PrestigeProfile, u32 session_ticks)>` + last-emitted cache                       |
 | Devtools overlay state     | `src/lib.rs` (`DevtoolsState`), `src/commands/devtools/` | Visibility flag, emitted via `devtools:visibility-changed` event                                   |
 | Runtime projection helpers | `src/runtime.rs`                                         | Recomputes crew/power/service derived runtime fields after command mutations                       |
@@ -137,6 +139,7 @@ The frontend gateway (`src/lib/game/api/gateway.ts`) issues two of these command
 - Plugins:
   - `tauri-plugin-opener` is registered in all builds.
   - `tauri-plugin-mcp-bridge` is registered only under `#[cfg(debug_assertions)]`. Treat its presence as a debug-only assumption.
+- Native menu: `install_app_menu` in `src/commands/menu.rs` is the **single source of truth** for the window menu. It is called unconditionally from `setup()` and internally `#[cfg]`-gates platform-specific submenu placement (macOS vs Win/Linux) and the debug-only Debug submenu. Close Window and Quit are `tauri::menu::PredefinedMenuItem`s — Tauri/the OS implement the click behavior natively (including the platform-standard `CmdOrCtrl+W` / `CmdOrCtrl+Q` accelerators), so do not add manual `on_menu_event` handlers for them.
 - Background tick: spawned in `setup()` as a daemon thread with a 250 ms `thread::sleep` between ticks. Each iteration takes the `GameState` lock, runs `tick`, drops the lock, then calls `commit_and_emit`. Don't block this thread or change the cadence without auditing `tick.rs` invariants (deficit timing, autosave throttling, prestige stability counter).
 - Persistence module is **scaffolded but not wired**: `game_request_save` currently returns the live snapshot without touching disk; `game_request_load` returns the live snapshot via `commit_and_emit`. Treat the persistence module as load-bearing infrastructure for future work, not as dead code to delete.
 
@@ -153,6 +156,8 @@ The frontend gateway (`src/lib/game/api/gateway.ts`) issues two of these command
 - Do not change `RunState` or `PrestigeProfile` field shapes without bumping the `SAVE_VERSION` and adding a migration in `persistence/migration.rs` — even though save/load aren't wired yet, the on-disk format is the contract.
 - Do not surface raw `panic!`/`unwrap` errors to the frontend; use `ActionResponse.reason_code`.
 - Do not put new command-handler bulk back into `lib.rs`; keep production handlers in `src/commands/{service,system,progression,snapshot_cmds}.rs`, devtools handlers/helpers in `src/commands/devtools/`, and runtime projection helpers in `src/runtime.rs`.
+- Do not add a second `app.set_menu(...)` call. `set_menu` **replaces** the previously installed menu rather than merging — all menu items must be contributed inside `install_app_menu` in `src/commands/menu.rs`. New submenus go behind appropriate `#[cfg]` gates inside that function.
+- Do not register `on_menu_event` handlers for `PredefinedMenuItem`s (Close Window, Quit, etc.). Their click behavior is native; manual handlers will fire alongside the OS handler and double-act.
 - Do not add frontend assumptions here; UI rules belong in `src/AGENTS.md`.
 
 ## UNIQUE STYLES

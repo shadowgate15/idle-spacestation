@@ -15,6 +15,7 @@
 /// Strongly-typed command input DTOs deserialized from the Tauri
 /// `{ input: payload }` envelope.
 pub(crate) mod inputs;
+pub(crate) mod menu;
 mod progression;
 mod service;
 mod snapshot_cmds;
