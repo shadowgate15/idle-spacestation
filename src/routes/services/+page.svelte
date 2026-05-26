@@ -100,6 +100,9 @@
     <div class="grid gap-6 lg:grid-cols-2">
       {#each services.services as service (service.id)}
         {@const isInflight = inflight.has(service.id)}
+        {@const visibleDisabledReasons = service.disabledReasons.filter(
+          (reason) => reason !== 'capacity',
+        )}
         <Card.Root>
           <Card.Header>
             <div class="flex items-center justify-between">
@@ -141,10 +144,10 @@
               />
             </dl>
 
-            {#if service.disabledReasons.length > 0}
+            {#if visibleDisabledReasons.length > 0}
               <div class="flex flex-col gap-1 rounded border border-rose-500/50 bg-rose-950/20 p-3">
                 <span class="text-xs font-medium text-rose-300 uppercase">Disabled</span>
-                {#each service.disabledReasons as reason (reason)}
+                {#each visibleDisabledReasons as reason (reason)}
                   <span class="text-sm text-rose-200/80">
                     {disabledReasonLabels[reason] || reason}
                   </span>
