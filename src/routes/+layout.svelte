@@ -13,6 +13,20 @@
   let devtoolsVisible = $state(false);
   let devtoolsDestroyed = false;
 
+  // Header HUD derives directly from the push-based gameState store.
+  // Recomputes whenever a new snapshot lands; renders placeholders until ready.
+  const snapshot = $derived(gameState.snapshot);
+  const overview = $derived(snapshot?.routes.overview ?? null);
+  const materialsRate = $derived(
+    overview?.resourceDeltas.find((d) => d.id === 'materials')?.deltaPerSecond ?? 0,
+  );
+  const dataRate = $derived(
+    overview?.resourceDeltas.find((d) => d.id === 'data')?.deltaPerSecond ?? 0,
+  );
+  const powerRate = $derived(
+    overview?.resourceDeltas.find((d) => d.id === 'power')?.deltaPerSecond ?? 0,
+  );
+
   function isFixtureModeEnabled() {
     if (typeof window === 'undefined') {
       return false;
@@ -173,26 +187,98 @@
 </script>
 
 <div data-testid="game-shell" class="flex min-h-screen flex-col bg-background text-foreground">
-  <header data-testid="game-header" class="border-b border-border px-6 py-4">
-    <div class="mb-3 flex flex-col gap-1">
-      <p class="text-xs tracking-widest text-muted-foreground uppercase">
-        Orbital Operations Console
-      </p>
-      <h1 class="text-xl font-bold tracking-tight text-foreground">Idle Space Station</h1>
-      <p class="text-sm text-muted-foreground">
-        Dark-only tactical interface for steady orbital expansion.
-      </p>
+  <header data-testid="game-header" class="border-b border-border px-6 py-3">
+    <div
+      data-testid="game-header-hud"
+      class="mb-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-2"
+    >
+      <dl class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+        <div class="flex items-baseline gap-1.5" data-testid="header-stat-materials">
+          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Mat</dt>
+          <dd class="font-mono text-foreground tabular-nums">
+            {snapshot ? Math.floor(snapshot.resources.materials) : '—'}
+          </dd>
+          {#if snapshot && materialsRate !== 0}
+            <dd
+              class="font-mono text-xs tabular-nums {materialsRate > 0
+                ? 'text-emerald-400'
+                : 'text-rose-400'}"
+            >
+              {materialsRate > 0 ? '+' : ''}{materialsRate.toFixed(1)}/s
+            </dd>
+          {/if}
+        </div>
+
+        <div class="flex items-baseline gap-1.5" data-testid="header-stat-data">
+          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Data</dt>
+          <dd class="font-mono text-foreground tabular-nums">
+            {snapshot ? Math.floor(snapshot.resources.data) : '—'}
+          </dd>
+          {#if snapshot && dataRate !== 0}
+            <dd
+              class="font-mono text-xs tabular-nums {dataRate > 0
+                ? 'text-emerald-400'
+                : 'text-rose-400'}"
+            >
+              {dataRate > 0 ? '+' : ''}{dataRate.toFixed(1)}/s
+            </dd>
+          {/if}
+        </div>
+
+        <div class="flex items-baseline gap-1.5" data-testid="header-stat-crew">
+          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Crew</dt>
+          <dd class="font-mono text-foreground tabular-nums">
+            {#if snapshot}
+              {snapshot.resources.crew.assigned}<span class="text-muted-foreground"
+                >/{snapshot.resources.crew.total}</span
+              >
+            {:else}
+              —
+            {/if}
+          </dd>
+        </div>
+
+        <div class="flex items-baseline gap-1.5" data-testid="header-stat-power">
+          <dt class="text-xs tracking-wide text-muted-foreground uppercase">Pwr</dt>
+          <dd class="font-mono text-foreground tabular-nums">
+            {#if snapshot}
+              {snapshot.resources.power.available.toFixed(1)}<span class="text-muted-foreground"
+                >/{snapshot.resources.power.generated.toFixed(1)}</span
+              >
+            {:else}
+              —
+            {/if}
+          </dd>
+          {#if snapshot && powerRate !== 0}
+            <dd
+              class="font-mono text-xs tabular-nums {powerRate > 0
+                ? 'text-emerald-400'
+                : 'text-rose-400'}"
+            >
+              {powerRate > 0 ? '+' : ''}{powerRate.toFixed(1)}/s
+            </dd>
+          {/if}
+        </div>
+      </dl>
+
+      {#if overview}
+        <div class="flex flex-wrap items-center gap-2 text-xs" data-testid="header-context">
+          <span
+            class="inline-flex items-center rounded border border-border bg-card/50 px-2 py-0.5 font-mono text-muted-foreground"
+            data-testid="header-active-planet"
+          >
+            {overview.activePlanet.name}
+          </span>
+          <span
+            class="inline-flex items-center rounded border border-border bg-card/50 px-2 py-0.5 font-mono text-muted-foreground"
+            data-testid="header-station-tier"
+          >
+            Tier {overview.stationTier.current}/{overview.stationTier.max}
+          </span>
+        </div>
+      {/if}
     </div>
-    <div class="mb-3 flex items-center gap-2">
-      <span
-        class="inline-flex items-center rounded border border-border px-2 py-0.5 font-mono text-xs text-muted-foreground"
-        >Dock 03 // Dark Watch</span
-      >
-      <span
-        class="inline-flex items-center rounded border border-border px-2 py-0.5 font-mono text-xs text-muted-foreground"
-        >Beacon #0984e3</span
-      >
-    </div>
+
     <nav class="flex gap-4">
       <a href="/" class="text-sm text-muted-foreground transition-colors hover:text-foreground"
         >Overview</a

@@ -14,7 +14,7 @@ SvelteKit 2 SPA on Svelte 5 runes, Tailwind v4, and shadcn-svelte primitives. Th
 ```text
 src/
 ├── routes/                       # SPA routes + root layout + colocated tests
-│   ├── +layout.svelte            # 209 lines: header nav, devtools mount, gameState lifecycle, focus deferral, IPC events
+│   ├── +layout.svelte            # 315 lines: header HUD (resource strip + active-planet/tier context badges) + nav, devtools mount, gameState lifecycle, focus deferral, IPC events
 │   ├── +layout.ts                # SPA mode: ssr = false
 │   ├── layout.css                # Tailwind v4 entry + shadcn theme tokens + Inter font
 │   ├── +page.svelte              # 172 lines: Overview (5 StatPanels: Resources, Crew & Power, Station Tier, Service Utilization, Survey Progress)
@@ -119,7 +119,7 @@ src/
 - Do not add SSR-dependent code; the SPA + Tauri assumption is load-bearing.
 - Do not bypass shadcn-svelte composition when a matching primitive already exists.
 - Do not write raw class concatenation when `cn()` already covers the case.
-- Do not duplicate the global header nav inside individual route pages. The `<header data-testid="game-header">` nav in `routes/+layout.svelte` (lines 176–196) is the single source of truth for navigation. Use the header links (which support middle-click, right-click, and bookmarking) instead of in-page button navs.
+- Do not duplicate the global header nav inside individual route pages. The `<header data-testid="game-header">` in `routes/+layout.svelte` owns both the global resource HUD (Materials, Data, Crew ratio, Power capacity, each with signed per-second rate where applicable, plus active-planet and station-tier context badges — all driven directly from `gameState.snapshot`) and the nav links. Use the header links (which support middle-click, right-click, and bookmarking) instead of in-page button navs, and do not re-render the same at-a-glance resource numbers in a header-like band on individual routes — they already live in the global header. Per-route pages may still show deeper breakdowns (e.g. Overview's full Resources / Crew & Power panels via StatPanel + StatRow) since those serve a different purpose than the compact header HUD.
 
 ## UNIQUE STYLES
 
