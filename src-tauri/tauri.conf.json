@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "idle-spacestation",
+  "productName": "Idle Spacestation",
   "version": "0.1.0",
   "identifier": "com.shadowgate15.idle-spacestation",
   "build": {
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "idle-spacestation",
+        "title": "Idle Spacestation",
         "width": 800,
         "height": 600
       }
