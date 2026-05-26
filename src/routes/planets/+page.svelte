@@ -22,17 +22,18 @@
 
     <div data-testid="survey-progress" class="mb-8">
       <StatPanel heading="Survey Progress">
-        <StatRow kind="scalar" label="Current" value={planets.surveyProgress.current} />
+        {#if planets.surveyProgress.nextThreshold}
+          <StatRow
+            kind="progress"
+            label="Progress"
+            current={planets.surveyProgress.current}
+            goal={planets.surveyProgress.nextThreshold}
+          />
+        {:else}
+          <StatRow kind="scalar" label="Current" value={planets.surveyProgress.current} />
+        {/if}
         {#if planets.surveyProgress.nextPlanetName}
           <StatRow kind="label" label="Next Target" value={planets.surveyProgress.nextPlanetName} />
-          {#if planets.surveyProgress.nextThreshold}
-            <StatRow
-              kind="progress"
-              label="Threshold"
-              current={planets.surveyProgress.current}
-              goal={planets.surveyProgress.nextThreshold}
-            />
-          {/if}
         {/if}
       </StatPanel>
       {#if planets.surveyProgress.summary}

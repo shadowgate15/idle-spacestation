@@ -50,7 +50,12 @@
           </Card.Header>
           <Card.Content class="flex flex-col gap-4">
             <dl class="grid grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-2">
-              <StatRow kind="ratio" label="Level" used={system.level} total={system.maxLevel} />
+              <StatRow
+                kind="progress"
+                label="Level"
+                current={system.level}
+                goal={system.maxLevel}
+              />
               {#each system.capValues as cap (cap.key)}
                 <StatRow kind="scalar" label={cap.label} value={cap.value} unit={cap.unit} />
               {/each}

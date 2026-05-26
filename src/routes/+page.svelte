@@ -65,7 +65,7 @@
       {/if}
     </section>
 
-    <div class="mb-8 grid gap-6 lg:grid-cols-2">
+    <div data-testid="stockpile-strip" class="mb-8 grid gap-6 lg:grid-cols-2">
       <StatPanel heading="Resources" data-testid="resource-strip">
         <StatRow
           kind="stock"
@@ -150,21 +150,28 @@
       </div>
 
       <StatPanel heading="Survey Progress" data-testid="survey-panel" id="survey-panel">
-        <StatRow kind="scalar" label="Current" value={overview.surveyProgress.current} />
+        {#if overview.surveyProgress.nextThreshold}
+          <StatRow
+            kind="progress"
+            label="Progress"
+            current={overview.surveyProgress.current}
+            goal={overview.surveyProgress.nextThreshold}
+          />
+        {:else}
+          <StatRow kind="scalar" label="Current" value={overview.surveyProgress.current} />
+        {/if}
+        <StatRow
+          kind="stock"
+          label="Rate"
+          value={overview.surveyProgress.current}
+          perSecond={rateFor('crew', deltas)}
+        />
         {#if overview.surveyProgress.nextPlanetName}
           <StatRow
             kind="label"
             label="Next Target"
             value={overview.surveyProgress.nextPlanetName}
           />
-          {#if overview.surveyProgress.nextThreshold}
-            <StatRow
-              kind="progress"
-              label="Threshold"
-              current={overview.surveyProgress.current}
-              goal={overview.surveyProgress.nextThreshold}
-            />
-          {/if}
         {/if}
       </StatPanel>
     </div>

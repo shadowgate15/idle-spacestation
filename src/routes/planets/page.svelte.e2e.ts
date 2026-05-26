@@ -37,7 +37,7 @@ test.describe('Planets page with live data', () => {
     await page.goto('/planets');
 
     const surveyProgress = page.getByTestId('survey-progress');
-    await expect(surveyProgress.getByText(/Current/).first()).toBeVisible();
+    await expect(surveyProgress.getByText(/Progress/).first()).toBeVisible();
     await expect(surveyProgress.getByText(/Next Target/)).toBeVisible();
     await expect(surveyProgress.getByText('Cinder Forge', { exact: true })).toBeVisible();
     await expect(surveyProgress.getByText('0 / 600', { exact: true })).toBeVisible();

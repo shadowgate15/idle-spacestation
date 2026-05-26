@@ -37,7 +37,7 @@
       data-testid="eligibility-panel"
       class="mb-8 rounded-lg border border-border bg-card p-4"
     >
-      <h3 class="mb-3 text-base font-semibold text-foreground">Eligibility Status</h3>
+      <h3 class="mb-3 text-lg font-semibold text-foreground">Eligibility Status</h3>
 
       {#if prestige.eligibility.eligible}
         <div class="mb-4 rounded-lg border border-emerald-500 bg-emerald-950/30 p-4">
