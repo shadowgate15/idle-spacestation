@@ -60,12 +60,6 @@
                 <StatRow kind="scalar" label={cap.label} value={cap.value} unit={cap.unit} />
               {/each}
             </dl>
-
-            {#if system.upgradeBlockedReason}
-              <p class="text-sm text-muted-foreground">
-                {system.upgradeBlockedReason}
-              </p>
-            {/if}
           </Card.Content>
           <Card.Footer>
             {#if system.canUpgrade}
