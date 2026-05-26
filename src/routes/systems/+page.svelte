@@ -5,6 +5,7 @@
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
   import * as Card from '$lib/components/ui/card';
   import Button from '$lib/components/ui/button/button.svelte';
+  import { StatRow } from '$lib/components/ui/stat-row';
 
   let inflight = $state<Set<string>>(new Set());
 
@@ -48,22 +49,15 @@
             <Card.Description>{system.description}</Card.Description>
           </Card.Header>
           <Card.Content class="flex flex-col gap-4">
-            <div class="flex items-center gap-4">
-              <span class="text-sm text-muted-foreground">Level</span>
-              <span class="text-lg font-bold text-foreground">
-                {system.level} / {system.maxLevel}
-              </span>
-            </div>
-
-            <dl class="flex flex-col gap-2">
+            <dl class="grid grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-2">
+              <StatRow
+                kind="progress"
+                label="Level"
+                current={system.level}
+                goal={system.maxLevel}
+              />
               {#each system.capValues as cap (cap.key)}
-                <div class="flex justify-between">
-                  <dt class="text-sm text-muted-foreground">{cap.label}</dt>
-                  <dd class="text-sm font-medium text-foreground">
-                    {cap.value}
-                    {cap.unit}
-                  </dd>
-                </div>
+                <StatRow kind="scalar" label={cap.label} value={cap.value} unit={cap.unit} />
               {/each}
             </dl>
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
-  import { StatTile } from '$lib/components/ui/stat-tile';
+  import { StatPanel } from '$lib/components/ui/stat-panel';
+  import { StatRow } from '$lib/components/ui/stat-row';
 
   function getPlanetStatusClass(discovered: boolean, active: boolean): string {
     if (active) return 'border-emerald-500 bg-emerald-950/30';
@@ -19,23 +20,28 @@
       </p>
     </section>
 
-    <section data-testid="survey-progress" class="mb-8 rounded-lg border border-border bg-card p-4">
-      <h3 class="mb-3 text-base font-semibold text-foreground">Survey Progress</h3>
-      <dl class="flex flex-wrap gap-6">
-        <StatTile label="Current" value={planets.surveyProgress.current} />
-        {#if planets.surveyProgress.nextPlanetName}
-          <StatTile label="Next Target" value={planets.surveyProgress.nextPlanetName} />
-          {#if planets.surveyProgress.nextThreshold}
-            <StatTile label="Threshold" value={planets.surveyProgress.nextThreshold} />
-          {/if}
+    <div data-testid="survey-progress" class="mb-8">
+      <StatPanel heading="Survey Progress">
+        {#if planets.surveyProgress.nextThreshold}
+          <StatRow
+            kind="progress"
+            label="Progress"
+            current={planets.surveyProgress.current}
+            goal={planets.surveyProgress.nextThreshold}
+          />
+        {:else}
+          <StatRow kind="scalar" label="Current" value={planets.surveyProgress.current} />
         {/if}
-      </dl>
+        {#if planets.surveyProgress.nextPlanetName}
+          <StatRow kind="label" label="Next Target" value={planets.surveyProgress.nextPlanetName} />
+        {/if}
+      </StatPanel>
       {#if planets.surveyProgress.summary}
         <p class="mt-2 text-sm text-muted-foreground">
           {planets.surveyProgress.summary}
         </p>
       {/if}
-    </section>
+    </div>
 
     <section data-testid="planets-list" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {#each planets.planets as planet (planet.id)}

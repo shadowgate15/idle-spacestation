@@ -1,6 +1,6 @@
 <script lang="ts">
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
-  import { StatTile } from '$lib/components/ui/stat-tile';
+  import { StatRow } from '$lib/components/ui/stat-row';
 
   let showResetConsequences = $state(false);
   let confirmPrestige = $state(false);
@@ -37,7 +37,7 @@
       data-testid="eligibility-panel"
       class="mb-8 rounded-lg border border-border bg-card p-4"
     >
-      <h3 class="mb-3 text-base font-semibold text-foreground">Eligibility Status</h3>
+      <h3 class="mb-3 text-lg font-semibold text-foreground">Eligibility Status</h3>
 
       {#if prestige.eligibility.eligible}
         <div class="mb-4 rounded-lg border border-emerald-500 bg-emerald-950/30 p-4">
@@ -61,12 +61,14 @@
         </ul>
       {/if}
 
-      <dl class="mt-4 flex items-center gap-4">
-        <StatTile
+      <dl class="mt-4 grid grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-2">
+        <StatRow
+          kind="progress"
           label="Stable Power Time"
-          value="{formatTime(prestige.eligibility.stablePowerSeconds)} / {formatTime(
-            prestige.eligibility.requiredStablePowerSeconds,
-          )}"
+          current={prestige.eligibility.stablePowerSeconds}
+          goal={prestige.eligibility.requiredStablePowerSeconds}
+          formattedCurrent={formatTime(prestige.eligibility.stablePowerSeconds)}
+          formattedGoal={formatTime(prestige.eligibility.requiredStablePowerSeconds)}
         />
       </dl>
     </section>

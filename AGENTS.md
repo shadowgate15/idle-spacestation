@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-05-08
-**Commit:** f4c4b51
+**Generated:** 2026-05-26
+**Commit:** 0e7f0db
 **Branch:** main
 
 ## OVERVIEW
@@ -77,7 +77,7 @@ Before declaring a task complete, decide whether your changes invalidate any AGE
 | Reactive snapshot store    | `src/lib/game/api/state.svelte.ts`                                 | `gameState` rune singleton: `init/dispose/snapshot/status/error/applySnapshot`                                                                                               |
 | Test fixtures + transport  | `src/lib/game/api/testing/`                                        | `fixtures.ts` + `transport.ts` (971, fixture transport notifies subscribers)                                                                                                 |
 | Devtools overlay & panels  | `src/lib/components/DevtoolsOverlay.svelte`, `…/devtools/`         | 6 panels, each `Panel.svelte` + `panel-state.svelte.ts` + tests; `sync(snapshot)`                                                                                            |
-| Shared UI primitives       | `src/lib/components/ui/`                                           | shadcn-svelte primitives: `button/`, `card/` (7 parts), `input/`                                                                                                             |
+| Shared UI primitives       | `src/lib/components/ui/`                                           | shadcn-svelte primitives: `button/`, `card/` (7 parts), `input/`, `stat-tile/`, `stat-panel/`, `stat-row/` (the last two compose the grouped-row layout on Overview)         |
 | Shared frontend helpers    | `src/lib/utils.ts`                                                 | `cn()` plus `WithoutChild`, `WithoutChildren`, `WithElementRef` type helpers                                                                                                 |
 | Rust commands & state      | `src-tauri/src/lib.rs`                                             | 405 lines: builder, `GameState`, `LastEmittedSnapshot`, `commit_and_emit`, tick                                                                                              |
 | Event emission helper      | `src-tauri/src/lib.rs` (`commit_and_emit`)                         | Fires `game://state-changed` only when `state_equals()` reports a diff                                                                                                       |
