@@ -98,15 +98,18 @@ describe('createApplyPanelState', () => {
     expect(state.isDirty).toBe(false);
   });
 
-  it('sets invalid_range and skips the gateway for invalid drafts', async () => {
+  it('sets invalid_range, skips the gateway, and reverts the draft to the baseline for invalid drafts', async () => {
     const applyToGateway = vi.fn<(draft: ResourceDraft) => Promise<ApplyResponse>>();
     const { state } = createResourcePanelState(createSnapshot(3, 5), applyToGateway);
 
     state.draft.materials = -1;
+    state.draft.data = 999999;
     await state.apply();
 
     expect(state.errorMessage).toBe('invalid_range');
     expect(applyToGateway).not.toHaveBeenCalled();
+    expect(state.draft).toEqual({ materials: 3, data: 5 });
+    expect(state.isDirty).toBe(false);
   });
 
   it('sets isApplying during a valid gateway call and clears it in finally', async () => {

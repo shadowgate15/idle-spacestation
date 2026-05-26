@@ -63,9 +63,10 @@ test.describe('Overview page with live data', () => {
     });
     await page.goto('/');
 
-    await expect(page.getByRole('button', { name: /Systems/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Services/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Planets/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Prestige/i })).toBeVisible();
+    const header = page.getByTestId('game-header');
+    await expect(header.getByRole('link', { name: /Systems/i })).toBeVisible();
+    await expect(header.getByRole('link', { name: /Services/i })).toBeVisible();
+    await expect(header.getByRole('link', { name: /Planets/i })).toBeVisible();
+    await expect(header.getByRole('link', { name: /Prestige/i })).toBeVisible();
   });
 });

@@ -110,10 +110,11 @@ test.describe('Systems page with live data', () => {
     });
     await page.goto('/systems');
 
-    await expect(page.getByRole('button', { name: /Overview/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Services/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Planets/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Prestige/i })).toBeVisible();
+    const header = page.getByTestId('game-header');
+    await expect(header.getByRole('link', { name: /Overview/i })).toBeVisible();
+    await expect(header.getByRole('link', { name: /Services/i })).toBeVisible();
+    await expect(header.getByRole('link', { name: /Planets/i })).toBeVisible();
+    await expect(header.getByRole('link', { name: /Prestige/i })).toBeVisible();
   });
 
   test('navigates to services page', async ({ page }) => {
@@ -122,7 +123,10 @@ test.describe('Systems page with live data', () => {
     });
     await page.goto('/systems');
 
-    await page.getByRole('button', { name: /Services/i }).click();
+    await page
+      .getByTestId('game-header')
+      .getByRole('link', { name: /Services/i })
+      .click();
 
     await expect(page).toHaveURL(/services/);
   });

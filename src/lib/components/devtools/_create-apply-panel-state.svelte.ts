@@ -74,6 +74,11 @@ export function createApplyPanelState<TDraft, TResponse extends ApplyResponse>(
   async function apply() {
     if (!options.isValid(draft)) {
       errorMessage = 'invalid_range';
+      // Revert the draft to the last-seeded baseline so the UI snaps back to
+      // the last-known-good value instead of leaving the rejected input on
+      // screen. Mirrors the reseed-on-rejection behavior we already do for
+      // backend failures below.
+      applySeedToDraft(options.cloneDraft(lastSeededDraft));
       return;
     }
 
