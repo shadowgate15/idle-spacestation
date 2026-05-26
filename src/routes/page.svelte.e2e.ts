@@ -13,9 +13,13 @@ test.describe('Overview page with live data', () => {
 
     const resourceStrip = page.getByTestId('resource-strip');
     await expect(resourceStrip).toBeVisible();
-    await expect(resourceStrip.getByText('Power')).toBeVisible();
     await expect(resourceStrip.getByText('Materials')).toBeVisible();
     await expect(resourceStrip.getByText('Data')).toBeVisible();
+
+    const crewPowerPanel = page.getByTestId('crew-power-panel');
+    await expect(crewPowerPanel).toBeVisible();
+    await expect(crewPowerPanel.getByText('Power')).toBeVisible();
+    await expect(crewPowerPanel.getByText('Crew')).toBeVisible();
 
     const overviewPanel = page.getByTestId('overview-panel');
     await expect(overviewPanel).toBeVisible();
