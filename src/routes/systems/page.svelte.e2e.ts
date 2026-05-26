@@ -24,7 +24,8 @@ test.describe('Systems page with live data', () => {
 
     const reactorCore = page.locator('[data-slot="card"]').filter({ hasText: 'Reactor Core' });
     await expect(reactorCore).toBeVisible();
-    await expect(reactorCore.getByText('Level 1 / 4')).toBeVisible();
+    await expect(reactorCore.getByText('Level', { exact: true })).toBeVisible();
+    await expect(reactorCore.getByText('1 / 4', { exact: true })).toBeVisible();
     await expect(reactorCore.getByText('Power output', { exact: true })).toBeVisible();
     await expect(reactorCore.getByText('8 power').first()).toBeVisible();
     await expect(reactorCore.getByText('Service power cap', { exact: true })).toBeVisible();
@@ -132,6 +133,6 @@ test.describe('Systems page with live data', () => {
     });
     await page.goto('/systems');
 
-    await expect(page.getByText('Level 3 / 4').first()).toBeVisible();
+    await expect(page.getByText('3 / 4').first()).toBeVisible();
   });
 });

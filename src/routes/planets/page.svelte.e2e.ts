@@ -40,7 +40,7 @@ test.describe('Planets page with live data', () => {
     await expect(surveyProgress.getByText(/Current/).first()).toBeVisible();
     await expect(surveyProgress.getByText(/Next Target/)).toBeVisible();
     await expect(surveyProgress.getByText('Cinder Forge', { exact: true })).toBeVisible();
-    await expect(surveyProgress.getByText('600', { exact: true })).toBeVisible();
+    await expect(surveyProgress.getByText('0 / 600', { exact: true })).toBeVisible();
   });
 
   test('displays planet modifiers', async ({ page }) => {

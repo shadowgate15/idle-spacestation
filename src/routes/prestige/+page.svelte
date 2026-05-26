@@ -1,6 +1,6 @@
 <script lang="ts">
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
-  import { StatTile } from '$lib/components/ui/stat-tile';
+  import { StatRow } from '$lib/components/ui/stat-row';
 
   let showResetConsequences = $state(false);
   let confirmPrestige = $state(false);
@@ -61,12 +61,14 @@
         </ul>
       {/if}
 
-      <dl class="mt-4 flex items-center gap-4">
-        <StatTile
+      <dl class="mt-4 grid grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-2">
+        <StatRow
+          kind="progress"
           label="Stable Power Time"
-          value="{formatTime(prestige.eligibility.stablePowerSeconds)} / {formatTime(
-            prestige.eligibility.requiredStablePowerSeconds,
-          )}"
+          current={prestige.eligibility.stablePowerSeconds}
+          goal={prestige.eligibility.requiredStablePowerSeconds}
+          formattedCurrent={formatTime(prestige.eligibility.stablePowerSeconds)}
+          formattedGoal={formatTime(prestige.eligibility.requiredStablePowerSeconds)}
         />
       </dl>
     </section>

@@ -11,7 +11,8 @@
   import SnapshotGuard from '$lib/components/SnapshotGuard.svelte';
   import * as Card from '$lib/components/ui/card';
   import Button from '$lib/components/ui/button/button.svelte';
-  import { StatTile } from '$lib/components/ui/stat-tile';
+  import { StatPanel } from '$lib/components/ui/stat-panel';
+  import { StatRow } from '$lib/components/ui/stat-row';
 
   let inflight = $state<Set<string>>(new Set());
 
@@ -75,13 +76,15 @@
       </p>
     </section>
 
-    <section class="mb-8 rounded-lg border border-border bg-card p-4">
-      <dl class="flex flex-wrap gap-6">
-        <StatTile label="Active" value={services.utilization.active} />
-        <StatTile label="Capacity" value={services.utilization.capacity} />
-        <StatTile label="Available" value={services.utilization.available} />
-      </dl>
-    </section>
+    <StatPanel heading="Service Utilization" data-testid="services-utilization" class="mb-8">
+      <StatRow
+        kind="ratio"
+        label="Active"
+        used={services.utilization.active}
+        total={services.utilization.capacity}
+      />
+      <StatRow kind="scalar" label="Available" value={services.utilization.available} />
+    </StatPanel>
 
     {#if services.deficitWarnings.length > 0}
       <section data-testid="deficit-warnings" class="mb-8 flex flex-col gap-2">
@@ -117,30 +120,26 @@
               </span>
             </div>
 
-            <div class="flex flex-wrap gap-4">
-              <div class="flex flex-col">
-                <span class="text-xs tracking-wide text-muted-foreground uppercase"> Crew </span>
-                <span class="text-sm font-medium text-foreground">
-                  {service.crewAssignment.current} / {service.crewAssignment.required}
-                </span>
-              </div>
-              <div class="flex flex-col">
-                <span class="text-xs tracking-wide text-muted-foreground uppercase">
-                  Power Upkeep
-                </span>
-                <span class="text-sm font-medium text-foreground">
-                  {service.powerUsage.upkeep} /s
-                </span>
-              </div>
-              <div class="flex flex-col">
-                <span class="text-xs tracking-wide text-muted-foreground uppercase">
-                  Power Output
-                </span>
-                <span class="text-sm font-medium text-foreground">
-                  +{service.powerUsage.output} /s
-                </span>
-              </div>
-            </div>
+            <dl class="grid grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-2">
+              <StatRow
+                kind="ratio"
+                label="Crew"
+                used={service.crewAssignment.current}
+                total={service.crewAssignment.required}
+              />
+              <StatRow
+                kind="scalar"
+                label="Power Upkeep"
+                value={`${service.powerUsage.upkeep}`}
+                unit="/s"
+              />
+              <StatRow
+                kind="scalar"
+                label="Power Output"
+                value={`+${service.powerUsage.output}`}
+                unit="/s"
+              />
+            </dl>
 
             {#if service.disabledReasons.length > 0}
               <div class="flex flex-col gap-1 rounded border border-rose-500/50 bg-rose-950/20 p-3">

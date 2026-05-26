@@ -18,8 +18,8 @@ test.describe('Overview page with live data', () => {
 
     const crewPowerPanel = page.getByTestId('crew-power-panel');
     await expect(crewPowerPanel).toBeVisible();
-    await expect(crewPowerPanel.getByText('Power')).toBeVisible();
-    await expect(crewPowerPanel.getByText('Crew')).toBeVisible();
+    await expect(crewPowerPanel.getByText('Power', { exact: true })).toBeVisible();
+    await expect(crewPowerPanel.getByText('Crew', { exact: true })).toBeVisible();
 
     const overviewPanel = page.getByTestId('overview-panel');
     await expect(overviewPanel).toBeVisible();
